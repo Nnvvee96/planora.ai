@@ -2,76 +2,21 @@
 import llmService from "../services/llmService";
 import { generateChatName } from "./chatUtils";
 
-export const handleSendMessage = async (
-  userInput,
-  messages,
-  setMessages,
-  chatName,
-  setChatName,
-  tripDetails,
-  setTripDetails,
-  step,
-  setStep,
-  user
-) => {
-  if (!userInput.trim()) return;
-
-  const newMessages = [...messages, { sender: "user", text: userInput }];
-  setMessages(newMessages);
-
-  if (newMessages.length === 1) {
-    setChatName(generateChatName(userInput));
+const handleError = (error, setMessages, tripDetails) => {
+  let errorMessage = "I ran into an issue.";
+  if (error.response?.status === 429) {
+    errorMessage = "I’ve hit a rate limit with the API. Please wait a moment and try again.";
   }
+  setMessages((prev) => [
+    ...prev,
+    {
+      sender: "bot",
+      text: `${errorMessage} For now, I suggest a relaxed trip to ${tripDetails.destination || "a popular destination"}. Would you like to proceed or try again?`,
+    },
+  ]);
+};
 
-  // Check for off-topic input
-  const lowerInput = userInput.toLowerCase();
-  if (
-    !lowerInput.includes("trip") &&
-    !lowerInput.includes("travel") &&
-    !lowerInput.includes("vacation") &&
-    !lowerInput.includes("destination") &&
-    !lowerInput.includes("budget") &&
-    !lowerInput.includes("month") &&
-    !lowerInput.includes("duration") &&
-    !lowerInput.includes("recommend") &&
-    !lowerInput.includes("hotel") &&
-    !lowerInput.includes("airbnb") &&
-    !lowerInput.includes("hostel") &&
-    !lowerInput.includes("bathroom") &&
-    !lowerInput.includes("explore") &&
-    !lowerInput.includes("adjust") &&
-    !lowerInput.includes("yes") &&
-    !lowerInput.includes("no")
-  ) {
-    setMessages((prev) => [
-      ...prev,
-      {
-        sender: "bot",
-        text: "I’m sorry, I can only help with travel planning. Let’s plan a trip—where would you like to go, or do you need a recommendation?",
-      },
-    ]);
-    return;
-  }
-
-  // Extract parameters using LLMService
-  const extractedParams = await llmService.extractParameters(userInput);
-
-  // Update tripDetails with extracted parameters
-  const updatedTripDetails = {
-    budget: extractedParams.budget || tripDetails.budget,
-    travelMonth: extractedParams.travelMonth || tripDetails.travelMonth,
-    duration: extractedParams.duration || tripDetails.duration,
-    destination: extractedParams.destination || tripDetails.destination,
-    travelStyle: tripDetails.travelStyle,
-    accommodationType: extractedParams.accommodationType || tripDetails.accommodationType,
-    requiresPrivateBathroom:
-      extractedParams.requiresPrivateBathroom !== null
-        ? extractedParams.requiresPrivateBathroom
-        : tripDetails.requiresPrivateBathroom,
-  };
-  setTripDetails(updatedTripDetails);
-
-  // Determine missing information and ask for it
+const determineNextStep = (updatedTripDetails, step, setMessages, setStep) => {
   if (!updatedTripDetails.budget && step !== "budget") {
     setMessages((prev) => [
       ...prev,
@@ -111,8 +56,80 @@ export const handleSendMessage = async (
       { sender: "bot", text: "Do you require a private bathroom? (Yes/No)" },
     ]);
     setStep("privateBathroom");
-  } else {
-    // All parameters are filled, proceed to recommendations
+  }
+  return step === "recommendations" || step === "details" || step === "adjust";
+};
+
+export const handleSendMessage = async (
+  userInput,
+  messages,
+  setMessages,
+  chatName,
+  setChatName,
+  tripDetails,
+  setTripDetails,
+  step,
+  setStep,
+  user
+) => {
+  if (!userInput.trim()) return;
+
+  const newMessages = [...messages, { sender: "user", text: userInput }];
+  setMessages(newMessages);
+
+  if (newMessages.length === 1) {
+    setChatName(generateChatName(userInput));
+  }
+
+  const lowerInput = userInput.toLowerCase();
+  if (
+    !lowerInput.includes("trip") &&
+    !lowerInput.includes("travel") &&
+    !lowerInput.includes("vacation") &&
+    !lowerInput.includes("destination") &&
+    !lowerInput.includes("budget") &&
+    !lowerInput.includes("month") &&
+    !lowerInput.includes("duration") &&
+    !lowerInput.includes("recommend") &&
+    !lowerInput.includes("hotel") &&
+    !lowerInput.includes("airbnb") &&
+    !lowerInput.includes("hostel") &&
+    !lowerInput.includes("bathroom") &&
+    !lowerInput.includes("explore") &&
+    !lowerInput.includes("adjust") &&
+    !lowerInput.includes("yes") &&
+    !lowerInput.includes("no")
+  ) {
+    setMessages((prev) => [
+      ...prev,
+      {
+        sender: "bot",
+        text: "I’m sorry, I can only help with travel planning. Let’s plan a trip—where would you like to go, or do you need a recommendation?",
+      },
+    ]);
+    return;
+  }
+
+  const extractedParams = await llmService.extractParameters(userInput).catch((error) => {
+    handleError(error, setMessages, tripDetails);
+    return {};
+  });
+
+  const updatedTripDetails = {
+    budget: extractedParams.budget || tripDetails.budget,
+    travelMonth: extractedParams.travelMonth || tripDetails.travelMonth,
+    duration: extractedParams.duration || tripDetails.duration,
+    destination: extractedParams.destination || tripDetails.destination,
+    travelStyle: tripDetails.travelStyle,
+    accommodationType: extractedParams.accommodationType || tripDetails.accommodationType,
+    requiresPrivateBathroom:
+      extractedParams.requiresPrivateBathroom !== null
+        ? extractedParams.requiresPrivateBathroom
+        : tripDetails.requiresPrivateBathroom,
+  };
+  setTripDetails(updatedTripDetails);
+
+  if (determineNextStep(updatedTripDetails, step, setMessages, setStep)) {
     if (step !== "recommendations" && step !== "details" && step !== "adjust") {
       setMessages((prev) => [
         ...prev,
@@ -132,17 +149,7 @@ export const handleSendMessage = async (
             },
           ]);
         } catch (error) {
-          let errorMessage = "I ran into an issue while fetching recommendations.";
-          if (error.response?.status === 429) {
-            errorMessage = "I’ve hit a rate limit with the API. Please wait a moment and try again.";
-          }
-          setMessages((prev) => [
-            ...prev,
-            {
-              sender: "bot",
-              text: `${errorMessage} For now, I suggest a relaxed trip to ${updatedTripDetails.destination}. Would you like to proceed or try again?`,
-            },
-          ]);
+          handleError(error, setMessages, updatedTripDetails);
         }
       }, 1000);
     } else if (step === "recommendations") {
@@ -175,10 +182,8 @@ export const handleSendMessage = async (
           try {
             const prompt = `Suggest a travel destination for a budget of $${updatedTripDetails.budget}, traveling in ${updatedTripDetails.travelMonth}, for ${updatedTripDetails.duration}, preferring a ${updatedTripDetails.travelStyle || "relaxed"} vacation. Recommend a specific city or region that fits the budget and travel style. Provide a brief suggestion in 2-3 sentences.`;
             const recommendation = await llmService.generateResponse(prompt);
-            setTripDetails({
-              ...updatedTripDetails,
-              destination: recommendation.split("\n")[0].replace("Destination: ", ""),
-            });
+            const newDestination = recommendation.split("\n")[0].replace("Destination: ", "");
+            setTripDetails({ ...updatedTripDetails, destination: newDestination });
             setMessages((prev) => [
               ...prev,
               {
@@ -188,18 +193,7 @@ export const handleSendMessage = async (
             ]);
             setStep("accommodationType");
           } catch (error) {
-            let errorMessage = "I ran into an issue while fetching a recommendation.";
-            if (error.response?.status === 429) {
-              errorMessage = "I’ve hit a rate limit with the API. Please wait a moment and try again.";
-            }
-            setMessages((prev) => [
-              ...prev,
-              {
-                sender: "bot",
-                text: `${errorMessage} For now, I suggest Barcelona, Spain. Let me know if you'd like to proceed.`,
-              },
-            ]);
-            setStep("accommodationType");
+            handleError(error, setMessages, updatedTripDetails);
           }
         }, 1000);
       } else if (input.includes("try again")) {
@@ -219,17 +213,7 @@ export const handleSendMessage = async (
               },
             ]);
           } catch (error) {
-            let errorMessage = "I ran into an issue while fetching recommendations.";
-            if (error.response?.status === 429) {
-              errorMessage = "I’ve hit a rate limit with the API. Please wait a moment and try again.";
-            }
-            setMessages((prev) => [
-              ...prev,
-              {
-                sender: "bot",
-                text: `${errorMessage} For now, I suggest a relaxed trip to ${updatedTripDetails.destination}. Would you like to proceed or try again?`,
-              },
-            ]);
+            handleError(error, setMessages, updatedTripDetails);
           }
         }, 1000);
       } else {
@@ -258,17 +242,7 @@ export const handleSendMessage = async (
             },
           ]);
         } catch (error) {
-          let errorMessage = "I ran into an issue while fetching details.";
-          if (error.response?.status === 429) {
-            errorMessage = "I’ve hit a rate limit with the API. Please wait a moment and try again.";
-          }
-          setMessages((prev) => [
-            ...prev,
-            {
-              sender: "bot",
-              text: `${errorMessage} For now, I suggest checking online resources for ${userInput} in ${updatedTripDetails.destination}. Would you like to try again?`,
-            },
-          ]);
+          handleError(error, setMessages, updatedTripDetails);
         }
       }, 1000);
     } else if (step === "adjust") {

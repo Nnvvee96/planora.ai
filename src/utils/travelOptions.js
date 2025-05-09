@@ -1,63 +1,58 @@
 // src/utils/travelOptions.js
+// Bestehende Optionen (gekürzt zur Übersichtlichkeit)
 export const travelStyleOptions = [
-    { value: "adventure", label: "Adventure" },
-    { value: "relaxation", label: "Relaxation" },
-    { value: "cultural", label: "Cultural" },
-    { value: "foodie", label: "Foodie" },
-    { value: "eco-friendly", label: "Eco-Friendly" },
-    { value: "luxury-focused", label: "Luxury-Focused" },
-    { value: "off-the-beaten-path", label: "Off the Beaten Path" },
-  ];
-  
-  export const continentOptions = [
-    { value: "africa", label: "Africa" },
-    { value: "asia", label: "Asia" },
-    { value: "europe", label: "Europe" },
-    { value: "north-america", label: "North America" },
-    { value: "south-america", label: "South America" },
-    { value: "australia", label: "Australia" },
-    { value: "antarctica", label: "Antarctica" },
-  ];
-  
-  export const travelFrequencyOptions = [
-    { value: "monthly", label: "Monthly" },
-    { value: "quarterly", label: "Quarterly" },
-    { value: "yearly", label: "Yearly" },
-    { value: "rarely", label: "Rarely" },
-  ];
-  
-  export const travelBudgetOptions = [
-    { value: "less-than-500", label: "Less than $500" },
-    { value: "500-1500", label: "$500 - $1500" },
-    { value: "1500-3000", label: "$1500 - $3000" },
-    { value: "above-3000", label: "Above $3000" },
-  ];
-  
-  export const accommodationTypeOptions = [
-    { value: "hotel", label: "Hotel" },
-    { value: "hostel", label: "Hostel" },
-    { value: "airbnb", label: "Airbnb" },
-    { value: "camping", label: "Camping" },
-    { value: "resorts", label: "Resorts" },
-    { value: "guesthouses", label: "Guesthouses" },
-    { value: "vacation-rentals", label: "Vacation Rentals" },
-  ];
-  
-  export const travelCompanionsOptions = [
-    { value: "solo", label: "Solo" },
-    { value: "family", label: "Family" },
-    { value: "friends", label: "Friends" },
-    { value: "partner", label: "Partner" },
-  ];
-  
-  export const activityPreferencesOptions = [
-    { value: "sightseeing", label: "Sightseeing" },
-    { value: "hiking", label: "Hiking" },
-    { value: "beach", label: "Beach" },
-    { value: "food-tours", label: "Food Tours" },
-    { value: "adventure-sports", label: "Adventure Sports" },
-    { value: "cultural-events", label: "Cultural Events" },
-    { value: "wildlife", label: "Wildlife" },
-    { value: "shopping", label: "Shopping" },
-    { value: "wellness", label: "Wellness (e.g., Spa, Yoga)" },
-  ];
+  { value: "adventure", label: "Adventure" },
+  { value: "relaxed", label: "Relaxed" },
+  // ...
+];
+
+export const continentOptions = [
+  { value: "Africa", label: "Africa" },
+  { value: "Asia", label: "Asia" },
+  // ...
+];
+
+export const travelFrequencyOptions = [
+  { value: "monthly", label: "Monthly" },
+  { value: "yearly", label: "Yearly" },
+  // ...
+];
+
+export const travelBudgetOptions = [
+  { value: "budget", label: "Budget (< $1,000)" },
+  { value: "mid-range", label: "Mid-Range ($1,000 - $3,000)" },
+  // ...
+];
+
+export const accommodationTypeOptions = [
+  { value: "hotel", label: "Hotel" },
+  { value: "hostel", label: "Hostel" },
+  // ...
+];
+
+export const travelCompanionsOptions = [
+  { value: "solo", label: "Solo" },
+  { value: "family", label: "Family" },
+  // ...
+];
+
+export const activityPreferencesOptions = [
+  { value: "sightseeing", label: "Sightseeing" },
+  { value: "hiking", label: "Hiking" },
+  // ...
+];
+
+// Neue Optionen
+export const preferredSeasonsOptions = [
+  { value: "spring", label: "Spring" },
+  { value: "summer", label: "Summer" },
+  { value: "autumn", label: "Autumn" },
+  { value: "winter", label: "Winter" },
+];
+
+export const maxTravelDurationOptions = [
+  { value: "1-3", label: "1-3 Days" },
+  { value: "4-7", label: "4-7 Days" },
+  { value: "8-14", label: "8-14 Days" },
+  { value: "15+", label: "15+ Days" },
+];

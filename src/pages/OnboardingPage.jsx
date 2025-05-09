@@ -14,6 +14,8 @@ import {
   accommodationTypeOptions,
   travelCompanionsOptions,
   activityPreferencesOptions,
+  preferredSeasonsOptions,
+  maxTravelDurationOptions,
 } from "../utils/travelOptions";
 
 function OnboardingPage() {
@@ -28,23 +30,9 @@ function OnboardingPage() {
     accommodationTypes: user?.travelPreferences?.accommodationTypes || [],
     travelCompanions: user?.travelPreferences?.travelCompanions || "",
     activityPreferences: user?.travelPreferences?.activityPreferences || [],
-    preferredSeasons: "", // Neue Erweiterung
-    maxTravelDuration: "", // Neue Erweiterung
+    preferredSeasons: "",
+    maxTravelDuration: "",
   });
-
-  const preferredSeasonsOptions = [
-    { value: "spring", label: "Spring" },
-    { value: "summer", label: "Summer" },
-    { value: "autumn", label: "Autumn" },
-    { value: "winter", label: "Winter" },
-  ];
-
-  const maxTravelDurationOptions = [
-    { value: "1-3", label: "1-3 Days" },
-    { value: "4-7", label: "4-7 Days" },
-    { value: "8-14", label: "8-14 Days" },
-    { value: "15+", label: "15+ Days" },
-  ];
 
   const handleTravelSelectChange = (name, selectedOption) => {
     if (Array.isArray(selectedOption)) {

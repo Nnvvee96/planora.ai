@@ -112,9 +112,6 @@ export const UPGRADE_PLAN_PAGE_CLASSES = {
   text: "text-gray-200",
 };
 
-// src/utils/constants.js
-// ... (bestehende Inhalte)
-
 export const PLAN_TRIP_PAGE_CLASSES = {
   container: "min-h-screen bg-gray-900 text-gray-200 flex flex-col",
   header: "flex justify-between items-center p-4 bg-gray-800 border-b border-gray-600",

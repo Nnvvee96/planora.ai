@@ -1,10 +1,9 @@
-// src/pages/HomePage.jsx
 import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { features } from "../data/features";
+import { features } from "../data/features.jsx"; // Aktualisierte Endung
 import { fadeInUpVariants, containerVariants } from "../utils/animationUtils";
 
 function HomePage() {

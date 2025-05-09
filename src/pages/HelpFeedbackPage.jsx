@@ -11,7 +11,9 @@ function HelpFeedbackPage() {
       <div className={HELP_FEEDBACK_PAGE_CLASSES.content}>
         <div className={HELP_FEEDBACK_PAGE_CLASSES.card}>
           <h2 className={HELP_FEEDBACK_PAGE_CLASSES.title}>Help & Feedback</h2>
-          <p className={HELP_FEEDBACK_PAGE_CLASSES.text}>Help & Feedback page coming soon!</p>
+          <p className={HELP_FEEDBACK_PAGE_CLASSES.text}>
+            Need assistance? Contact us at <a href="mailto:support@planora.com" className="text-blue-500 hover:underline">support@planora.com</a>.
+          </p>
         </div>
       </div>
       <Footer />

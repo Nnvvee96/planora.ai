@@ -34,21 +34,23 @@ export const fuzzyMatch = (input, city) => {
   return score / Math.max(input.length, city.length);
 };
 
+export const generateSuggestions = (value, cities) => {
+  if (!value || !cities || cities.length === 0) return [];
+  const inputValue = value.trim().toLowerCase();
+  return cities
+    .filter((city) => city.toLowerCase().includes(inputValue))
+    .sort((a, b) => {
+      const scoreA = fuzzyMatch(inputValue, a);
+      const scoreB = fuzzyMatch(inputValue, b);
+      return scoreB - scoreA;
+    })
+    .slice(0, 5);
+};
+
 export const getAutosuggestProps = (cities, setSuggestions, profileSettings, setProfileSettings) => {
   const onSuggestionsFetchRequested = ({ value }) => {
-    if (!profileSettings.country || cities.length === 0) {
-      setSuggestions([]);
-      return;
-    }
-    const inputValue = value.trim().toLowerCase();
-    const suggestions = cities
-      .filter((city) => city.toLowerCase().includes(inputValue))
-      .sort((a, b) => {
-        const scoreA = fuzzyMatch(inputValue, a);
-        const scoreB = fuzzyMatch(inputValue, b);
-        return scoreB - scoreA;
-      });
-    setSuggestions(suggestions.slice(0, 5));
+    const suggestions = generateSuggestions(value, cities);
+    setSuggestions(suggestions);
   };
 
   const onSuggestionsClearRequested = () => {
@@ -60,10 +62,6 @@ export const getAutosuggestProps = (cities, setSuggestions, profileSettings, set
   };
 
   const getSuggestionValue = (suggestion) => suggestion;
-
-  const renderSuggestion = (suggestion, classes) => (
-    <div className={classes.autosuggestSuggestion}>{suggestion}</div>
-  );
 
   const handleCityChange = (event, { newValue }) => {
     setProfileSettings({ ...profileSettings, city: newValue });
@@ -90,8 +88,8 @@ export const getAutosuggestProps = (cities, setSuggestions, profileSettings, set
     onSuggestionsClearRequested,
     onSuggestionSelected,
     getSuggestionValue,
-    renderSuggestion,
     handleCityChange,
     handleCityBlur,
+    // renderSuggestion wird in die entsprechende Komponente verschoben (z. B. ProfilePage.jsx oder RegisterPage.jsx)
   };
 };

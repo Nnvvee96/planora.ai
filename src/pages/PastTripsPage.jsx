@@ -1,6 +1,8 @@
 // src/pages/PastTripsPage.jsx
 import React from "react";
 import { useAuth } from "../context/AuthContext";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import { PAST_TRIPS_PAGE_CLASSES } from "../utils/constants";
 
 function PastTripsPage() {
@@ -8,6 +10,7 @@ function PastTripsPage() {
 
   return (
     <div className={PAST_TRIPS_PAGE_CLASSES.container}>
+      <Navbar />
       <div className={PAST_TRIPS_PAGE_CLASSES.card}>
         <h2 className={PAST_TRIPS_PAGE_CLASSES.title}>Your Past Trips</h2>
         {user?.trips?.length > 0 ? (
@@ -29,6 +32,7 @@ function PastTripsPage() {
           <p className={PAST_TRIPS_PAGE_CLASSES.emptyText}>You haven’t planned any trips yet.</p>
         )}
       </div>
+      <Footer />
     </div>
   );
 }

@@ -1,0 +1,14 @@
+/* src/styles/theme.css */
+:root {
+    --primary-bg: #1A2A2E; /* Dunkles Grün/Blau, inspiriert von Neura.ai */
+    --secondary-bg: #0F1A1E; /* Noch dunklerer Hintergrund */
+    --accent: #00D4A8; /* Hellgrün, Neura.ai-Stil, mit violettem Touch */
+    --accent-secondary: #B266FF; /* Violett, Crypto Raptors-Stil */
+    --text-primary: #E0F0F0; /* Helles Grau/Weiß */
+    --text-secondary: #A0B0B0; /* Mittelgrau */
+    --card-bg: #1E3A3A; /* Dunkle Karte */
+    --button-bg: #00D4A8; /* Akzentfarbe für Buttons */
+    --button-hover: #00B38A; /* Dunklerer Akzent beim Hover */
+    --shadow-light: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-dark: 0 10px 20px rgba(0, 0, 0, 0.3);
+  }

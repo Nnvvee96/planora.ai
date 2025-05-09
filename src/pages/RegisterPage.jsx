@@ -1,37 +1,13 @@
-// src/pages/RegisterPage.jsx
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
 import Select from "react-select";
-import Autosuggest from "react-autosuggest";
-import { countries } from "countries-list";
-import cities from "cities.json";
+import Autosuggest from "../components/Autosuggest.jsx";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { fadeInUpVariants } from "../utils/animationUtils";
 import { REGISTER_PAGE_CLASSES } from "../utils/constants";
-
-const countryNameToIso = {};
-Object.entries(countries).forEach(([iso, country]) => {
-  countryNameToIso[country.name] = iso;
-});
-
-const countryList = Object.values(countries).sort((a, b) => a.name.localeCompare(b.name));
-const countryOptions = countryList.map((country) => ({
-  value: country.name,
-  label: country.name,
-}));
-
-const citiesByCountry = cities.reduce((acc, city) => {
-  const isoCode = city.country;
-  if (!acc[isoCode]) acc[isoCode] = [];
-  if (!acc[isoCode].includes(city.name)) acc[isoCode].push(city.name);
-  return acc;
-}, {});
-Object.keys(citiesByCountry).forEach((country) => {
-  citiesByCountry[country] = citiesByCountry[country].sort();
-});
+import { countryOptions } from "../utils/autosuggestUtils";
+import { useRegister } from "../hooks/useRegister";
 
 const days = Array.from({ length: 31 }, (_, i) => ({ value: i + 1, label: i + 1 }));
 const months = [
@@ -53,167 +29,18 @@ const years = Array.from({ length: 100 }, (_, i) => {
   return { value: year, label: year };
 });
 
-const fuzzyMatch = (input, city) => {
-  if (!input || !city) return 0;
-  input = input.toLowerCase();
-  city = city.toLowerCase();
-  let score = 0;
-  for (let i = 0; i < input.length && i < city.length; i++) {
-    if (input[i] === city[i]) score++;
-  }
-  return score / Math.max(input.length, city.length);
-};
-
 function RegisterPage() {
-  const { updateUser } = useAuth();
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    dateOfBirth: { day: "", month: "", year: "" },
-    country: "",
-    city: "",
-    gender: "",
-    occupation: "",
-  });
-  const [cities, setCities] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
-
-  useEffect(() => {
-    if (!formData.country) {
-      setCities([]);
-      setSuggestions([]);
-      return;
-    }
-    const isoCode = countryNameToIso[formData.country];
-    const cityList = isoCode ? citiesByCountry[isoCode] || [] : [];
-    setCities(cityList);
-  }, [formData.country]);
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleOccupationChange = (e) => {
-    const value = e.target.value;
-    if (/^[A-Za-z\s]*$/.test(value)) {
-      setFormData({ ...formData, occupation: value });
-    }
-  };
-
-  const handleDateChange = (name, selectedOption) => {
-    const value = selectedOption ? selectedOption.value : "";
-    setFormData({
-      ...formData,
-      dateOfBirth: { ...formData.dateOfBirth, [name]: value },
-    });
-  };
-
-  const handleCountryChange = (selectedOption) => {
-    const country = selectedOption ? selectedOption.value : "";
-    setFormData({ ...formData, country, city: "" });
-  };
-
-  const handleGenderChange = (selectedOption) => {
-    const gender = selectedOption ? selectedOption.value : "";
-    setFormData({ ...formData, gender });
-  };
-
-  const onSuggestionsFetchRequested = ({ value }) => {
-    if (!formData.country || cities.length === 0) {
-      setSuggestions([]);
-      return;
-    }
-    const inputValue = value.trim().toLowerCase();
-    const suggestions = cities
-      .filter((city) => city.toLowerCase().includes(inputValue))
-      .sort((a, b) => {
-        const scoreA = fuzzyMatch(inputValue, a);
-        const scoreB = fuzzyMatch(inputValue, b);
-        return scoreB - scoreA;
-      });
-    setSuggestions(suggestions.slice(0, 5));
-  };
-
-  const onSuggestionsClearRequested = () => {
-    setSuggestions([]);
-  };
-
-  const onSuggestionSelected = (event, { suggestion }) => {
-    setFormData({ ...formData, city: suggestion });
-  };
-
-  const getSuggestionValue = (suggestion) => suggestion;
-
-  const renderSuggestion = (suggestion) => <div className="p-2 text-white">{suggestion}</div>;
-
-  const handleCityChange = (event, { newValue }) => {
-    setFormData({ ...formData, city: newValue });
-  };
-
-  const handleCityBlur = () => {
-    if (!formData.city || !formData.country) return;
-    const inputValue = formData.city.trim().toLowerCase();
-    const exactMatch = cities.find((city) => city.toLowerCase() === inputValue);
-    if (exactMatch) {
-      setFormData({ ...formData, city: exactMatch });
-      return;
-    }
-    const bestMatch = cities
-      .map((city) => ({ city, score: fuzzyMatch(inputValue, city) }))
-      .sort((a, b) => b.score - a.score)[0];
-    if (bestMatch && bestMatch.score > 0.7) {
-      setFormData({ ...formData, city: bestMatch.city });
-    }
-  };
-
-  const autosuggestProps = {
-    suggestions,
-    onSuggestionsFetchRequested,
-    onSuggestionsClearRequested,
-    onSuggestionSelected,
-    getSuggestionValue,
-    renderSuggestion,
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (
-      !formData.firstName ||
-      !formData.lastName ||
-      !formData.email ||
-      !formData.dateOfBirth.day ||
-      !formData.dateOfBirth.month ||
-      !formData.dateOfBirth.year ||
-      !formData.country ||
-      !formData.city ||
-      !formData.gender ||
-      !formData.occupation
-    ) {
-      alert("Please fill out all required fields.");
-      return;
-    }
-    if (!cities.includes(formData.city)) {
-      alert("Please select a valid city from the suggestions.");
-      return;
-    }
-    const userData = {
-      username: formData.email.split("@")[0],
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
-      dateOfBirth: `${formData.dateOfBirth.day}/${formData.dateOfBirth.month}/${formData.dateOfBirth.year}`,
-      country: formData.country,
-      city: formData.city,
-      gender: formData.gender,
-      occupation: formData.occupation,
-      chatHistory: [],
-      travelPreferences: {},
-    };
-    updateUser(userData);
-    navigate("/onboarding");
-  };
+  const {
+    formData,
+    cities,
+    setFormData,
+    handleChange,
+    handleOccupationChange,
+    handleDateChange,
+    handleCountryChange,
+    handleGenderChange,
+    handleSubmit,
+  } = useRegister();
 
   return (
     <div className={REGISTER_PAGE_CLASSES.container}>
@@ -315,23 +142,12 @@ function RegisterPage() {
             <div>
               <label className={REGISTER_PAGE_CLASSES.label}>City</label>
               <Autosuggest
-                {...autosuggestProps}
-                inputProps={{
-                  placeholder: "Type your city",
-                  value: formData.city,
-                  onChange: handleCityChange,
-                  onBlur: handleCityBlur,
-                  className: REGISTER_PAGE_CLASSES.autosuggest,
-                  disabled: !formData.country,
-                  required: true,
-                }}
-                theme={{
-                  container: "w-full",
-                  suggestionsContainer: REGISTER_PAGE_CLASSES.autosuggestSuggestions,
-                  suggestionsList: "list-none m-0 p-0",
-                  suggestion: REGISTER_PAGE_CLASSES.autosuggestSuggestion,
-                  suggestionHighlighted: REGISTER_PAGE_CLASSES.autosuggestHighlighted,
-                }}
+                cities={cities}
+                settings={formData}
+                setSettings={setFormData}
+                classes={REGISTER_PAGE_CLASSES}
+                disabled={!formData.country}
+                required
               />
             </div>
             <div>

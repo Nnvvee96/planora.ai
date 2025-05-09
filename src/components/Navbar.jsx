@@ -2,22 +2,23 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useAuthService } from "../services/authService";
 import { getInitials, getBackgroundColor } from "../utils/userUtils";
 
 function Navbar() {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const { handleLogout } = useAuthService();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Close dropdown on route change
   useEffect(() => {
     setIsDropdownOpen(false);
   }, [location.pathname]);
 
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
+  };
+
+  const handleLogout = () => {
+    logout();
   };
 
   return (
@@ -89,7 +90,7 @@ function Navbar() {
                     Upgrade Plan
                   </Link>
                   <button
-                    onClick={() => handleLogout(logout)}
+                    onClick={handleLogout}
                     className="block w-full text-left px-4 py-2 text-gray-300 hover:bg-gray-600 hover:text-gray-100"
                   >
                     Logout

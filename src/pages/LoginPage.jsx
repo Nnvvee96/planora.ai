@@ -1,35 +1,11 @@
 // src/pages/LoginPage.jsx
-import React, { useState } from "react";
-import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import React from "react";
 import Footer from "../components/Footer";
 import { LOGIN_PAGE_CLASSES } from "../utils/constants";
+import { useLogin } from "../hooks/useLogin";
 
 function LoginPage() {
-  const { updateUser } = useAuth();
-  const navigate = useNavigate();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (!email || !password) {
-      setError("Please enter both email and password.");
-      return;
-    }
-
-    const userData = {
-      username: email.split("@")[0],
-      email,
-      chatHistory: [],
-      travelPreferences: {},
-    };
-
-    updateUser(userData);
-    navigate("/dashboard");
-  };
+  const { email, setEmail, password, setPassword, error, handleLogin } = useLogin();
 
   return (
     <div className={LOGIN_PAGE_CLASSES.container}>

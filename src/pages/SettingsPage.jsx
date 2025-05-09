@@ -10,8 +10,8 @@ function SettingsPage() {
       <Navbar />
       <div className={SETTINGS_PAGE_CLASSES.content}>
         <div className={SETTINGS_PAGE_CLASSES.card}>
-          <h2 className={SETTINGS_PAGE_CLASSES.title}>Setting</h2>
-          <p className={SETTINGS_PAGE_CLASSES.text}>Setting page coming soon!</p>
+          <h2 className={SETTINGS_PAGE_CLASSES.title}>Settings</h2>
+          <p className={SETTINGS_PAGE_CLASSES.text}>Settings page will be available soon!</p>
         </div>
       </div>
       <Footer />

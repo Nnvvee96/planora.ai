@@ -1,10 +1,7 @@
-// src/pages/ProfilePage.jsx
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
 import Select from "react-select";
-import Autosuggest from "react-autosuggest";
+import Autosuggest from "../components/Autosuggest.jsx";
 import { fadeInVariants } from "../utils/animationUtils";
 import { PROFILE_PAGE_CLASSES } from "../utils/constants";
 import {
@@ -16,67 +13,28 @@ import {
   travelCompanionsOptions,
   activityPreferencesOptions,
 } from "../utils/travelOptions";
-import { countryOptions, citiesByCountry, getAutosuggestProps } from "../utils/autosuggestUtils";
+import { countryOptions } from "../utils/autosuggestUtils";
+import { useProfileSettings } from "../hooks/useProfileSettings";
 
 function ProfilePage() {
-  const { user, updateUser, logout } = useAuth();
-  const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState("profile");
-  const [toast, setToast] = useState({ visible: false, message: "" });
-
-  const [profileSettings, setProfileSettings] = useState({
-    firstName: user?.firstName || "",
-    lastName: user?.lastName || "",
-    email: user?.email || "",
-    dateOfBirth: user?.dateOfBirth || "",
-    gender: user?.gender || "",
-    occupation: user?.occupation || "",
-    country: user?.country || "",
-    city: user?.city || "",
-  });
-
-  const [travelPreferences, setTravelPreferences] = useState({
-    travelStyle: user?.travelPreferences?.travelStyle || "",
-    preferredContinents: user?.travelPreferences?.preferredContinents || [],
-    travelFrequency: user?.travelPreferences?.travelFrequency || "",
-    travelBudget: user?.travelPreferences?.travelBudget || "",
-    accommodationTypes: user?.travelPreferences?.accommodationTypes || [],
-    travelCompanions: user?.travelPreferences?.travelCompanions || "",
-    activityPreferences: user?.travelPreferences?.activityPreferences || [],
-  });
-
-  const [cities, setCities] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
-
-  useEffect(() => {
-    if (user?.travelPreferences) {
-      setTravelPreferences({
-        travelStyle: user.travelPreferences.travelStyle || "",
-        preferredContinents: user.travelPreferences.preferredContinents || [],
-        travelFrequency: user.travelPreferences.travelFrequency || "",
-        travelBudget: user.travelPreferences.travelBudget || "",
-        accommodationTypes: user.travelPreferences.accommodationTypes || [],
-        travelCompanions: user.travelPreferences.travelCompanions || "",
-        activityPreferences: user.travelPreferences.activityPreferences || [],
-      });
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!profileSettings.country) {
-      setCities([]);
-      setSuggestions([]);
-      return;
-    }
-    const isoCode = Object.keys(countries).find((iso) => countries[iso].name === profileSettings.country);
-    const cityList = isoCode ? citiesByCountry[isoCode] || [] : [];
-    setCities(cityList);
-  }, [profileSettings.country]);
-
-  const showToast = (message) => {
-    setToast({ visible: true, message });
-    setTimeout(() => setToast({ visible: false, message: "" }), 3000);
-  };
+  const {
+    activeSection,
+    setActiveSection,
+    toast,
+    profileSettings,
+    travelPreferences,
+    cities,
+    setProfileSettings,
+    handleProfileChange,
+    handleProfileSelectChange,
+    handleCountryChange,
+    handleTravelSelectChange,
+    handleSaveProfileSettings,
+    handleSaveTravelPreferences,
+    handleLogout,
+    handleDeleteAccount,
+    handleClose,
+  } = useProfileSettings();
 
   const genderOptions = [
     { value: "male", label: "Male" },
@@ -84,80 +42,6 @@ function ProfilePage() {
     { value: "other", label: "Other" },
     { value: "prefer-not-to-say", label: "Prefer not to say" },
   ];
-
-  const handleProfileChange = (e) => {
-    setProfileSettings({ ...profileSettings, [e.target.name]: e.target.value });
-  };
-
-  const handleProfileSelectChange = (name, selectedOption) => {
-    setProfileSettings({ ...profileSettings, [name]: selectedOption ? selectedOption.value : "" });
-  };
-
-  const handleCountryChange = (selectedOption) => {
-    const country = selectedOption ? selectedOption.value : "";
-    setProfileSettings({ ...profileSettings, country, city: "" });
-  };
-
-  const {
-    onSuggestionsFetchRequested,
-    onSuggestionsClearRequested,
-    onSuggestionSelected,
-    getSuggestionValue,
-    renderSuggestion,
-    handleCityChange,
-    handleCityBlur,
-  } = getAutosuggestProps(cities, setSuggestions, profileSettings, setProfileSettings);
-
-  const autosuggestProps = {
-    suggestions,
-    onSuggestionsFetchRequested,
-    onSuggestionsClearRequested,
-    onSuggestionSelected,
-    getSuggestionValue,
-    renderSuggestion: (suggestion) => renderSuggestion(suggestion, PROFILE_PAGE_CLASSES),
-  };
-
-  const handleTravelSelectChange = (name, selectedOption) => {
-    if (Array.isArray(selectedOption)) {
-      setTravelPreferences({
-        ...travelPreferences,
-        [name]: selectedOption.map((option) => option.value),
-      });
-    } else {
-      setTravelPreferences({
-        ...travelPreferences,
-        [name]: selectedOption ? selectedOption.value : "",
-      });
-    }
-  };
-
-  const handleSaveProfileSettings = () => {
-    updateUser(profileSettings);
-    showToast("Profile Updated Successfully!");
-  };
-
-  const handleSaveTravelPreferences = () => {
-    updateUser({ travelPreferences });
-    showToast("Preferences Updated Successfully!");
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-    showToast("Logged Out Successfully!");
-  };
-
-  const handleDeleteAccount = () => {
-    if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
-      logout();
-      navigate("/");
-      showToast("Account Deleted Successfully!");
-    }
-  };
-
-  const handleClose = () => {
-    navigate(-1);
-  };
 
   return (
     <div className={PROFILE_PAGE_CLASSES.container}>
@@ -325,22 +209,11 @@ function ProfilePage() {
                 <div>
                   <label className={PROFILE_PAGE_CLASSES.label}>City</label>
                   <Autosuggest
-                    {...autosuggestProps}
-                    inputProps={{
-                      placeholder: "Type your city",
-                      value: profileSettings.city,
-                      onChange: handleCityChange,
-                      onBlur: handleCityBlur,
-                      className: PROFILE_PAGE_CLASSES.autosuggest,
-                      disabled: !profileSettings.country,
-                    }}
-                    theme={{
-                      container: "w-full",
-                      suggestionsContainer: PROFILE_PAGE_CLASSES.autosuggestSuggestions,
-                      suggestionsList: "list-none m-0 p-0",
-                      suggestion: PROFILE_PAGE_CLASSES.autosuggestSuggestion,
-                      suggestionHighlighted: PROFILE_PAGE_CLASSES.autosuggestHighlighted,
-                    }}
+                    cities={cities}
+                    settings={profileSettings}
+                    setSettings={setProfileSettings}
+                    classes={PROFILE_PAGE_CLASSES}
+                    disabled={!profileSettings.country}
                   />
                 </div>
                 <button

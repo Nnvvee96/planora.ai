@@ -1,23 +1,11 @@
 // src/pages/ExplorePage.jsx
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useAuth } from "../context/AuthContext";
-import { getRecommendedDestinations } from "../services/recommendationService";
+import { useRecommendations } from "../hooks/useRecommendations";
 
 function ExplorePage() {
   const { user } = useAuth();
-  const [destinations, setDestinations] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchDestinations = async () => {
-      setLoading(true);
-      const recommendedDestinations = await getRecommendedDestinations(user);
-      setDestinations(recommendedDestinations);
-      setLoading(false);
-    };
-
-    fetchDestinations();
-  }, [user]);
+  const { destinations, loading } = useRecommendations(user);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-white flex flex-col items-center p-4">

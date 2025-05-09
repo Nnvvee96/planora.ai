@@ -3,12 +3,17 @@ import axios from "axios";
 
 class LLMService {
   constructor() {
-    this.apiKey = process.env.REACT_APP_HUGGINGFACE_API_KEY;
-    this.apiUrl = process.env.REACT_APP_HUGGINGFACE_API_URL;
-    
+    this.apiKey = process.env.VITE_LLM_API_KEY;
+    this.apiUrl = process.env.VITE_API_BASE_URL;
+
     if (!this.apiKey || !this.apiUrl) {
       throw new Error("Hugging Face API key or URL not found in environment variables.");
     }
+  }
+
+  handleApiError(error, method) {
+    console.error(`Error in ${method}:`, error);
+    throw error; // Fehler durchreichen für spezifische Behandlung in PlanTripPage
   }
 
   async generateResponse(prompt) {
@@ -30,11 +35,9 @@ class LLMService {
           },
         }
       );
-      const generatedText = response.data[0].generated_text;
-      return generatedText;
+      return response.data[0].generated_text;
     } catch (error) {
-      console.error("Error fetching response from Hugging Face API:", error);
-      throw error; // Lassen wir den Fehler durchreichen, um spezifische Fehlerbehandlung in PlanTripPage zu ermöglichen
+      this.handleApiError(error, "generateResponse");
     }
   }
 
@@ -42,11 +45,10 @@ class LLMService {
     const extractionPrompt = `Extrahiere Reise-Parameter aus diesem Text: "${prompt}". Gib zurück: {budget: [Wert], travelMonth: [Wert], duration: [Wert], destination: [Wert], accommodationType: [Wert], requiresPrivateBathroom: [true/false/null]}. Wenn ein Parameter nicht erkennbar ist, setze ihn auf null.`;
     try {
       const response = await this.generateResponse(extractionPrompt);
-      // Parse the JSON response (assuming Mistral returns a valid JSON string)
       const params = JSON.parse(response.match(/{.*}/s)[0]);
       return params;
     } catch (error) {
-      console.error("Error extracting parameters:", error);
+      this.handleApiError(error, "extractParameters");
       return {
         budget: null,
         travelMonth: null,

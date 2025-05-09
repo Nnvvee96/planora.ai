@@ -8,5 +8,7 @@ export const useNavigation = () => {
     navigate("/plan-trip");
   };
 
+  // Platzhalter: Weitere Navigationsfunktionen (z. B. goToProfile) können hier hinzugefügt werden,
+  // wenn mehr Logik benötigt wird. Derzeit nur minimal implementiert.
   return { goToPlanTrip };
 };
