@@ -1,0 +1,225 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --background: 240 25% 12%;
+    --foreground: 0 0% 100%;
+
+    --card: 240 25% 15%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 240 25% 12%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 265 85% 65%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 20% 20%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 240 15% 25%;
+    --muted-foreground: 240 5% 75%;
+
+    --accent: 280 85% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 15% 25%;
+    --input: 240 15% 25%;
+    --ring: 265 85% 65%;
+
+    --radius: 0.5rem;
+  }
+
+  .light {
+    --background: 0 0% 98%;
+    --foreground: 240 10% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+
+    --primary: 265 85% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 10% 90%;
+    --secondary-foreground: 240 10% 20%;
+
+    --muted: 240 10% 95%;
+    --muted-foreground: 240 5% 45%;
+
+    --accent: 280 85% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 10% 90%;
+    --input: 240 10% 90%;
+    --ring: 265 85% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-planora-accent-purple via-planora-accent-pink to-planora-accent-blue;
+  }
+
+  .gradient-border {
+    @apply relative before:absolute before:inset-0 before:p-[1.5px] before:rounded-full before:bg-gradient-to-r before:from-planora-accent-purple before:via-planora-accent-pink before:to-planora-accent-blue before:-z-10;
+  }
+  
+  .feature-card {
+    @apply bg-secondary/40 backdrop-blur-sm border border-white/10 rounded-xl p-6 transition-all duration-300 hover:border-white/20 hover:bg-secondary/60;
+  }
+}
+
+.gradient-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1.5rem;
+  height: 3rem;
+  overflow: hidden;
+  font-weight: bold;
+  border-radius: 0.5rem;
+}
+
+.gradient-button-background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity 300ms ease-out;
+  opacity: 0.8;
+  background: linear-gradient(to bottom right, var(--planora-accent-purple), var(--planora-accent-pink), var(--planora-accent-blue));
+}
+
+.gradient-button:hover .gradient-button-background {
+  opacity: 1;
+}
+
+.gradient-button-edge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition: all 500ms ease-out;
+  opacity: 0;
+  border-radius: 0.5rem;
+  background: linear-gradient(to bottom right, var(--planora-accent-purple), var(--planora-accent-pink), var(--planora-accent-blue));
+}
+
+.gradient-button:hover .gradient-button-edge {
+  opacity: 0.7;
+  filter: blur(8px);
+}
+
+.gradient-button-front {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: white;
+  transition: all 300ms;
+}
+
+/* Animation classes */
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(120px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(120px) rotate(-360deg); }
+}
+
+@keyframes orbit-wide {
+  from { transform: rotate(0deg) translateX(150px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(150px) rotate(-360deg); }
+}
+
+@keyframes orbit-wide-reverse {
+  from { transform: rotate(0deg) translateX(180px) rotate(0deg); }
+  to { transform: rotate(-360deg) translateX(180px) rotate(360deg); }
+}
+
+@keyframes orbit-logo {
+  from { transform: rotate(0deg) translateX(7px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(7px) rotate(-360deg); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse-light {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+@keyframes twinkle {
+  0% { opacity: 0.2; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0.2; }
+}
+
+@keyframes drift {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(20px); }
+  100% { transform: translateX(0); }
+}
+
+.animate-orbit {
+  animation: orbit 15s linear infinite;
+}
+
+.animate-orbit-wide {
+  animation: orbit-wide 20s linear infinite;
+}
+
+.animate-orbit-wide-reverse {
+  animation: orbit-wide-reverse 25s linear infinite;
+}
+
+.animate-orbit-logo {
+  animation: orbit-logo 3s linear infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 60s linear infinite;
+}
+
+.animate-pulse-light {
+  animation: pulse-light 4s ease-in-out infinite;
+}
+
+.animate-twinkle {
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+.animate-drift {
+  animation: drift 15s ease-in-out infinite;
+}
