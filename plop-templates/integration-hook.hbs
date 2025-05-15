@@ -1,0 +1,24 @@
+/**
+ * use{{pascalCase feature}}Integration hook
+ * 
+ * This is an integration hook that provides a clean interface to the {{feature}} feature.
+ * It isolates the implementation details of the feature and provides only what other
+ * features need to know about {{feature}}.
+ */
+
+// Import only from the feature's public API
+import { /* import from feature API */ } from '@/features/{{feature}}/api';
+
+/**
+ * use{{pascalCase feature}}Integration
+ * 
+ * @returns {Object} Interface to interact with the {{feature}} feature
+ */
+export function use{{pascalCase feature}}Integration() {
+  // Implementation that uses the feature's public API
+  
+  // Return a clean interface that other features can use
+  return {
+    // Expose only what's needed by other features
+  };
+}

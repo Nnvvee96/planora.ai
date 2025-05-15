@@ -2,6 +2,18 @@
 
 This document outlines the tools we've implemented to maintain our clean architecture principles and ensure code quality. These tools work together to enforce our architectural boundaries, prevent violations, and guide developers in creating code that follows our established patterns.
 
+## Installed Architecture Tools
+
+The following tools have been integrated into the project to enforce our architecture principles:
+
+1. **Dependency Cruiser**: Validates architectural boundaries and prevents cross-feature dependencies
+2. **ESLint**: Enforces coding standards and prevents improper imports
+3. **Husky + Lint-Staged**: Prevents committing code that violates architectural rules
+4. **Plop.js**: Generates code scaffolding that follows our architectural patterns
+5. **Path Aliases**: Provides clear import paths that reinforce the architecture
+
+These tools are configured to work together to maintain the integrity of our clean architecture.
+
 ## Core Architecture Principles
 
 1. **Separation of Concerns**: Each module/folder has a clear, single responsibility

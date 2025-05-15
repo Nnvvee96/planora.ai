@@ -17,24 +17,43 @@ This style guide outlines the conventions and best practices for the Planora cod
 
 ### Directory Organization
 
-We use the Atomic Design pattern with clear separation between UI, logic, and data layers:
+We use a clean architecture approach that combines Atomic Design for UI components with Feature-First organization for business logic:
 
 ```
 src/
-├── atoms/               # Basic building blocks
-├── molecules/           # Combinations of atoms
-├── organisms/           # Complex UI sections
-├── templates/           # Page layouts
-├── pages/               # Page components with routing
-├── features/            # Feature-specific logic
-├── services/            # Business logic layer
-├── store/               # State management
-├── hooks/               # Custom React hooks
-├── styles/              # Global styles
-├── utils/               # Utility functions
-├── types/               # TypeScript types
-├── mocks/               # Mock data
-└── constants/           # App constants
+├── ui/                      # UI components following atomic design
+│   ├── atoms/               # Basic building blocks (Button, Input, etc.)
+│   ├── molecules/           # Combinations of atoms (FormField, Card, etc.)
+│   ├── organisms/           # Complex UI sections (Navigation, TravelCardList, etc.)
+│   └── templates/           # Page layouts (DashboardLayout, AuthLayout, etc.)
+│
+├── features/                # Feature-specific code organized by domain
+│   ├── auth/                # Authentication feature
+│   │   ├── api.ts           # Public API exports for the feature
+│   │   ├── types.ts         # Feature-specific type definitions
+│   │   ├── components/      # Feature-specific components
+│   │   ├── services/        # Feature-related services
+│   │   ├── hooks/           # Custom React hooks for feature
+│   │   └── utils/           # Utility functions for feature
+│   │
+│   ├── travel-planning/     # Travel planning feature
+│   └── user-profile/        # User profile feature
+│
+├── pages/                   # Page components that use features and UI components
+├── store/                   # Global state management
+│   ├── store.ts             # Redux store configuration
+│   ├── slices/              # Redux slices organized by feature
+│   └── hooks/               # Custom hooks for state access
+│
+├── hooks/                   # Shared React hooks
+│   └── integration/         # Feature integration hooks for cross-feature communication
+│
+├── styles/                  # Global styles and theme
+├── types/                   # Global TypeScript type definitions
+├── utils/                   # Shared utility functions
+├── lib/                     # Third-party library wrappers
+├── constants/               # Application constants
+└── mocks/                   # Mock data for development
 ```
 
 ### File Naming

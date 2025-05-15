@@ -1,0 +1,16 @@
+// Public API for the {{name}} feature
+// This file exports only what should be accessible to other parts of the application
+// It serves as the boundary for this feature
+
+import { {{pascalCase name}}State } from './types';
+
+// Export types that should be available to other features
+export type { {{pascalCase name}}State };
+
+// Export components that should be accessible outside this feature
+// Example: export { SomeComponent } from './components/SomeComponent';
+
+// Export hooks that provide feature functionality to the rest of the app
+// Example: export { useFeatureHook } from './hooks/useFeatureHook';
+
+// DO NOT export internal implementation details

@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+
+# Run lint-staged to check staged files
+npx lint-staged
+
+# Run architecture validation
+npm run validate-arch
+
+# Check for ESLint errors related to architecture rules
+npx eslint "src/**/*.{ts,tsx,js,jsx}" --no-ignore --quiet --rule 'planora-architecture/enforce-architecture: error'
+
+echo "✅ Architecture validation passed! Your changes follow the clean architecture pattern."

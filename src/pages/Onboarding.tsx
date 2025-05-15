@@ -101,7 +101,7 @@ const Onboarding = () => {
     icon: React.ElementType, 
     label: string, 
     value: string,
-    field: any,
+    field: string[],
     onChange: (value: string) => void
   }) => {
     const isSelected = field.includes(value);
@@ -682,7 +682,7 @@ const Onboarding = () => {
 };
 
 // Helper components
-const Label = ({ value, field, children }: { value: string, field: any, children: React.ReactNode }) => (
+const Label = ({ value, field, children }: { value: string, field: { value: string }, children: React.ReactNode }) => (
   <div 
     className={`p-3 border rounded-md text-center ${
       field.value === value 

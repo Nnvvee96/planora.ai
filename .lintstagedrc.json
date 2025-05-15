@@ -1,0 +1,9 @@
+{
+  "*.{ts,tsx}": [
+    "eslint --fix",
+    "npx depcruise --validate .dependency-cruiser.cjs"
+  ],
+  "*.{js,jsx}": [
+    "eslint --fix"
+  ]
+}

@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { Apple } from 'lucide-react';
 import Footer from '@/components/Footer';
 
-interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {}
+type UserAuthFormProps = React.HTMLAttributes<HTMLDivElement>
 
 export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const navigate = useNavigate();
