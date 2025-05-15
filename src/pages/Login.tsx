@@ -1,34 +1,80 @@
 
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import Logo from '@/components/Logo';
+import Logo from '@/components/atoms/Logo';
 import { useNavigate } from 'react-router-dom';
-import { Apple } from 'lucide-react';
-import Footer from '@/components/Footer';
+import { Apple, Mail, CheckCircle2, AlertCircle } from 'lucide-react';
+import Footer from '@/components/organisms/Footer';
+import { useToast } from "@/components/ui/use-toast";
+import { authService, LoginCredentials } from "@/features/auth/api";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type UserAuthFormProps = React.HTMLAttributes<HTMLDivElement>
 
 export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = React.useState<boolean>(false);
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [credentials, setCredentials] = useState<LoginCredentials>({
+    email: '',
+    password: ''
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setCredentials(prev => ({ ...prev, [id]: value }));
+    // Clear error when user starts typing again
+    if (error) setError(null);
+  };
 
   async function onSubmit(event: React.SyntheticEvent) {
     event.preventDefault();
     setIsLoading(true);
-
-    setTimeout(() => {
+    setError(null);
+    
+    try {
+      // Validate form input
+      if (!credentials.email || !credentials.password) {
+        throw new Error('Please enter both email and password');
+      }
+      
+      // Attempt login through auth service
+      await authService.login(credentials);
+      
+      // Show success message
+      toast({
+        title: "Login successful",
+        description: "Welcome back to Planora!",
+      });
+      
+      // Navigate to dashboard
       navigate('/dashboard');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err.message || 'Login failed. Please try again.');
+      toast({
+        title: "Login failed",
+        description: err.message || "Please check your credentials and try again.",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   }
 
   return (
     <div className={cn("grid gap-6", className)} {...props}>
       <form onSubmit={onSubmit}>
+        {error && (
+          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-md text-sm text-red-500">
+            {error}
+          </div>
+        )}
         <div className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
@@ -40,6 +86,9 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               autoComplete="email"
               autoCorrect="off"
               disabled={isLoading}
+              value={credentials.email}
+              onChange={handleInputChange}
+              required
             />
           </div>
           <div className="grid gap-2">
@@ -59,6 +108,9 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               autoCapitalize="none"
               autoComplete="current-password"
               disabled={isLoading}
+              value={credentials.password}
+              onChange={handleInputChange}
+              required
             />
           </div>
           <Button disabled={isLoading} className="bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90">
@@ -87,7 +139,26 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         </div>
       </div>
       <div className="flex flex-col sm:flex-row gap-3">
-        <Button variant="outline" type="button" disabled={isLoading} className="w-full" onClick={() => navigate('/dashboard')}>
+        <Button 
+          variant="outline" 
+          type="button" 
+          disabled={isLoading} 
+          className="w-full" 
+          onClick={async () => {
+            try {
+              setIsLoading(true);
+              await authService.signInWithGoogle();
+              // The page will be redirected by Supabase, no need to navigate
+            } catch (err: any) {
+              console.error('Google sign-in error:', err);
+              toast({
+                title: "Google sign-in failed",
+                description: err.message || "Please try again.",
+                variant: "destructive"
+              });
+              setIsLoading(false);
+            }
+          }}>
           <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
             <path
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -109,7 +180,17 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           </svg>
           Google
         </Button>
-        <Button variant="outline" type="button" disabled={isLoading} className="w-full" onClick={() => navigate('/dashboard')}>
+        <Button 
+          variant="outline" 
+          type="button" 
+          disabled={isLoading || import.meta.env.VITE_ENABLE_APPLE_AUTH !== 'true'} 
+          className="w-full" 
+          onClick={() => {
+            toast({
+              title: "Coming Soon",
+              description: "Apple sign-in will be available soon.",
+            });
+          }}>
           <Apple className="mr-2 h-4 w-4" />
           Apple
         </Button>
@@ -119,6 +200,24 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
 }
 
 export default function Login() {
+  const location = useLocation();
+  const [verificationNeeded, setVerificationNeeded] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [verificationMessage, setVerificationMessage] = useState('');
+  
+  useEffect(() => {
+    // Check if we were redirected from registration with verification needs
+    if (location.state) {
+      if (location.state.verificationNeeded) {
+        setVerificationNeeded(true);
+        setVerificationEmail(location.state.email || '');
+        setVerificationMessage(location.state.message || 'Please verify your email before logging in.');
+      } else if (location.state.message) {
+        setVerificationMessage(location.state.message);
+      }
+    }
+  }, [location]);
+  
   return (
     <div className="flex min-h-screen flex-col bg-planora-purple-dark">
       {/* Simple gradient background without text or distracting elements */}
@@ -136,21 +235,91 @@ export default function Login() {
             <div className="mb-4 flex justify-center">
               <Logo />
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
-            <p className="text-sm text-muted-foreground">
-              Enter your email to sign in to your account
-            </p>
+            
+            {verificationNeeded ? (
+              <>
+                <h1 className="text-2xl font-semibold tracking-tight">Verify Your Email</h1>
+                <p className="text-sm text-muted-foreground">
+                  Please check your inbox to complete registration
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
+                <p className="text-sm text-muted-foreground">
+                  Enter your email to sign in to your account
+                </p>
+              </>
+            )}
           </div>
-          <div className="bg-card/20 backdrop-blur-lg p-6 rounded-lg border border-white/10 shadow-lg">
-            <UserAuthForm />
-          </div>
+          
+          {/* Verification Alert */}
+          {verificationMessage && (
+            <Alert className="bg-white/5 border-planora-accent-purple/40 text-white">
+              <AlertCircle className="h-4 w-4 text-planora-accent-purple" />
+              <AlertTitle>Email Verification</AlertTitle>
+              <AlertDescription className="text-white/80">
+                {verificationMessage}
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {verificationNeeded ? (
+            <div className="bg-card/20 backdrop-blur-lg p-6 rounded-lg border border-white/10 shadow-lg">
+              <div className="text-center space-y-6">
+                <div className="mx-auto bg-white/5 w-16 h-16 rounded-full flex items-center justify-center">
+                  <Mail className="h-8 w-8 text-planora-accent-purple" />
+                </div>
+                
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium">Check your inbox</h3>
+                  {verificationEmail && (
+                    <p className="text-white/60 text-sm">
+                      We've sent a verification link to <span className="text-white font-medium">{verificationEmail}</span>
+                    </p>
+                  )}
+                  <p className="text-white/60 text-sm mt-2">
+                    Click the link in the email to verify your account. If you don't see it, check your spam folder.
+                  </p>
+                </div>
+                
+                <div className="pt-4">
+                  <Button 
+                    className="w-full bg-white/10 hover:bg-white/20 text-white"
+                    onClick={() => {
+                      setVerificationNeeded(false);
+                    }}
+                  >
+                    I've verified my email
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-card/20 backdrop-blur-lg p-6 rounded-lg border border-white/10 shadow-lg">
+              <UserAuthForm />
+            </div>
+          )}
+          
           <p className="px-8 text-center text-sm text-muted-foreground">
-            <Link
-              to="/register"
-              className="hover:text-white underline underline-offset-4"
-            >
-              Don&apos;t have an account? Sign Up
-            </Link>
+            {!verificationNeeded ? (
+              <Link
+                to="/register"
+                className="hover:text-white underline underline-offset-4"
+              >
+                Don&apos;t have an account? Sign Up
+              </Link>
+            ) : (
+              <span className="text-white/60">
+                Didn't receive the email? Check your spam folder or <Button 
+                  variant="link" 
+                  className="text-planora-accent-purple hover:text-planora-accent-pink p-0 h-auto"
+                  onClick={() => setVerificationNeeded(false)}
+                >
+                  try again
+                </Button>
+              </span>
+            )}
           </p>
         </div>
       </div>

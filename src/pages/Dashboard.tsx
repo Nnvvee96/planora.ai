@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { 
   MessageCircle, 
@@ -15,18 +15,61 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react';
-import Logo from '@/components/Logo';
-import UserProfileMenu from '@/components/UserProfileMenu';
+import Logo from '@/components/atoms/Logo';
+import { UserProfileMenu } from '@/features/user-profile/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { useNavigate } from 'react-router-dom';
-import Footer from '@/components/Footer';
+import { useNavigate, Link } from 'react-router-dom';
+import Footer from '@/components/organisms/Footer';
+import { authService, User } from '@/features/auth/api';
+import { supabase } from '@/lib/supabase/supabaseClient';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const userName = "Sarah";
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  
+  // Load user data on component mount
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        setLoading(true);
+        const currentUser = await authService.getCurrentUser();
+        if (currentUser) {
+          setUser(currentUser);
+          console.log('User data loaded:', currentUser);
+          
+          // Try to load additional profile data from Supabase
+          const { supabase } = await import('@/lib/supabase/supabaseClient');
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentUser.id)
+            .single();
+            
+          if (profileData) {
+            setUserProfile(profileData);
+            console.log('Profile data loaded:', profileData);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadUserData();
+  }, []);
+  
+  // Get user's name from various sources in priority order
+  const userFirstName = user?.firstName || userProfile?.first_name || '';
+  const userLastName = user?.lastName || userProfile?.last_name || '';
+  const userFullName = userProfile?.full_name || `${userFirstName} ${userLastName}`.trim();
+  const userName = userFullName || user?.username || "Guest";
   
   // Handler for directing to chat interface
   const handleChatWithPlanora = () => {
@@ -129,7 +172,7 @@ const Dashboard = () => {
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               <Button variant="ghost" size="icon" className="text-white" onClick={handleChatWithPlanora}>
                 <MessageCircle className="h-5 w-5" />
               </Button>
@@ -138,7 +181,14 @@ const Dashboard = () => {
                 <Calendar className="h-5 w-5" />
               </Button>
               
-              <UserProfileMenu userName={userName} />
+              <UserProfileMenu 
+                userName={userName} 
+                userEmail={user?.email || userProfile?.email} 
+                firstName={userFirstName}
+                lastName={userLastName}
+                birthdate={userProfile?.birthdate}
+                mini={false} 
+              />
             </div>
           </div>
         </div>
@@ -168,7 +218,14 @@ const Dashboard = () => {
             </div>
           </Button>
           
-          <Button variant="outline" className="h-auto py-6 border-white/10 bg-white/5 hover:bg-white/10">
+          <Button 
+            variant="outline" 
+            className="h-auto py-6 border-white/10 bg-white/5 hover:bg-white/10"
+            onClick={() => {
+              console.log('Navigating to preferences from Modify Preferences button');
+              window.location.href = '/preferences';
+            }}
+          >
             <div className="flex flex-col items-center">
               <Settings className="h-6 w-6 mb-2" />
               <span className="text-lg">Modify Preferences</span>
@@ -388,8 +445,15 @@ const Dashboard = () => {
                     </li>
                   </ul>
                   
-                  <Button className="mt-6 bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90">
-                    Complete Profile
+                  <Button 
+                    className="mt-6 bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90"
+                    type="button"
+                    onClick={() => {
+                      console.log('Direct navigation to /preferences');
+                      window.location.href = '/preferences';
+                    }}
+                  >
+                    Travel Preferences
                   </Button>
                 </CardContent>
               </Card>

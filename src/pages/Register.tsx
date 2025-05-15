@@ -6,14 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select } from '@/components/ui/select';
-import Logo from '@/components/Logo';
+import Logo from '@/components/atoms/Logo';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import GradientButton from '@/components/GradientButton';
+import GradientButton from '@/components/atoms/GradientButton';
 import { Apple } from 'lucide-react';
 import { DatePickerInput } from "@/components/ui/DatePickerInput";
-import Footer from '@/components/Footer';
+import Footer from '@/components/organisms/Footer';
+import { useToast } from "@/components/ui/use-toast";
+import { authService, RegisterData } from "@/features/auth/api";
 
 // List of countries for the dropdown
 const countries = [
@@ -22,6 +24,10 @@ const countries = [
 ];
 
 const countryOptions = countries.map(country => ({ value: country, label: country }));
+
+// Calculate minimum birthdate (16 years ago from today)
+const today = new Date();
+const sixteenYearsAgo = new Date(today.getFullYear() - 16, today.getMonth(), today.getDate());
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
@@ -33,16 +39,27 @@ const formSchema = z.object({
   birthdate: z.date({
     required_error: "Please select your birthdate.",
   }),
-}).refine((data) => data.password === data.confirmPassword, {
+})
+.refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
+})
+.refine((data) => {
+  // Check if user is at least 16 years old
+  return data.birthdate <= sixteenYearsAgo;
+}, {
+  message: "You must be at least 16 years old to use Planora",
+  path: ["birthdate"],
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 const Register = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [formStep, setFormStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -56,13 +73,78 @@ const Register = () => {
     },
   });
 
-  const onSubmit = (data: FormValues) => {
-    console.log('Registration data:', data);
+  // New state for verification dialog
+  const [showVerification, setShowVerification] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  
+  const onSubmit = async (data: FormValues) => {
     if (formStep < 1) {
       setFormStep(1);
-    } else {
-      // Navigate to onboarding
-      navigate('/onboarding');
+      return;
+    }
+    
+    // Process registration for final step
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      
+      // Validate age again on submit
+      if (data.birthdate > sixteenYearsAgo) {
+        throw new Error('You must be at least 16 years old to use Planora');
+      }
+      
+      // Extract first and last name from full name
+      const nameParts = data.name.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      // Prepare registration data following our auth feature type
+      const registerData: RegisterData = {
+        email: data.email,
+        password: data.password,
+        username: data.email.split('@')[0], // Default username from email
+        firstName,
+        lastName
+      };
+      
+      // Add metadata for city, country, and birthdate
+      registerData.metadata = {
+        city: data.city,
+        country: data.country,
+        birthdate: data.birthdate.toISOString()
+      };
+      
+      // Register user through auth service
+      await authService.register(registerData);
+      
+      // Store email for verification
+      setRegisteredEmail(data.email);
+      
+      // Show success toast
+      toast({
+        title: "Registration successful",
+        description: "Please check your email for a verification link. You'll need to verify your email before logging in.",
+      });
+      
+      // Navigate to verification pending screen with clear instructions
+      navigate('/login', { 
+        state: { 
+          email: data.email,
+          verificationNeeded: true,
+          message: "A verification link has been sent to your email. Please check your inbox and click the link to verify your account before logging in." 
+        }
+      });
+    } catch (err: any) {
+      console.error('Registration error:', err);
+      setError(err.message || 'Registration failed. Please try again.');
+      toast({
+        title: "Registration failed",
+        description: err.message || "Please check your information and try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -93,6 +175,11 @@ const Register = () => {
           </CardHeader>
           
           <CardContent>
+            {error && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-md text-sm text-red-500">
+                {error}
+              </div>
+            )}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 {formStep === 0 ? (
@@ -245,11 +332,22 @@ const Register = () => {
                         variant="outline" 
                         className="flex-1 border-white/10 bg-white/5 text-white"
                         onClick={() => setFormStep(0)}
+                        disabled={isSubmitting}
                       >
                         Back
                       </Button>
-                      <GradientButton className="flex-1" type="submit">
-                        Create Account
+                      <GradientButton className="flex-1" type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Processing...
+                          </>
+                        ) : (
+                          "Create Account"
+                        )}
                       </GradientButton>
                     </div>
                   )}
@@ -269,10 +367,26 @@ const Register = () => {
             </div>
             
             <div className="grid grid-cols-2 gap-3 w-full">
-              {/* Updated Google button to match Login page style */}
+              {/* Google authentication button */}
               <Button 
                 variant="outline" 
                 className="border-white/10 bg-white/5 hover:bg-white/10 text-white flex items-center gap-2 justify-center"
+                disabled={isSubmitting}
+                onClick={async () => {
+                  try {
+                    setIsSubmitting(true);
+                    await authService.signInWithGoogle();
+                    // The page will be redirected by Supabase, no need to navigate
+                  } catch (err: any) {
+                    console.error('Google sign-in error:', err);
+                    toast({
+                      title: "Google sign-in failed",
+                      description: err.message || "Please try again.",
+                      variant: "destructive"
+                    });
+                    setIsSubmitting(false);
+                  }
+                }}
               >
                 <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M20.283 10.356h-8.327v3.451h4.792c-.446 2.193-2.313 3.453-4.792 3.453a5.27 5.27 0 0 1-5.279-5.28 5.27 5.27 0 0 1 5.279-5.279c1.259 0 2.397.447 3.29 1.178l2.6-2.599c-1.584-1.381-3.615-2.233-5.89-2.233a8.908 8.908 0 0 0-8.934 8.934 8.907 8.907 0 0 0 8.934 8.934c4.467 0 8.529-3.249 8.529-8.934 0-.528-.081-1.097-.202-1.625z" />
@@ -280,10 +394,17 @@ const Register = () => {
                 <span>Google</span>
               </Button>
               
-              {/* Updated Apple button to match Login page style */}
+              {/* Apple authentication button (coming soon) */}
               <Button 
                 variant="outline" 
                 className="border-white/10 bg-white/5 hover:bg-white/10 text-white flex items-center gap-2 justify-center"
+                disabled={isSubmitting || import.meta.env.VITE_ENABLE_APPLE_AUTH !== 'true'}
+                onClick={() => {
+                  toast({
+                    title: "Coming Soon",
+                    description: "Apple sign-in will be available soon.",
+                  });
+                }}
               >
                 <Apple className="h-4 w-4" />
                 <span>Apple</span>

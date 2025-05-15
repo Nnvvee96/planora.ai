@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import ProfileModal from './modals/ProfileModal';
 import SettingsModal from './modals/SettingsModal';
-import { authService } from '@/features/auth/services/authService';
+import { authService } from '@/features/auth/api';
 import { supabase } from '@/lib/supabase/supabaseClient';
 
 export interface UserProfileMenuProps {
