@@ -1,17 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button } from "@ui/atoms/Button";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
+import {
   User,
   Settings, 
   CreditCard, 
@@ -21,24 +21,107 @@ import {
   HelpCircle,
   BookMarked
 } from 'lucide-react';
-import ProfileModal from '@/components/modals/ProfileModal';
-import SettingsModal from '@/components/modals/SettingsModal';
+import ProfileModal from './modals/ProfileModal';
+import SettingsModal from './modals/SettingsModal';
+import { authService } from '@/features/auth/services/authService';
+import { supabase } from '@/lib/supabase/supabaseClient';
 
 export interface UserProfileMenuProps {
   userName: string;
+  userEmail?: string;
+  firstName?: string;
+  lastName?: string;
+  birthdate?: string;
   mini?: boolean;
+  onLogout?: () => void;
 }
 
-const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ userName, mini = false }) => {
+/**
+ * UserProfileMenu - A component that displays the user profile menu with dropdown options
+ * for profile management, settings, and logout functionality.
+ */
+const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ 
+  userName, 
+  userEmail, 
+  firstName, 
+  lastName, 
+  birthdate, 
+  mini = false,
+  onLogout
+}) => {
   const nameInitial = userName.charAt(0);
   const navigate = useNavigate();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [profileData, setProfileData] = useState({
+    firstName: firstName || '',
+    lastName: lastName || '',
+    email: userEmail || '',
+    birthdate: birthdate || ''
+  });
   
-  const handleLogout = () => {
-    // Handle logout logic here
-    console.log("User logged out");
-    navigate('/login');
+  // Fetch the latest user profile data when opening the profile modal
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (profileModalOpen) {
+        try {
+          // Get current user data from Supabase
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (user) {
+            // Get metadata from auth user
+            const metadataFirstName = user.user_metadata?.first_name;
+            const metadataLastName = user.user_metadata?.last_name;
+            const metadataBirthdate = user.user_metadata?.birthdate;
+            
+            // Also check for Google profile data
+            const identities = user.identities || [];
+            const googleIdentity = identities.find((identity: any) => identity.provider === 'google');
+            const googleUserInfo = googleIdentity?.identity_data;
+            
+            // Get profile from profiles table
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', user.id)
+              .single();
+            
+            // Combine all sources with proper fallbacks
+            const combinedFirstName = metadataFirstName || googleUserInfo?.given_name || profileData?.first_name || firstName || '';
+            const combinedLastName = metadataLastName || googleUserInfo?.family_name || profileData?.last_name || lastName || '';
+            const combinedEmail = user.email || googleUserInfo?.email || profileData?.email || userEmail || '';
+            const combinedBirthdate = metadataBirthdate || profileData?.birthdate || birthdate || '';
+            
+            setProfileData({
+              firstName: combinedFirstName,
+              lastName: combinedLastName,
+              email: combinedEmail,
+              birthdate: combinedBirthdate
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+        }
+      }
+    };
+    
+    fetchUserProfile();
+  }, [profileModalOpen, firstName, lastName, userEmail, birthdate]);
+  
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      console.log("User logged out");
+      
+      // Call the onLogout callback if provided
+      if (onLogout) {
+        onLogout();
+      }
+      
+      navigate('/login');
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
   
   return (
@@ -58,7 +141,7 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ userName, mini = fals
           <DropdownMenuLabel>
             <div className="flex flex-col space-y-1">
               <p className="text-sm font-medium leading-none">{userName}</p>
-              <p className="text-xs leading-none text-muted-foreground">{userName.toLowerCase()}@example.com</p>
+              <p className="text-xs leading-none text-muted-foreground">{userEmail || `${userName.toLowerCase()}@example.com`}</p>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
@@ -70,6 +153,10 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ userName, mini = fals
             <DropdownMenuItem>
               <BookMarked className="mr-2 h-4 w-4" />
               <Link to="/saved-trips" className="w-full">Saved Trips</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Settings className="mr-2 h-4 w-4" />
+              <Link to="/preferences" className="w-full">Travel Preferences</Link>
             </DropdownMenuItem>
             <DropdownMenuItem>
               <CreditCard className="mr-2 h-4 w-4" />
@@ -111,7 +198,10 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ userName, mini = fals
         open={profileModalOpen} 
         onOpenChange={setProfileModalOpen} 
         userName={userName}
-        userEmail={`${userName.toLowerCase()}@example.com`}
+        userEmail={profileData.email}
+        firstName={profileData.firstName}
+        lastName={profileData.lastName}
+        birthdate={profileData.birthdate}
       />
 
       {/* Settings Modal */}

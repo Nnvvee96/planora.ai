@@ -4,15 +4,25 @@
  * It serves as the boundary for this feature
  */
 
-// Export component interfaces
-import { UserProfileMenuProps } from './components/UserProfileMenu';
+// Import components and their types
+import UserProfileMenu, { UserProfileMenuProps } from './components/UserProfileMenu';
+import ProfileModal, { ProfileModalProps, ProfileFormValues } from './components/modals/ProfileModal';
+import SettingsModal, { SettingsModalProps, PasswordFormValues } from './components/modals/SettingsModal';
 
 // Export types
 import { UserProfile, UserSettings } from './types';
-export type { UserProfile, UserSettings, UserProfileMenuProps };
+export type { 
+  UserProfile, 
+  UserSettings, 
+  UserProfileMenuProps,
+  ProfileModalProps,
+  ProfileFormValues,
+  SettingsModalProps,
+  PasswordFormValues
+};
 
 // Export components that should be accessible outside this feature
-export { default as UserProfileMenu } from './components/UserProfileMenu';
+export { UserProfileMenu, ProfileModal, SettingsModal };
 
 // When we add hooks, they would be exported here
 // export { useUserProfile } from './hooks/useUserProfile';
