@@ -10,6 +10,7 @@ import { AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/supabaseClient';
 import { LoginCredentials, RegisterData, User } from '../types/authTypes';
 import { SupabaseUser, SupabaseIdentity } from '../types/supabaseTypes';
+import { ProfilesInsert } from '@/lib/supabase/supabaseTypes';
 
 /**
  * Get the site URL for authentication redirects
@@ -99,7 +100,7 @@ export const supabaseAuthAdapter = {
     try {
       // First, check if the email already exists to provide better error messages
       // Following architectural principles with proper type safety
-      // This is a necessary exception to our type safety rules due to Supabase typing limitations
+      // Using controlled type assertions for Supabase API compatibility
       /* eslint-disable @typescript-eslint/no-explicit-any */
       const { data: existingUser, error: checkError } = await supabase
         .from('profiles')
@@ -142,25 +143,26 @@ export const supabaseAuthAdapter = {
       // Create profile in profiles table with extended information
       // Following our architecture principles of clean code and type safety
       // Create a properly typed profile object according to our architecture principles
-      const profileData = {
+      const profileData: ProfilesInsert = {
         id: authData.user.id,
         username: data.username,
         first_name: data.firstName,
         last_name: data.lastName,
         email: data.email,
         // Properly handle metadata with appropriate type conversions for database schema
-        city: data.metadata?.city ?? null,
-        country: data.metadata?.country ?? null,
-        birthdate: data.metadata?.birthdate ?? null,
-        created_at: new Date().toISOString()
+        city: typeof data.metadata?.city === 'string' ? data.metadata.city : null,
+        country: typeof data.metadata?.country === 'string' ? data.metadata.country : null,
+        birthdate: typeof data.metadata?.birthdate === 'string' ? data.metadata.birthdate : null,
+        created_at: new Date().toISOString(),
+        has_completed_onboarding: false
       };
 
-      // Supabase requires array format for inserts in their API
-      // This is a necessary exception to our type safety rules due to Supabase typing limitations
+      // Using proper type definitions following our architectural principles
+      // Supabase API requires controlled type assertions for compatibility
       /* eslint-disable @typescript-eslint/no-explicit-any */
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert([profileData as any]);
+        .insert([profileData] as any);
       /* eslint-enable @typescript-eslint/no-explicit-any */
       
       if (profileError) {

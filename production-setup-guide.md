@@ -2,7 +2,7 @@
 
 ## Configuring Authentication for Production
 
-Now that you're moving from a tunnel-based development setup to a proper production deployment, you need to update your configurations in both Google Cloud Console and Supabase.
+Now that you're moving from a tunnel-based development setup to a proper production deployment on Vercel, you need to update your configurations in both Google Cloud Console and Supabase.
 
 ### 1. Google Cloud Console Setup
 
@@ -10,7 +10,7 @@ Now that you're moving from a tunnel-based development setup to a proper product
 2. Navigate to "APIs & Services" → "Credentials"
 3. Find your OAuth 2.0 Client ID for Planora
 4. Add these authorized redirect URIs:
-   - `https://planora.windsurf.build/auth/callback` (Production Netlify URL)
+   - `https://planora.vercel.app/auth/callback` (Production Vercel URL)
    - `http://localhost:5173/auth/callback` (Development)
    - `https://vwzbowcvbrchbpqjcnkg.supabase.co/auth/v1/callback` (Supabase project URL)
 5. Remove any tunnel URLs (like `https://planora-ai.loca.lt/auth/callback`)
@@ -21,30 +21,31 @@ Now that you're moving from a tunnel-based development setup to a proper product
 2. Select your Planora project
 3. Navigate to "Authentication" → "URL Configuration"
 4. Set the Site URL to your production URL:
-   - `https://planora.windsurf.build` (Production URL)
+   - `https://planora.vercel.app` (Production URL)
 5. Update Redirect URLs:
-   - Add: `https://planora.windsurf.build/auth/callback` (Production)
+   - Add: `https://planora.vercel.app/auth/callback` (Production)
    - Keep: `http://localhost:5173/auth/callback` (Development)
    - Remove any tunnel URLs
 
-### 3. Netlify Deployment Configuration
+### 3. Vercel Deployment Configuration
 
-For a successful Netlify deployment, ensure your `netlify.toml` file is properly configured:
+For a successful Vercel deployment, ensure your `vercel.json` file is properly configured:
 
-```toml
-[build]
-  command = "npm run build"
-  publish = "dist"
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+```json
+{
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install --legacy-peer-deps",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
 ```
 
 ### 4. Environment Variables
 
-Make sure to add these environment variables in your Netlify deployment settings:
+Make sure to add these environment variables in your Vercel deployment settings:
 
 1. `VITE_SUPABASE_URL` - Your Supabase project URL
 2. `VITE_SUPABASE_ANON_KEY` - Your Supabase anon key
@@ -53,7 +54,7 @@ Make sure to add these environment variables in your Netlify deployment settings
 
 After deployment, use these steps to verify authentication is working:
 
-1. Visit your production site at `https://planora.windsurf.build`
+1. Visit your production site at `https://planora.vercel.app`
 2. Try signing in with Google
 3. Confirm you're properly redirected back to the application
 4. Verify your user data loads correctly
@@ -70,4 +71,4 @@ For local development, you simply need to:
 
 - **"Invalid redirect_uri"**: Check that your URL is correctly registered in Google Cloud Console
 - **"Not authorized"**: Confirm your Supabase project has the correct site URLs configured
-- **404 errors after login**: Ensure your Netlify redirects are properly configured in `netlify.toml`
+- **404 errors after login**: Ensure your Vercel rewrites are properly configured in `vercel.json`
