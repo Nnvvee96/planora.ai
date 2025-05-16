@@ -11,9 +11,9 @@ module.exports = {
   },
   configs: {
     recommended: {
-      plugins: ["planora-architecture"],
+      plugins: ["eslint-plugins"],
       rules: {
-        "planora-architecture/enforce-architecture": "error"
+        "eslint-plugins/enforce-architecture": "error"
       }
     }
   }
