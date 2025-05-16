@@ -82,10 +82,10 @@
           "caseInsensitive": true
         }
       }
-    ],
+    ]
     
     // Comment out the architecture rule temporarily until fully fixed
     // "eslint-plugins/enforce-architecture": "error"
-    // This line intentionally left empty to avoid trailing comma issues
+    // No comma after the last item in rules
   }
 }
