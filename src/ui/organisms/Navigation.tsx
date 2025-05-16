@@ -10,27 +10,43 @@ const Navigation: React.FC = () => {
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
   const scrollToSection = (id: string) => {
-    const element = document.getElementById(id);
+    // Map navigation items to their actual section IDs if different
+    const sectionMap: Record<string, string> = {
+      'home': 'hero', // Map 'home' navigation item to 'hero' section ID
+      // Add other mappings if needed
+    };
+    
+    // Get the correct section ID from the map or use the provided ID
+    const targetId = sectionMap[id] || id;
+    
+    const element = document.getElementById(targetId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
+    } else if (id === 'home' && window.location.pathname !== '/') {
+      // If home is clicked and we're not on the landing page, navigate to it
+      window.location.href = '/';
     }
+    
     setIsMenuOpen(false);
   };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-white/10">
-      <div className="container mx-auto px-4 md:px-6 py-4">
+      <div className="max-w-[1400px] mx-auto px-0 md:px-2 py-4">
         <div className="flex items-center justify-between">
-          <Logo />
+          <div className="pl-2 md:pl-3">
+            <Logo className="ml-0" />  
+          </div>
           
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
             <button onClick={() => scrollToSection('home')} className="text-sm text-white hover:text-planora-accent-purple transition-colors">Home</button>
-            <button onClick={() => scrollToSection('how-it-works')} className="text-sm text-white hover:text-planora-accent-purple transition-colors">Experience Travel Planning</button>
             <button onClick={() => scrollToSection('features')} className="text-sm text-white hover:text-planora-accent-purple transition-colors">Features</button>
-            <button onClick={() => scrollToSection('why-planora')} className="text-sm text-white hover:text-planora-accent-purple transition-colors">Why Planora</button>
-            <button onClick={() => scrollToSection('comparison')} className="text-sm text-white hover:text-planora-accent-purple transition-colors">Comparison</button>
-            <button onClick={() => scrollToSection('ai-powered')} className="text-sm text-white hover:text-planora-accent-purple transition-colors">AI-Powered</button>
+            <button onClick={() => scrollToSection('how-it-works')} className="text-sm text-white hover:text-planora-accent-purple transition-colors">Experience Travel Planning</button>
+            <button onClick={() => scrollToSection('examples')} className="text-sm text-white hover:text-planora-accent-purple transition-colors">Examples</button>
+            <button onClick={() => scrollToSection('pricing')} className="text-sm text-white hover:text-planora-accent-purple transition-colors">Pricing</button>
+            <button onClick={() => scrollToSection('tech')} className="text-sm text-white hover:text-planora-accent-purple transition-colors">Technology</button>
+            <button onClick={() => scrollToSection('faq')} className="text-sm text-white hover:text-planora-accent-purple transition-colors">FAQ</button>
             <button onClick={() => scrollToSection('cta')} className="text-sm text-white hover:text-planora-accent-purple transition-colors">Get Started</button>
             <div className="ml-4 flex items-center space-x-3">
               <Link to="/login">
@@ -52,11 +68,12 @@ const Navigation: React.FC = () => {
         {isMenuOpen && (
           <div className="md:hidden pt-4 pb-6 space-y-4">
             <button onClick={() => scrollToSection('home')} className="block py-2 text-left w-full text-white hover:text-planora-accent-purple transition-colors">Home</button>
-            <button onClick={() => scrollToSection('how-it-works')} className="block py-2 text-left w-full text-white hover:text-planora-accent-purple transition-colors">Experience Travel Planning</button>
             <button onClick={() => scrollToSection('features')} className="block py-2 text-left w-full text-white hover:text-planora-accent-purple transition-colors">Features</button>
-            <button onClick={() => scrollToSection('why-planora')} className="block py-2 text-left w-full text-white hover:text-planora-accent-purple transition-colors">Why Planora</button>
-            <button onClick={() => scrollToSection('comparison')} className="block py-2 text-left w-full text-white hover:text-planora-accent-purple transition-colors">Comparison</button>
-            <button onClick={() => scrollToSection('ai-powered')} className="block py-2 text-left w-full text-white hover:text-planora-accent-purple transition-colors">AI-Powered</button>
+            <button onClick={() => scrollToSection('how-it-works')} className="block py-2 text-left w-full text-white hover:text-planora-accent-purple transition-colors">Experience Travel Planning</button>
+            <button onClick={() => scrollToSection('examples')} className="block py-2 text-left w-full text-white hover:text-planora-accent-purple transition-colors">Examples</button>
+            <button onClick={() => scrollToSection('pricing')} className="block py-2 text-left w-full text-white hover:text-planora-accent-purple transition-colors">Pricing</button>
+            <button onClick={() => scrollToSection('tech')} className="block py-2 text-left w-full text-white hover:text-planora-accent-purple transition-colors">Technology</button>
+            <button onClick={() => scrollToSection('faq')} className="block py-2 text-left w-full text-white hover:text-planora-accent-purple transition-colors">FAQ</button>
             <button onClick={() => scrollToSection('cta')} className="block py-2 text-left w-full text-white hover:text-planora-accent-purple transition-colors">Get Started</button>
             <div className="pt-4 flex flex-col space-y-3">
               <Link to="/login">

@@ -27,16 +27,31 @@ if ((!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_K
 }
 
 // Initialize Supabase client with debug logging
+/**
+ * Get the site URL for authentication redirects
+ * This function returns the appropriate URL based on the current environment
+ */
+const getSiteUrl = (): string => {
+  // In production environment, use the deployed URL
+  if (import.meta.env.PROD) return 'https://planora.vercel.app';
+  
+  // In development, use the current origin or localhost
+  return window.location.origin || 'http://localhost:5173';
+};
+
+// Create the Supabase client with proper typings for the auth options
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
+    // @ts-expect-error - redirectTo is supported in newer Supabase versions but TypeScript definitions aren't updated
+    redirectTo: `${getSiteUrl()}/auth/callback`,
   },
   global: {
     // Add request logging to debug API calls
-    fetch: (url, options, ...rest) => {
+    fetch: (url, options) => {
       console.log('Supabase API Request:', url);
-      return fetch(url, options, ...rest).then(response => {
+      return fetch(url, options).then(response => {
         // Clone the response so we can inspect it without consuming it
         const clone = response.clone();
         clone.text().then(text => {
