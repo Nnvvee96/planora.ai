@@ -23,8 +23,7 @@
   "plugins": [
     "react",
     "@typescript-eslint",
-    "import",
-    "./eslint-plugins"
+    "import"
   ],
   "overrides": [
     {
@@ -84,8 +83,7 @@
       }
     ]
     
-    // Comment out the architecture rule temporarily until fully fixed
-    // "eslint-plugins/enforce-architecture": "error"
-    // No comma after the last item in rules
+    // Custom architectural rules are enforced through the validate-arch script
+    // which runs the dependency cruiser validation and other checks
   }
 }

@@ -6,8 +6,8 @@ npx lint-staged
 # Run architecture validation
 npm run validate-arch
 
-# Check for ESLint errors related to architecture rules
-# Temporarily disable the architecture rule check to allow commits
-# npx eslint "src/**/*.{ts,tsx,js,jsx}" --no-ignore --quiet --rule 'eslint-plugins/enforce-architecture: error'
+# We'll validate architecture using our custom script instead of direct ESLint rule
+# This ensures consistency with the validate-arch script that works properly
+# The script already runs ESLint checks along with other architecture validations
 
 echo "✅ Architecture validation passed! Your changes follow the clean architecture pattern."
