@@ -1,0 +1,4 @@
+# Ignore files for Vercel deployment
+README.md
+check-secrets.sh
+.git
