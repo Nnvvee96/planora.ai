@@ -1,73 +1,81 @@
-# Welcome to your Lovable project
+# Planora.ai - Intelligent Travel Planning Platform
 
-## Project info
+![Planora.ai Logo](https://placehold.co/600x200/1c2331/ffffff?text=Planora.ai)
 
-**URL**: https://lovable.dev/projects/c4909b43-fbe9-4955-99c1-919d7ac4316e
+Planora is an intelligent travel planning platform that helps users discover, plan, and organize their ideal trips based on personal preferences, budget constraints, and travel goals.
 
-## How can I edit this code?
+## Project Overview
 
-There are several ways of editing your application.
+Planora combines powerful AI with a clean, user-friendly interface to create personalized travel experiences. The application follows a strict clean architecture approach focused on maintainability, extensibility, and code quality.
 
-**Use Lovable**
+## Key Features
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/c4909b43-fbe9-4955-99c1-919d7ac4316e) and start prompting.
+- **Personalized Travel Recommendations**: AI-driven travel recommendations based on user preferences
+- **Budget Optimization**: Intelligent travel planning within user budget constraints
+- **User Profile Management**: Comprehensive user profile and preference management
+- **Supabase Integration**: Secure authentication and data storage with Supabase
 
-Changes made via Lovable will be committed automatically to this repo.
+## Technology Stack
 
-**Use your preferred IDE**
+- **Frontend**: React, TypeScript, Vite
+- **UI Components**: ShadCN UI, Tailwind CSS
+- **State Management**: Redux Toolkit
+- **Authentication**: Supabase Auth
+- **Database**: Supabase PostgreSQL
+- **Deployment**: Vercel
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Getting Started
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Prerequisites
 
-Follow these steps:
+- Node.js 16+ and npm
+- Supabase account for backend services
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Installation
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+```bash
+# Clone the repository
+git clone https://github.com/Nnvvee96/planora.ai.git
+cd planora.ai
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Install dependencies
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your Supabase credentials
+
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Architecture
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Planora.ai follows a strict clean architecture approach with the following principles:
 
-**Use GitHub Codespaces**
+- **Feature-First Organization**: Code organized by feature domain
+- **Separation of Concerns**: Clear boundaries between UI, business logic, and data layers
+- **Modular Design**: Reusable components built using atomic design principles
+- **Type Safety**: Comprehensive TypeScript types throughout the codebase
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Read our [Architecture Documentation](ARCHITECTURE.md) for detailed information.
 
-## What technologies are used for this project?
+## Documentation
 
-This project is built with:
+Comprehensive documentation is available in the [docs](./docs) directory:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- [Architecture Guides](./docs/architecture)
+- [Setup Instructions](./docs/setup)
+- [Developer Guidelines](./docs/developer)
 
-## How can I deploy this project?
+## Contributing
 
-Simply open [Lovable](https://lovable.dev/projects/c4909b43-fbe9-4955-99c1-919d7ac4316e) and click on Share -> Publish.
+We welcome contributions to Planora.ai! Please review our [Style Guide](./docs/developer/styleguide.md) before submitting changes.
 
-## Can I connect a custom domain to my Lovable project?
+## License
 
-Yes, you can!
+This project is proprietary and is not open for redistribution or use without explicit permission.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Contact
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+For questions or support, please contact the repository maintainers.

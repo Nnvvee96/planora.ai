@@ -14,12 +14,11 @@ This directory contains comprehensive documentation for the Planora.ai project, 
 ### Setup Guides
 - [Supabase Setup](setup/supabase-setup.md) - Setting up Supabase for Planora
 - [Email Verification](setup/email-verification.md) - Configuring Supabase email verification
-- [Production Setup](../production-setup-guide.md) - Deploying Planora to production
-- [Vercel Deployment](../vercel-deployment-guide.md) - Guide for Vercel deployment
+- [Deployment Guide](setup/deployment-guide.md) - Guide for deploying Planora to Vercel
 
 ### Developer Resources
 - [Developer Guide](developer/guide.md) - Comprehensive guide for Planora developers
-- [Style Guide](../styleguide.md) - Code style and formatting guidelines
+- [Style Guide](developer/styleguide.md) - Code style and formatting guidelines
 
 ## Architectural Principles
 
