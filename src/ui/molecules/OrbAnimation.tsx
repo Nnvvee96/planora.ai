@@ -1,29 +1,106 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
-const OrbAnimation = () => {
+interface OrbAnimationProps {
+  className?: string;
+}
+
+const OrbAnimation: React.FC<OrbAnimationProps> = ({ className = '' }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas dimensions
+    const resize = () => {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    };
+    
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Orb configuration
+    const orbs: {
+      x: number;
+      y: number;
+      radius: number;
+      color: string;
+      alpha: number;
+      speed: number;
+      direction: { x: number; y: number };
+    }[] = [];
+
+    const colors = [
+      'rgba(147, 51, 234, 0.7)', // Planora purple
+      'rgba(192, 132, 252, 0.7)', // Planora accent purple
+      'rgba(79, 70, 229, 0.7)',   // Planora accent blue
+    ];
+
+    // Create orbs
+    for (let i = 0; i < 10; i++) {
+      const radius = Math.random() * 50 + 20;
+      orbs.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        radius,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        alpha: Math.random() * 0.5 + 0.3,
+        speed: Math.random() * 0.5 + 0.2,
+        direction: {
+          x: (Math.random() - 0.5) * 2,
+          y: (Math.random() - 0.5) * 2
+        }
+      });
+    }
+
+    // Animation function
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      orbs.forEach(orb => {
+        // Update position
+        orb.x += orb.direction.x * orb.speed;
+        orb.y += orb.direction.y * orb.speed;
+        
+        // Bounce off walls
+        if (orb.x - orb.radius < 0 || orb.x + orb.radius > canvas.width) {
+          orb.direction.x *= -1;
+        }
+        
+        if (orb.y - orb.radius < 0 || orb.y + orb.radius > canvas.height) {
+          orb.direction.y *= -1;
+        }
+        
+        // Draw orb
+        ctx.beginPath();
+        ctx.arc(orb.x, orb.y, orb.radius, 0, Math.PI * 2);
+        ctx.fillStyle = orb.color;
+        ctx.globalAlpha = orb.alpha;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      });
+      
+      requestAnimationFrame(animate);
+    };
+    
+    animate();
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
+
   return (
-    <div className="relative w-full h-full flex items-center justify-center">
-      {/* Central orb - repositioned to be fully visible */}
-      <div className="relative w-40 h-40 md:w-64 md:h-64 mx-auto">
-        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-planora-accent-purple to-planora-accent-pink opacity-20 animate-pulse-light"></div>
-        <div className="absolute inset-2 rounded-full bg-gradient-to-br from-planora-accent-purple to-planora-accent-pink opacity-30 blur-md"></div>
-        <div className="absolute inset-0 rounded-full border border-white/20 animate-spin-slow"></div>
-        
-        {/* Orbiting small orbs - contained within planet boundaries */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full">
-          <div className="absolute w-4 h-4 rounded-full bg-planora-accent-purple animate-orbit" style={{ animationDelay: '0s' }}></div>
-          <div className="absolute w-3 h-3 rounded-full bg-planora-accent-pink animate-orbit" style={{ animationDelay: '-5s' }}></div>
-          <div className="absolute w-2 h-2 rounded-full bg-planora-accent-blue animate-orbit" style={{ animationDelay: '-10s' }}></div>
-          
-          {/* Connecting lines */}
-          <div className="absolute inset-0 rounded-full border border-dashed border-white/10 animate-spin-slow" style={{ animationDirection: 'reverse' }}></div>
-        </div>
-        
-        {/* Glow effect */}
-        <div className="absolute inset-0 rounded-full bg-planora-accent-purple/20 blur-2xl animate-pulse-light" style={{ animationDelay: '-2s' }}></div>
-      </div>
-    </div>
+    <canvas 
+      ref={canvasRef} 
+      className={`w-full h-full absolute top-0 left-0 -z-10 ${className}`}
+    />
   );
 };
 
-export default OrbAnimation;
+export { OrbAnimation };

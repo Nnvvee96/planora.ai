@@ -5,7 +5,7 @@
  */
 
 // Export types that should be available to other features
-import { User, AuthState, LoginCredentials, RegisterData } from './types';
+import { User, AuthState, LoginCredentials, RegisterData } from './types/authTypes';
 export type { User, AuthState, LoginCredentials, RegisterData };
 
 // Export hooks that provide feature functionality to the rest of the app

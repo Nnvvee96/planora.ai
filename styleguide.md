@@ -21,22 +21,28 @@ We use a clean architecture approach that combines Atomic Design for UI componen
 
 ```
 src/
-├── ui/                      # UI components following atomic design
-│   ├── atoms/               # Basic building blocks (Button, Input, etc.)
-│   ├── molecules/           # Combinations of atoms (FormField, Card, etc.)
-│   ├── organisms/           # Complex UI sections (Navigation, TravelCardList, etc.)
+├── ui/                      # Custom UI components following atomic design
+│   ├── atoms/               # Basic building blocks (Button, Logo, etc.)
+│   ├── molecules/           # Combinations of atoms (FeatureCard, TravelCards, etc.)
+│   ├── organisms/           # Complex UI sections (Navigation, Footer, etc.)
 │   └── templates/           # Page layouts (DashboardLayout, AuthLayout, etc.)
+│
+├── components/              # Third-party/library components
+│   └── ui/                  # Low-level shadcn/ui components
 │
 ├── features/                # Feature-specific code organized by domain
 │   ├── auth/                # Authentication feature
-│   │   ├── api.ts           # Public API exports for the feature
-│   │   ├── types.ts         # Feature-specific type definitions
+│   │   ├── api.ts           # Public API exports for the feature (boundary)
+│   │   ├── types/           # Feature-specific type definitions
+│   │   │   ├── appTypes.ts  # Frontend application types
+│   │   │   └── databaseTypes.ts # Database schema types
 │   │   ├── components/      # Feature-specific components
 │   │   ├── services/        # Feature-related services
 │   │   ├── hooks/           # Custom React hooks for feature
 │   │   └── utils/           # Utility functions for feature
 │   │
 │   ├── travel-planning/     # Travel planning feature
+│   ├── travel-preferences/  # Travel preferences feature
 │   └── user-profile/        # User profile feature
 │
 ├── pages/                   # Page components that use features and UI components
@@ -64,14 +70,22 @@ src/
 - **Type Files**: Use camelCase (`user.ts`, `travel.ts`)
 - **Test Files**: Append `.test` or `.spec` (`Button.test.tsx`)
 
-## Naming Conventions
+## Naming and Export Conventions
 
-### Components
+### Components and Exports
 
 - **Component Names**: PascalCase (`Button`, `UserProfile`)
 - **Component Props**: PascalCase + Props (`ButtonProps`)
 - **Hooks**: camelCase prefixed with `use` (`useAuth`, `useFormField`)
 - **Context**: PascalCase + Context (`UserContext`)
+- **IMPORTANT**: Use named exports for all components, NOT default exports
+  ```typescript
+  // CORRECT
+  export { Button };
+  
+  // INCORRECT
+  export default Button;
+  ```
 
 ### Variables and Functions
 
@@ -80,6 +94,12 @@ src/
 - **Boolean Variables**: Prefix with is/has/should (`isLoading`, `hasError`)
 - **Functions**: camelCase, verb-based naming (`calculateTotal`, `fetchUserData`)
 - **Event Handlers**: Prefix with `handle` or `on` (`handleSubmit`, `onUserUpdate`)
+
+### File Naming (Critical)
+
+- **Never use generic index.ts files**
+- Every file must have a descriptive name that reflects its purpose
+- Maintain proper casing in imports (e.g., `Button.tsx` not `button.tsx`)
 
 ## TypeScript & Type Safety
 
@@ -104,7 +124,7 @@ function UserCard({ name, age, role = 'user' }: UserProps) {
 }
 
 // Avoid
-function UserCard(props: any) {
+const UserCard = (props: any) => {
   const { name, age, role } = props;
   // ...
 }
@@ -112,26 +132,33 @@ function UserCard(props: any) {
 
 ## Component Design
 
-### Composition over Inheritance
+### Named Exports and Composition
 
-Prefer composition over inheritance to share code between components.
+Use named exports and composition to share code between components.
 
 ```tsx
 // Good
-function Button({ children, ...props }) {
+const Button = ({ children, ...props }) => {
   return <button {...props}>{children}</button>;
-}
+};
 
-function IconButton({ icon, children, ...props }) {
+export { Button };
+
+// In another file:
+import { Button } from '@/ui/atoms/Button';
+
+const IconButton = ({ icon, children, ...props }) => {
   return (
     <Button {...props}>
       {icon}
       {children}
     </Button>
   );
-}
+};
 
-// Avoid extending classes for components
+export { IconButton };
+
+// Avoid default exports and extending classes for components
 ```
 
 ### Props
@@ -215,6 +242,17 @@ function Button({ variant, size, className, ...props }) {
 - Test user interactions
 - Test state changes
 - Use React Testing Library
+- Remember to use named imports in tests to match component exports:
+
+```typescript
+// Correct
+import { Button } from '@/ui/atoms/Button';
+
+test('Button should render correctly', () => {
+  render(<Button>Click me</Button>);
+  // assertions...
+});
+```
 
 ### Unit Testing
 

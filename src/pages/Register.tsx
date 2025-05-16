@@ -1,19 +1,19 @@
 
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/ui/atoms/Button';
+import { Input } from '@/ui/atoms/Input';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/ui/atoms/Card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select } from '@/components/ui/select';
-import Logo from '@/components/atoms/Logo';
+import { Logo } from '@/ui/atoms/Logo';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import GradientButton from '@/components/atoms/GradientButton';
+import { GradientButton } from '@/ui/atoms/GradientButton';
 import { Apple } from 'lucide-react';
 import { DatePickerInput } from "@/components/ui/DatePickerInput";
-import Footer from '@/components/organisms/Footer';
+import { Footer } from '@/ui/organisms/Footer';
 import { useToast } from "@/components/ui/use-toast";
 import { authService, RegisterData } from "@/features/auth/api";
 
@@ -135,12 +135,13 @@ const Register = () => {
           message: "A verification link has been sent to your email. Please check your inbox and click the link to verify your account before logging in." 
         }
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error('Registration error:', err);
-      setError(err.message || 'Registration failed. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Registration failed. Please try again.';
+      setError(errorMessage);
       toast({
         title: "Registration failed",
-        description: err.message || "Please check your information and try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -377,11 +378,12 @@ const Register = () => {
                     setIsSubmitting(true);
                     await authService.signInWithGoogle();
                     // The page will be redirected by Supabase, no need to navigate
-                  } catch (err: any) {
+                  } catch (err) {
                     console.error('Google sign-in error:', err);
+                    const errorMessage = err instanceof Error ? err.message : "Please try again.";
                     toast({
                       title: "Google sign-in failed",
-                      description: err.message || "Please try again.",
+                      description: errorMessage,
                       variant: "destructive"
                     });
                     setIsSubmitting(false);
@@ -429,4 +431,4 @@ const Register = () => {
   );
 };
 
-export default Register;
+export { Register };

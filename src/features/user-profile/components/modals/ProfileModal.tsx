@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/ui/atoms/Button';
+import { Input } from '@/ui/atoms/Input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Label } from '@/components/ui/label';
+import { Label } from '@/ui/atoms/Label';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { DatePickerInput } from '@/components/ui/DatePickerInput';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { supabase } from '@/lib/supabase/supabaseClient';
+import { authService } from '@/features/auth/api';
+import { userProfileService } from '../../services/userProfileService';
 
 const profileSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required" }),
@@ -64,30 +65,18 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
       if (open) {
         setLoading(true);
         try {
-          // Get current user data directly from Supabase
-          const { data: userData } = await supabase.auth.getUser();
+          // Get current user through the auth service API
+          const currentUser = await authService.getCurrentUser();
           
-          if (userData?.user) {
-            // Get Google identity data if available
-            const identities = userData.user.identities || [];
-            const googleIdentity = identities.find((identity: any) => identity.provider === 'google');
-            const googleData = googleIdentity?.identity_data || {};
+          if (currentUser) {
+            // Get profile data through the user profile service
+            const profileData = await userProfileService.getUserProfile(currentUser.id);
             
-            // Get user metadata
-            const metadata = userData.user.user_metadata || {};
-            
-            // Get profile data from profiles table
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', userData.user.id)
-              .single();
-            
-            // Combine all sources with priority: provided props > profile data > metadata > google data
-            const combinedFirstName = firstName || profileData?.first_name || metadata.first_name || googleData.given_name || userName.split(' ')[0] || '';
-            const combinedLastName = lastName || profileData?.last_name || metadata.last_name || googleData.family_name || userName.split(' ')[1] || '';
-            const combinedEmail = userEmail || profileData?.email || userData.user.email || googleData.email || '';
-            const combinedBirthdate = birthdate || profileData?.birthdate || metadata.birthdate || '';
+            // Combine all sources with priority: provided props > profile data > current user data
+            const combinedFirstName = firstName || profileData?.first_name || currentUser.firstName || userName.split(' ')[0] || '';
+            const combinedLastName = lastName || profileData?.last_name || currentUser.lastName || userName.split(' ')[1] || '';
+            const combinedEmail = userEmail || profileData?.email || currentUser.email || '';
+            const combinedBirthdate = birthdate || profileData?.birthdate || '';
             
             // Reset form with combined data
             form.reset({
@@ -112,30 +101,28 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
     try {
       setLoading(true);
       
-      // Get the current user
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user?.id) {
+      // Get the current user through the auth service
+      const currentUser = await authService.getCurrentUser();
+      if (!currentUser?.id) {
         throw new Error('User not authenticated');
       }
       
-      // Update user metadata
-      await supabase.auth.updateUser({
-        data: {
-          first_name: data.firstName,
-          last_name: data.lastName,
-          birthdate: data.birthdate,
-        }
-      });
-      
-      // Update the profile table (upsert operation)
-      await supabase.from('profiles').upsert({
-        id: userData.user.id,
+      // Update the user profile through the user profile service
+      const profileData = {
+        id: currentUser.id,
         first_name: data.firstName,
         last_name: data.lastName,
         email: data.email,
         birthdate: data.birthdate,
         updated_at: new Date().toISOString()
-      }, { onConflict: 'id' });
+      };
+      
+      // Use the user profile service to update the profile
+      const updatedProfile = await userProfileService.updateUserProfile(currentUser.id, profileData);
+      
+      if (!updatedProfile) {
+        throw new Error('Failed to update profile');
+      }
       
       // Call the onProfileUpdate callback if provided
       if (onProfileUpdate) {
@@ -273,4 +260,4 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
   );
 };
 
-export default ProfileModal;
+export { ProfileModal };

@@ -1,42 +1,48 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
-interface GradientButtonProps {
-  children: React.ReactNode;
-  className?: string;
-  onClick?: () => void;
-  size?: 'default' | 'sm' | 'lg';
-  type?: 'button' | 'submit' | 'reset';
+interface GradientButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary';
+  size?: 'sm' | 'md' | 'lg';
+  iconLeft?: React.ReactNode;
+  iconRight?: React.ReactNode;
 }
 
-const GradientButton = ({ 
-  children, 
-  className, 
-  onClick,
-  size = 'default',
-  type = 'button'
-}: GradientButtonProps) => {
-  const sizeClasses = {
-    sm: 'text-sm px-4 py-2',
-    default: 'px-6 py-3',
-    lg: 'text-lg px-8 py-4'
+const GradientButton: React.FC<GradientButtonProps> = ({
+  children,
+  className,
+  variant = 'primary',
+  size = 'md',
+  iconLeft,
+  iconRight,
+  ...props
+}) => {
+  const variants = {
+    primary: 'bg-gradient-to-r from-planora-purple to-planora-accent-purple text-white',
+    secondary: 'bg-gradient-to-r from-planora-accent-purple to-planora-accent-blue text-white',
+  };
+
+  const sizes = {
+    sm: 'text-sm px-3 py-1.5',
+    md: 'text-base px-4 py-2',
+    lg: 'text-lg px-6 py-3',
   };
 
   return (
-    <button 
+    <button
       className={cn(
-        "relative inline-flex items-center justify-center overflow-hidden font-bold rounded-lg",
-        sizeClasses[size],
+        'font-medium rounded-md transition-all hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-planora-purple/50 inline-flex items-center justify-center',
+        variants[variant],
+        sizes[size],
         className
       )}
-      onClick={onClick}
-      type={type}
+      {...props}
     >
-      <span className="absolute inset-0 w-full h-full transition duration-300 ease-out opacity-80 bg-gradient-to-br from-planora-accent-purple via-planora-accent-pink to-planora-accent-blue"></span>
-      <span className="absolute top-0 left-0 w-full h-full transition-all duration-500 ease-out rounded-lg opacity-0 bg-gradient-to-br from-planora-accent-purple via-planora-accent-pink to-planora-accent-blue hover:opacity-70 hover:blur-lg"></span>
-      <span className="relative z-10 flex items-center justify-center text-white transition-all duration-300 whitespace-normal break-words">{children}</span>
+      {iconLeft && <span className="mr-2">{iconLeft}</span>}
+      {children}
+      {iconRight && <span className="ml-2">{iconRight}</span>}
     </button>
   );
 };
 
-export default GradientButton;
+export { GradientButton };

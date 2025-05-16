@@ -157,4 +157,4 @@ const Support: React.FC = () => {
   );
 };
 
-export default Support;
+export { Support };

@@ -214,4 +214,4 @@ const PrivacySecurity: React.FC = () => {
   );
 };
 
-export default PrivacySecurity;
+export { PrivacySecurity };

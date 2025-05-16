@@ -23,8 +23,13 @@
   "plugins": [
     "react",
     "@typescript-eslint",
-    "import",
-    "planora-architecture"
+    "import"
+  ],
+  "overrides": [
+    {
+      "files": ["**/*.{ts,tsx,js,jsx}"],
+      "plugins": ["./eslint-plugins"]
+    }
   ],
   "settings": {
     "react": {
@@ -80,6 +85,6 @@
     ],
     
     // Planora Architecture Rules
-    "planora-architecture/enforce-architecture": "error"
+    "./eslint-plugins/enforce-architecture": "error"
   }
 }
