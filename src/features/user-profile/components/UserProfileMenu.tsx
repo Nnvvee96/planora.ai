@@ -21,10 +21,10 @@ import {
   HelpCircle,
   BookMarked
 } from 'lucide-react';
-import ProfileModal from './modals/ProfileModal';
-import SettingsModal from './modals/SettingsModal';
+import { ProfileModal } from './modals/ProfileModal';
+import { SettingsModal } from './modals/SettingsModal';
 import { authService } from '@/features/auth/api';
-import { supabase } from '@/lib/supabase/supabaseClient';
+import { userProfileService } from '../services/userProfileService';
 
 export interface UserProfileMenuProps {
   userName: string;
@@ -65,32 +65,18 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
     const fetchUserProfile = async () => {
       if (profileModalOpen) {
         try {
-          // Get current user data from Supabase
-          const { data: { user } } = await supabase.auth.getUser();
+          // Get current user through the auth service API
+          const currentUser = await authService.getCurrentUser();
           
-          if (user) {
-            // Get metadata from auth user
-            const metadataFirstName = user.user_metadata?.first_name;
-            const metadataLastName = user.user_metadata?.last_name;
-            const metadataBirthdate = user.user_metadata?.birthdate;
+          if (currentUser) {
+            // Get detailed profile through the user profile service
+            const profileData = await userProfileService.getUserProfile(currentUser.id);
             
-            // Also check for Google profile data
-            const identities = user.identities || [];
-            const googleIdentity = identities.find((identity: any) => identity.provider === 'google');
-            const googleUserInfo = googleIdentity?.identity_data;
-            
-            // Get profile from profiles table
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', user.id)
-              .single();
-            
-            // Combine all sources with proper fallbacks
-            const combinedFirstName = metadataFirstName || googleUserInfo?.given_name || profileData?.first_name || firstName || '';
-            const combinedLastName = metadataLastName || googleUserInfo?.family_name || profileData?.last_name || lastName || '';
-            const combinedEmail = user.email || googleUserInfo?.email || profileData?.email || userEmail || '';
-            const combinedBirthdate = metadataBirthdate || profileData?.birthdate || birthdate || '';
+            // Use data from the profile or fall back to props
+            const combinedFirstName = profileData?.first_name || currentUser.firstName || firstName || '';
+            const combinedLastName = profileData?.last_name || currentUser.lastName || lastName || '';
+            const combinedEmail = currentUser.email || profileData?.email || userEmail || '';
+            const combinedBirthdate = profileData?.birthdate || birthdate || '';
             
             setProfileData({
               firstName: combinedFirstName,
@@ -110,7 +96,8 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
   
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
+      // Use authService through the proper API boundary for logout
+      await authService.logout();
       console.log("User logged out");
       
       // Call the onLogout callback if provided
@@ -213,4 +200,4 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
   );
 };
 
-export default UserProfileMenu;
+export { UserProfileMenu };

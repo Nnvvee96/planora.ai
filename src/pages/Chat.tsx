@@ -12,8 +12,8 @@ import {
   Trash2,
   ChevronRight
 } from 'lucide-react';
-import Logo from '@/components/Logo';
-import UserProfileMenu from '@/components/UserProfileMenu';
+import { Logo } from '@/ui/atoms/Logo';
+import { UserProfileMenu } from '@/features/user-profile/api';
 import { cn } from "@/lib/utils";
 
 // Types for the chat interface
@@ -430,4 +430,4 @@ Let me know your preferences, and I can tailor recommendations specifically for 
   );
 };
 
-export default Chat;
+export { Chat };

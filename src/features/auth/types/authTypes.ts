@@ -15,6 +15,7 @@ export interface User {
   email: string;
   firstName?: string;
   lastName?: string;
+  hasCompletedOnboarding?: boolean;
 }
 
 export interface LoginCredentials {
@@ -28,4 +29,5 @@ export interface RegisterData {
   username: string;
   firstName?: string;
   lastName?: string;
+  metadata?: Record<string, unknown>; // Using 'unknown' instead of 'any' for better type safety
 }

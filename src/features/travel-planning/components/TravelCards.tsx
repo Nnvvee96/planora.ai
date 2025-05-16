@@ -1,9 +1,36 @@
 import React from 'react';
 import { Star, MapPin, BarChart, Plane } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/ui/atoms/Badge';
+import { Destination } from '../types/travelPlanningTypes';
 
-const TravelCards = () => {
-  const destinations = [
+// Define a simplified Destination interface for UI presentation purposes
+export interface TravelCardDestination {
+  id: number;
+  destination: string;
+  departureFrom: string;
+  airline: string;
+  price: string;
+  rating: number;
+  dates: string;
+  deal: string;
+  accommodationType: string;
+  image: string;
+}
+
+export interface TravelCardsProps {
+  customDestinations?: TravelCardDestination[];
+  onViewAllClick?: () => void;
+  onExploreMoreClick?: () => void;
+  limit?: number;
+}
+
+const TravelCards: React.FC<TravelCardsProps> = ({ 
+  customDestinations,
+  onViewAllClick,
+  onExploreMoreClick,
+  limit
+}) => {
+  const defaultDestinations = [
     {
       id: 1,
       destination: 'Barcelona, Spain',
@@ -42,11 +69,35 @@ const TravelCards = () => {
     }
   ];
 
+  let destinations = customDestinations || defaultDestinations;
+  
+  // Apply limit if provided
+  if (limit && limit > 0 && limit < destinations.length) {
+    destinations = destinations.slice(0, limit);
+  }
+  
+  const handleViewAllClick = () => {
+    if (onViewAllClick) {
+      onViewAllClick();
+    }
+  };
+  
+  const handleExploreMoreClick = () => {
+    if (onExploreMoreClick) {
+      onExploreMoreClick();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-lg">Suggested Destinations</h3>
-        <button className="text-xs text-planora-accent-purple">View All</button>
+        <button 
+          className="text-xs text-planora-accent-purple"
+          onClick={handleViewAllClick}
+        >
+          View All
+        </button>
       </div>
       
       {destinations.map((destination) => (
@@ -92,10 +143,15 @@ const TravelCards = () => {
       ))}
       
       <div className="w-full p-4 rounded-xl border border-dashed border-white/20 flex items-center justify-center">
-        <button className="text-sm text-planora-accent-purple">+ Explore More Options</button>
+        <button 
+          className="text-sm text-planora-accent-purple"
+          onClick={handleExploreMoreClick}
+        >
+          + Explore More Options
+        </button>
       </div>
     </div>
   );
 };
 
-export default TravelCards;
+export { TravelCards };

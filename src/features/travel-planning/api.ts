@@ -12,7 +12,7 @@ import {
   Budget,
   Accommodation, 
   Transportation 
-} from './types';
+} from './types/travelPlanningTypes';
 
 export type { 
   TravelPlan, 
@@ -24,7 +24,7 @@ export type {
 };
 
 // Export components that should be accessible outside this feature
-export { default as TravelCards } from './components/TravelCards';
+export { TravelCards } from './components/TravelCards';
 
 // When we add hooks, they would be exported here
 // export { useTravelPlanning } from './hooks/useTravelPlanning';

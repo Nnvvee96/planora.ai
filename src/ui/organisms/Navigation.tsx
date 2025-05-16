@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import Logo from '@ui/atoms/Logo';
+import { Button } from '@/ui/atoms/Button';
+import { Logo } from '@/ui/atoms/Logo';
 import { Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const Navigation = () => {
+const Navigation: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
@@ -73,4 +73,4 @@ const Navigation = () => {
   );
 };
 
-export default Navigation;
+export { Navigation };

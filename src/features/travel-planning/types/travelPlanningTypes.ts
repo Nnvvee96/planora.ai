@@ -29,6 +29,8 @@ export interface Destination {
     latitude: number;
     longitude: number;
   };
+  latitude: number;
+  longitude: number;
   description?: string;
   imageUrl?: string;
 }
@@ -60,6 +62,12 @@ export interface Budget {
     shopping: number;
     other: number;
   };
+  accommodation: number;
+  transportation: number;
+  food: number;
+  activities: number;
+  shopping: number;
+  other: number;
 }
 
 export interface Accommodation {

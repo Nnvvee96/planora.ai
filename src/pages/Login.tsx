@@ -1,14 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/ui/atoms/Button";
+import { Input } from "@/ui/atoms/Input";
+import { Label } from "@/ui/atoms/Label";
 import { cn } from "@/lib/utils";
-import Logo from '@/components/atoms/Logo';
+import { Logo } from '@/ui/atoms/Logo';
 import { useNavigate } from 'react-router-dom';
 import { Apple, Mail, CheckCircle2, AlertCircle } from 'lucide-react';
-import Footer from '@/components/organisms/Footer';
+import { Footer } from '@/ui/organisms/Footer';
 import { useToast } from "@/components/ui/use-toast";
 import { authService, LoginCredentials } from "@/features/auth/api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -54,12 +54,13 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
       
       // Navigate to dashboard
       navigate('/dashboard');
-    } catch (err: any) {
+    } catch (err) {
       console.error('Login error:', err);
-      setError(err.message || 'Login failed. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Login failed. Please try again.';
+      setError(errorMessage);
       toast({
         title: "Login failed",
-        description: err.message || "Please check your credentials and try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -149,11 +150,12 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               setIsLoading(true);
               await authService.signInWithGoogle();
               // The page will be redirected by Supabase, no need to navigate
-            } catch (err: any) {
+            } catch (err) {
               console.error('Google sign-in error:', err);
+              const errorMessage = err instanceof Error ? err.message : "Please try again.";
               toast({
                 title: "Google sign-in failed",
-                description: err.message || "Please try again.",
+                description: errorMessage,
                 variant: "destructive"
               });
               setIsLoading(false);
@@ -199,7 +201,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   );
 }
 
-export default function Login() {
+export function Login() {
   const location = useLocation();
   const [verificationNeeded, setVerificationNeeded] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');

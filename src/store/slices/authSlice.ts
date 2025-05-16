@@ -69,7 +69,7 @@ export const {
   clearError
 } = authSlice.actions;
 
-export default authSlice.reducer;
+export const authReducer = authSlice.reducer;
 
 // Selectors
 export const selectAuth = (state: { auth: AuthState }) => state.auth;

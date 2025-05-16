@@ -3,64 +3,74 @@
  * 
  * Responsible for handling authentication-related operations like login, registration, etc.
  * This service does NOT directly import any UI components, maintaining separation of concerns.
+ * 
+ * Uses adapters to abstract provider-specific implementations for better maintainability.
  */
 
-import { LoginCredentials, RegisterData, User } from '../types';
+import { supabaseAuthAdapter } from '../adapters/supabaseAuthAdapter';
+import { LoginCredentials, RegisterData, User } from '../types/authTypes';
 
+/**
+ * Auth Service
+ * 
+ * This service provides authentication functionality to the application.
+ * It uses an adapter pattern to abstract away the specific authentication provider,
+ * allowing for easier switching of providers in the future if needed.
+ */
 export const authService = {
   /**
    * Attempts to login user with provided credentials
    * @param {LoginCredentials} credentials - User credentials
    * @returns {Promise<User>} User data
+   * @throws {Error} If login fails
    */
   login: async (credentials: LoginCredentials): Promise<User> => {
-    // In a real application, this would make an API call to authenticate
-    // For now, we'll simulate a successful login
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          id: '1',
-          username: 'testuser',
-          email: credentials.email,
-          firstName: 'Test',
-          lastName: 'User'
-        });
-      }, 500);
-    });
+    try {
+      // Call the adapter implementation
+      const user = await supabaseAuthAdapter.signInWithCredentials(credentials);
+      
+      // Store user in localStorage for persistence
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      return user;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
   },
 
   /**
    * Registers a new user with provided data
    * @param {RegisterData} data - Registration data
    * @returns {Promise<User>} New user data
+   * @throws {Error} If registration fails
    */
   register: async (data: RegisterData): Promise<User> => {
-    // In a real application, this would make an API call to register the user
-    // For now, we'll simulate a successful registration
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          id: '1',
-          username: data.username,
-          email: data.email,
-          firstName: data.firstName,
-          lastName: data.lastName
-        });
-      }, 500);
-    });
+    try {
+      // Call the adapter implementation
+      return await supabaseAuthAdapter.registerUser(data);
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
   },
 
   /**
    * Logs out the current user
    * @returns {Promise<void>}
+   * @throws {Error} If logout fails
    */
   logout: async (): Promise<void> => {
-    // In a real application, this would make an API call to invalidate the session
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve();
-      }, 300);
-    });
+    try {
+      // Call the adapter implementation
+      await supabaseAuthAdapter.signOut();
+      
+      // Clear local storage
+      localStorage.removeItem('user');
+    } catch (error) {
+      console.error('Logout error:', error);
+      throw error;
+    }
   },
 
   /**
@@ -68,8 +78,76 @@ export const authService = {
    * @returns {Promise<User|null>} User data if authenticated, null otherwise
    */
   getCurrentUser: async (): Promise<User | null> => {
-    // In a real application, this would check for token validity
-    const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
+    try {
+      // Call the adapter implementation
+      return await supabaseAuthAdapter.getCurrentUser();
+    } catch (error) {
+      console.error('Get current user error:', error);
+      return null;
+    }
+  },
+  
+  /**
+   * Authenticates with Google
+   * @returns {Promise<void>}
+   * @throws {Error} If authentication fails
+   */
+  signInWithGoogle: async (): Promise<void> => {
+    try {
+      // Call the adapter implementation
+      await supabaseAuthAdapter.signInWithGoogle();
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Verifies email with token
+   * @param {string} token - Email verification token
+   * @returns {Promise<User>} User data
+   * @throws {Error} If verification fails
+   */
+  verifyEmail: async (token: string): Promise<User> => {
+    try {
+      // Call the adapter implementation
+      return await supabaseAuthAdapter.verifyEmail(token);
+    } catch (error) {
+      console.error('Email verification error:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Resets password with email
+   * @param {string} email - User email
+   * @returns {Promise<void>}
+   * @throws {Error} If reset fails
+   */
+  resetPassword: async (email: string): Promise<void> => {
+    try {
+      // Call the adapter implementation
+      await supabaseAuthAdapter.resetPassword(email);
+    } catch (error) {
+      console.error('Password reset error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Updates the user's password
+   * @param {string} currentPassword - User's current password
+   * @param {string} newPassword - User's new password
+   * @returns {Promise<User>} Updated user data
+   * @throws {Error} If password update fails
+   */
+  updatePassword: async (currentPassword: string, newPassword: string): Promise<User> => {
+    try {
+      // Call the adapter implementation
+      return await supabaseAuthAdapter.updatePassword(currentPassword, newPassword);
+    } catch (error) {
+      console.error('Password update error:', error);
+      throw error;
+    }
   }
 };

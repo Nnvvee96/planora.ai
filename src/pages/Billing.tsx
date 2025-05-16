@@ -182,4 +182,4 @@ const Billing: React.FC = () => {
   );
 };
 
-export default Billing;
+export { Billing };

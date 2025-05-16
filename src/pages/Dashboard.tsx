@@ -15,44 +15,42 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react';
-import Logo from '@/components/atoms/Logo';
+import { Logo } from '@/ui/atoms/Logo';
 import { UserProfileMenu } from '@/features/user-profile/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/ui/atoms/Card';
 import { Progress } from '@/components/ui/progress';
 import { useNavigate, Link } from 'react-router-dom';
-import Footer from '@/components/organisms/Footer';
+import { Footer } from '@/ui/organisms/Footer';
 import { authService, User } from '@/features/auth/api';
-import { supabase } from '@/lib/supabase/supabaseClient';
+import { userProfileService, UserProfile } from '@/features/user-profile/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   
   // Load user data on component mount
   useEffect(() => {
     const loadUserData = async () => {
       try {
         setLoading(true);
+        // Get authenticated user through auth service
         const currentUser = await authService.getCurrentUser();
         if (currentUser) {
           setUser(currentUser);
-          console.log('User data loaded:', currentUser);
           
-          // Try to load additional profile data from Supabase
-          const { supabase } = await import('@/lib/supabase/supabaseClient');
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', currentUser.id)
-            .single();
+          // Profile data is fetched through the userProfileService via the feature API
+          try {
+            const profileData = await userProfileService.getUserProfile(currentUser.id);
             
-          if (profileData) {
-            setUserProfile(profileData);
-            console.log('Profile data loaded:', profileData);
+            if (profileData) {
+              setUserProfile(profileData);
+            }
+          } catch (profileError) {
+            console.error('Error loading profile data:', profileError);
           }
         }
       } catch (error) {
@@ -470,4 +468,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export { Dashboard };

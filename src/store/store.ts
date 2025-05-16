@@ -4,7 +4,7 @@
  * Configures the global Redux store with all feature slices
  */
 import { configureStore } from '@reduxjs/toolkit';
-import authReducer from './slices/authSlice';
+import { authReducer } from './slices/authSlice';
 
 // Configure the store with all reducers
 const store = configureStore({
@@ -20,4 +20,4 @@ const store = configureStore({
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 
-export default store;
+export { store };

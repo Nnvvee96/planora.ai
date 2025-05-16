@@ -1,7 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from '@/lib/supabase/supabaseClient';
-import { User } from '@/features/auth/api';
+import { authService } from '@/features/auth/api';
+import { userProfileService } from '@/features/user-profile/api';
+
+// Extended User type for auth callback handling
+interface ExtendedUser {
+  id: string;
+  email?: string;
+  provider?: string;
+  avatarUrl?: string;
+  identities?: Array<{
+    provider: string;
+    identity_data?: {
+      name?: string;
+      given_name?: string;
+      family_name?: string;
+      email?: string;
+      locale?: string;
+      birthdate?: string;
+      [key: string]: string | number | boolean | undefined;
+    };
+  }>;
+  user_metadata?: {
+    has_completed_onboarding?: boolean;
+    avatar_url?: string;
+    username?: string;
+    first_name?: string;
+    last_name?: string;
+    full_name?: string;
+    email?: string;
+  };
+}
 
 /**
  * Auth Callback Page
@@ -19,7 +48,7 @@ const AuthCallback = () => {
 
   useEffect(() => {
     // This function determines where to redirect the user based on their authentication state
-    const determineRedirect = async (user: any): Promise<string> => {
+    const determineRedirect = async (user: ExtendedUser): Promise<string> => {
       // Check if the user has completed onboarding
       const hasCompletedOnboarding = user.user_metadata?.has_completed_onboarding === true;
       
@@ -37,22 +66,23 @@ const AuthCallback = () => {
         setLoading(true);
         console.log('Auth callback triggered', { hash: location.hash, search: location.search });
 
-        // For simplicity and consistency, let's always check for the current user
-        const { data, error } = await supabase.auth.getUser();
+        // Use authService to get the current user through the proper API boundary
+        const user = await authService.getCurrentUser() as ExtendedUser;
         
         // If we couldn't get the user data, we have no authentication
-        if (error || !data?.user) {
-          console.log('No authenticated user found', error);
+        if (!user) {
+          console.log('No authenticated user found');
           throw new Error('Authentication failed or no user found');
         }
 
-        console.log('Authentication successful, user:', data.user);
+        console.log('Authentication successful, user:', user);
         
         // For users authenticating with Google, ensure we extract and store their profile information
-        if (data.user.app_metadata?.provider === 'google') {
-          // Extract identities information from Google
-          const identities = data.user.identities || [];
-          const googleIdentity = identities.find((identity: any) => identity.provider === 'google');
+        // Note: In a proper implementation, this should be handled within the auth service
+        // and not expose the underlying auth provider details outside the boundary
+        if (user.provider === 'google') {
+          // This implementation should be moved into the auth service
+          const googleIdentity = user.identities?.find((identity) => identity.provider === 'google');
           
           if (googleIdentity?.identity_data) {
             const identityData = googleIdentity.identity_data;
@@ -94,56 +124,39 @@ const AuthCallback = () => {
             
             // Prepare user metadata with Google profile information
             const userMetadata = {
-              // Ensure onboarding flag is set for new users
-              has_completed_onboarding: data.user.user_metadata?.has_completed_onboarding || false,
-              
-              // Use extracted Google profile data
+              full_name: identityData.name || `${firstName} ${lastName}`.trim(),
               first_name: firstName,
               last_name: lastName,
-              full_name: identityData.name || `${firstName} ${lastName}`.trim(),
-              avatar_url: identityData.picture || identityData.avatar_url || '',
-              
-              // Email and location if available
-              email: data.user.email || identityData.email || '',
-              location: identityData.locale || '',
-              
-              // Demographics if available (like birthdate)
-              birthdate: identityData.birthdate || ''
-            };
+              avatar_url: identityData.picture || user.avatarUrl || '',
+              email: identityData.email || user.email,
+              username: identityData.email?.split('@')[0] || '',
+              has_completed_onboarding: false,
+            };  
             
             console.log('Updating user metadata with Google profile:', userMetadata);
             
-            // Update the user metadata
-            const { error: updateError } = await supabase.auth.updateUser({
-              data: userMetadata
-            });
-            
-            if (updateError) {
-              console.error('Error updating user metadata:', updateError);
-            }
-            
-            // Also update the profiles table to ensure consistency
+            // Update user metadata through the proper service APIs
             try {
-              const { error: profileError } = await supabase
-                .from('profiles')
-                .upsert([
-                  {
-                    id: data.user.id,
-                    username: identityData.email?.split('@')[0] || '',
-                    first_name: firstName,
-                    last_name: lastName,
-                    full_name: identityData.name || `${firstName} ${lastName}`.trim(),
-                    email: identityData.email || data.user.email,
-                    birthdate: identityData.birthdate || '',
-                    city: identityData.locale?.split('_')[1] || '',
-                    country: identityData.locale?.split('_')[0] || '',
-                    avatar_url: identityData.picture || '',
-                    updated_at: new Date().toISOString()
-                  }
-                ], { onConflict: 'id' });
+              // Update the user profile through our user profile service
+              // Use consistent naming for profile data fields
+              const profileData = {
+                id: user.id,
+                username: userMetadata.username || '',
+                first_name: userMetadata.first_name || '',
+                last_name: userMetadata.last_name || '',
+                full_name: userMetadata.full_name || '',
+                email: userMetadata.email || user.email || '',
+                birthdate: identityData.birthdate || '',
+                city: identityData.locale?.split('_')[1] || '',
+                country: identityData.locale?.split('_')[0] || '',
+                avatar_url: typeof userMetadata.avatar_url === 'string' ? userMetadata.avatar_url : '',
+                updated_at: new Date().toISOString()
+              };
+              
+              const profileResult = await userProfileService.updateUserProfile(user.id, profileData);
                 
-              if (profileError) {
-                console.error('Error updating profile with Google data:', profileError);
+              if (!profileResult) {
+                console.error('Error updating profile with Google data');
               } else {
                 console.log('Successfully updated profile with Google data');
               }
@@ -157,7 +170,7 @@ const AuthCallback = () => {
         }
         
         // Determine where to redirect based on user state
-        const redirectPath = await determineRedirect(data.user);
+        const redirectPath = await determineRedirect(user);
         console.log('Redirecting user to:', redirectPath);
         
         // Handle query parameters for special flows like password reset
@@ -177,9 +190,10 @@ const AuthCallback = () => {
         setLoading(false);
         navigate(redirectPath, { replace: true });
       
-      } catch (error: any) {
+      } catch (error) {
         console.error('Auth callback error:', error);
-        setError(error.message || 'Authentication failed');
+        const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+        setError(errorMessage);
         setLoading(false);
         
         // Redirect to login after a brief delay
@@ -224,4 +238,4 @@ const AuthCallback = () => {
   return null;
 };
 
-export default AuthCallback;
+export { AuthCallback };

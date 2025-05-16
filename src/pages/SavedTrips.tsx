@@ -90,4 +90,4 @@ const SavedTrips: React.FC = () => {
   );
 };
 
-export default SavedTrips;
+export { SavedTrips };

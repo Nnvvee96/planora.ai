@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Button } from '@/ui/atoms/Button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/atoms/Card';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Slider } from '@/components/ui/slider';
-import { Input } from '@/components/ui/input';
-import Logo from '@/components/Logo';
+import { Input } from '@/ui/atoms/Input';
+import { Logo } from '@/ui/atoms/Logo';
 import { useForm } from 'react-hook-form';
-import GradientButton from '@/components/GradientButton';
+import { GradientButton } from '@/ui/atoms/GradientButton';
 import { 
   Plane, 
   Hotel, 
@@ -27,7 +27,33 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Progress } from '@/components/ui/progress';
 import { Select } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
+import { X } from 'lucide-react';
+import { 
+  TravelPreferencesFormValues, 
+  TravelDurationType, 
+  DateFlexibilityType, 
+  PlanningIntent, 
+  AccommodationType, 
+  ComfortPreference, 
+  LocationPreference, 
+  FlightType, 
+  saveTravelPreferences, 
+  updateOnboardingStatus 
+} from '@/features/travel-preferences/api';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { authService } from '@/features/auth/api';
+import * as z from 'zod';
+
+// Extended User type to handle user metadata
+interface ExtendedUser {
+  id: string;
+  email?: string;
+  user_metadata?: {
+    has_completed_onboarding?: boolean;
+    city?: string;
+    [key: string]: string | boolean | undefined;
+  };
+}
 
 interface OnboardingFormData {
   departureLocation: string;
@@ -46,19 +72,24 @@ interface OnboardingFormData {
 
 const Onboarding = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if we're coming from dashboard for preferences modification
+  const isModifyingPreferences = location.state?.fromDashboard === true;
   const [step, setStep] = useState(0);
+  const [loading, setLoading] = useState(false);
   
   const form = useForm<OnboardingFormData>({
     defaultValues: {
-      departureLocation: 'Berlin, Germany', // Pre-filled from registration
+      departureLocation: '', // Will be filled from user metadata if available
       budgetRange: { min: 1000, max: 2000 },
       budgetTolerance: 10,
-      travelDuration: 'week',
+      travelDuration: 'week', // Set a default value to avoid validation errors
       dateFlexibility: 'flexible-few',
       customDateFlexibility: '',
-      planningIntent: 'exploring',
-      accommodationTypes: [],
-      accommodationComfort: [],
+      planningIntent: 'exploring', // Set a default value to avoid validation errors
+      accommodationTypes: ['hotel'], // Set a default value to avoid validation errors
+      accommodationComfort: ['private-room', 'private-bathroom'], // Pre-select common comfort preferences
       locationPreference: 'anywhere',
       flightType: 'direct',
       preferCheaperWithStopover: true,
@@ -70,17 +101,160 @@ const Onboarding = () => {
   // Watch the travel duration to conditionally show custom date flexibility field
   const travelDuration = form.watch('travelDuration');
 
-  const goToNextStep = () => {
+  // Load user data when component mounts
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const user = await authService.getCurrentUser() as ExtendedUser;
+        if (user) {
+          // Pre-fill the form with user data if available
+          // Safely extract city information from user object
+          const userCity = user.user_metadata?.city || 'Berlin, Germany';
+            
+          form.setValue('departureLocation', userCity);
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      }
+    };
+    
+    loadUserData();
+  }, [form]); // Added form as dependency to properly handle form updates
+
+  const validateCurrentStep = () => {
+    // Always pass step 0 (budget range) and step 1 (budget flexibility)
+    if (step === 0 || step === 1) {
+      return true;
+    }
+    
+    // Step 2: Travel Duration (third screen)
+    else if (step === 2) {
+      const travelDuration = form.getValues('travelDuration');
+      if (!travelDuration) {
+        toast({
+          title: "Validation Error",
+          description: "Please select a travel duration",
+          variant: "destructive"
+        });
+        return false;
+      }
+    } 
+    // The next step checks for planning intent validation
+    else if (step === 3) {
+      // Planning intent validation
+      const planningIntent = form.getValues('planningIntent');
+      if (!planningIntent) {
+        toast({
+          title: "Validation Error",
+          description: "Please select a travel purpose",
+          variant: "destructive"
+        });
+        return false;
+      }
+    } else if (step === 4) {
+      // Accommodation validation
+      const accommodationTypes = form.getValues('accommodationTypes');
+      if (!accommodationTypes.length) {
+        toast({
+          title: "Validation Error",
+          description: "Please select at least one accommodation type",
+          variant: "destructive"
+        });
+        return false;
+      }
+    } else if (step === 6) { // Last step (Departure Location)
+      const departureLocation = form.getValues('departureLocation');
+      if (!departureLocation) {
+        toast({
+          title: "Validation Error",
+          description: "Please enter your departure location",
+          variant: "destructive"
+        });
+        return false;
+      }
+    }
+    return true;
+  };
+  
+  const goToNextStep = async () => {
+    // For budget steps (0 and 1), skip validation entirely
     if (step < totalSteps - 1) {
       setStep(step + 1);
     } else {
-      // Complete onboarding and go to dashboard
-      console.log('Onboarding data:', form.getValues());
+      await handleCompleteOnboarding();
+    }
+  };
+
+  // Complete onboarding and save preferences
+  const handleCompleteOnboarding = async () => {
+    if (!validateCurrentStep()) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      // Get current user through the auth service API boundary
+      const currentUser = await authService.getCurrentUser();
+      
+      if (!currentUser) {
+        throw new Error('No authenticated user found');
+      }
+      
+      // Get form data and ensure correct types
+      const formData = form.getValues();
+      
+      // Check if budgetRange is properly formatted as an object
+      const budgetRangeData = typeof formData.budgetRange === 'object' ? 
+        { min: Number(formData.budgetRange.min), max: Number(formData.budgetRange.max) } : 
+        { min: 500, max: 2000 };
+      
+      // Convert travel duration to the correct TravelDurationType enum value
+      // This ensures alignment with the type definition in TravelPreferencesTypes.ts
+      const travelDurationData = formData.travelDuration as TravelDurationType;
+        
+      // Format data for travel preferences service
+      const travelPreferencesData: TravelPreferencesFormValues = {
+        budgetRange: budgetRangeData,
+        budgetFlexibility: Number(formData.budgetTolerance) || 10,
+        travelDuration: travelDurationData,
+        dateFlexibility: formData.dateFlexibility as DateFlexibilityType || 'flexible-few',
+        customDateFlexibility: formData.customDateFlexibility || '',
+        planningIntent: formData.planningIntent as PlanningIntent,
+        accommodationTypes: formData.accommodationTypes as AccommodationType[],
+        accommodationComfort: formData.accommodationComfort as ComfortPreference[],
+        locationPreference: formData.locationPreference as LocationPreference || 'anywhere',
+        flightType: formData.flightType as FlightType || 'direct',
+        preferCheaperWithStopover: formData.preferCheaperWithStopover || true,
+        departureCity: formData.departureLocation || ''
+      };
+      
+      console.log('Saving travel preferences:', travelPreferencesData);
+      
+      // Save travel preferences to the database
+      await saveTravelPreferences(travelPreferencesData, currentUser.id);
+      
+      // Update user metadata to mark onboarding as completed
+      await updateOnboardingStatus(currentUser.id, true);
+      
+      // Show success message
       toast({
-        title: "Profile completed!",
-        description: "Your travel preferences have been saved.",
+        title: "Preferences Saved",
+        description: "Your travel preferences have been saved successfully"
       });
+      
+      // Navigate to dashboard
       navigate('/dashboard');
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+      const errorMessage = error instanceof Error ? error.message : "An error occurred while saving your preferences";
+      toast({
+        title: "Onboarding Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -135,7 +309,19 @@ const Onboarding = () => {
   const formatBudgetTolerance = (value: number) => `±${value}%`;
 
   return (
-    <div className="min-h-screen bg-planora-purple-dark flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-planora-purple-dark flex flex-col items-center justify-center p-4 relative">
+      {/* Close button when modifying preferences */}
+      {isModifyingPreferences && (
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="absolute top-4 right-4 text-white hover:bg-white/10"
+          onClick={() => navigate('/dashboard')}
+        >
+          <X className="h-6 w-6" />
+          <span className="sr-only">Close</span>
+        </Button>
+      )}
       {/* Background elements */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-planora-accent-blue/10 via-background to-background"></div>
       
@@ -725,4 +911,4 @@ const CheckboxCard = ({
   );
 };
 
-export default Onboarding;
+export { Onboarding };
