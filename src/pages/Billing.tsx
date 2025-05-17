@@ -1,11 +1,40 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
+import { useNavigate } from 'react-router-dom';
+import { authService } from '@/features/auth/api';
 
 const Billing: React.FC = () => {
+  const navigate = useNavigate();
+  
+  // Redirect logic for new Google sign-ins
+  useEffect(() => {
+    const checkUserAndRedirect = async () => {
+      try {
+        const user = await authService.getCurrentUser();
+        
+        // If user exists, check if they've completed onboarding
+        if (user) {
+          const hasCompletedOnboarding = user.hasCompletedOnboarding === true;
+          
+          // If user hasn't completed onboarding, redirect to onboarding page
+          if (!hasCompletedOnboarding) {
+            console.log('User has not completed onboarding, redirecting from Billing to Onboarding');
+            navigate('/onboarding', { replace: true });
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error checking user in Billing component:', error);
+      }
+    };
+    
+    checkUserAndRedirect();
+  }, [navigate]);
+  
   // Sample subscription data
   const currentPlan = "Professional";
   
