@@ -47,29 +47,14 @@ const AuthCallback = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // This function determines where to redirect the user based on their authentication state
-    const determineRedirect = async (user: ExtendedUser): Promise<string> => {
-      // Check if the user has completed onboarding
-      const hasCompletedOnboarding = user.user_metadata?.has_completed_onboarding === true;
-      
-      // If user has completed onboarding, redirect to dashboard
-      if (hasCompletedOnboarding) {
-        return '/dashboard';
-      }
-      
-      // For new users (who haven't completed onboarding), redirect to onboarding
-      return '/onboarding';
-    };
-    
     const handleAuthCallback = async () => {
       try {
         setLoading(true);
         console.log('Auth callback triggered', { hash: location.hash, search: location.search });
 
-        // Use authService to get the current user through the proper API boundary
+        // Get the current user
         const user = await authService.getCurrentUser() as ExtendedUser;
         
-        // If we couldn't get the user data, we have no authentication
         if (!user) {
           console.log('No authenticated user found');
           throw new Error('Authentication failed or no user found');
@@ -77,75 +62,27 @@ const AuthCallback = () => {
 
         console.log('Authentication successful, user:', user);
         
-        // For users authenticating with Google, ensure we extract and store their profile information
-        // Note: In a proper implementation, this should be handled within the auth service
-        // and not expose the underlying auth provider details outside the boundary
-        if (user.provider === 'google') {
-          // This implementation should be moved into the auth service
-          const googleIdentity = user.identities?.find((identity) => identity.provider === 'google');
+        // Process Google sign-in data if present
+        if (user.identities?.some(identity => identity.provider === 'google')) {
+          console.log('Processing Google authentication data');
+          
+          const googleIdentity = user.identities.find(identity => identity.provider === 'google');
           
           if (googleIdentity?.identity_data) {
             const identityData = googleIdentity.identity_data;
             console.log('Google identity data:', identityData);
             
-            // Log the full identity data for debugging
-            console.log('Full Google identity data:', JSON.stringify(identityData, null, 2));
+            const userMetadata = user.user_metadata || {};
             
-            // Extract name parts from Google identity data with careful handling
-            // Google sometimes puts full name in 'name' but not always in 'given_name/family_name'
-            let firstName = '', lastName = '';
-            
-            // Try to get names from specific fields first
-            if (identityData.given_name) {
-              firstName = identityData.given_name;
-            }
-            
-            if (identityData.family_name) {
-              lastName = identityData.family_name;
-            }
-            
-            // If either is missing, try to extract from full name
-            if ((!firstName || !lastName) && identityData.name) {
-              const nameParts = identityData.name.split(' ');
-              if (nameParts.length > 0 && !firstName) {
-                firstName = nameParts[0];
-              }
-              if (nameParts.length > 1 && !lastName) {
-                lastName = nameParts.slice(1).join(' ');
-              }
-            }
-            
-            // If we still don't have a name, use email as a fallback
-            if (!firstName && identityData.email) {
-              firstName = identityData.email.split('@')[0];
-            }
-            
-            console.log(`Extracted name parts: firstName='${firstName}', lastName='${lastName}'`);
-            
-            // Prepare user metadata with Google profile information
-            const userMetadata = {
-              full_name: identityData.name || `${firstName} ${lastName}`.trim(),
-              first_name: firstName,
-              last_name: lastName,
-              avatar_url: identityData.picture || user.avatarUrl || '',
-              email: identityData.email || user.email,
-              username: identityData.email?.split('@')[0] || '',
-              has_completed_onboarding: false,
-            };  
-            
-            console.log('Updating user metadata with Google profile:', userMetadata);
-            
-            // Update user metadata through the proper service APIs
             try {
-              // Update the user profile through our user profile service
-              // Use consistent naming for profile data fields
+              // Update the user profile with Google data
               const profileData = {
                 id: user.id,
-                username: userMetadata.username || '',
-                first_name: userMetadata.first_name || '',
-                last_name: userMetadata.last_name || '',
-                full_name: userMetadata.full_name || '',
-                email: userMetadata.email || user.email || '',
+                username: userMetadata.username || identityData.name?.toLowerCase().replace(/\s+/g, '') || '',
+                first_name: userMetadata.first_name || identityData.given_name || '',
+                last_name: userMetadata.last_name || identityData.family_name || '',
+                full_name: userMetadata.full_name || identityData.name || '',
+                email: userMetadata.email || user.email || identityData.email || '',
                 birthdate: identityData.birthdate || '',
                 city: identityData.locale?.split('_')[1] || '',
                 country: identityData.locale?.split('_')[0] || '',
@@ -169,11 +106,51 @@ const AuthCallback = () => {
           }
         }
         
-        // Determine where to redirect based on user state
+        // Determine where to redirect
+        const determineRedirect = async (user: ExtendedUser): Promise<string> => {
+          console.log('Determining redirect for user:', JSON.stringify(user, null, 2));
+          
+          // TEMPORARY: Force all sign-ins to onboarding for debugging
+          console.log('OVERRIDE: Directing all users to onboarding page');
+          return '/onboarding';
+          
+          /*
+          // Normal logic - commented out during debugging
+          const hasCompletedOnboarding = user.user_metadata?.has_completed_onboarding === true;
+          
+          // Check if user authenticated via Google
+          const isGoogleAuth = user.identities?.some(identity => identity.provider === 'google');
+          const isNewUser = !localStorage.getItem('hasCompletedInitialFlow');
+          
+          console.log('Auth state:', { 
+            isGoogleAuth, 
+            isNewUser,
+            hasCompletedOnboarding,
+            metadata: user.user_metadata
+          });
+          
+          // New Google users always go to onboarding
+          if (isGoogleAuth && isNewUser) {
+            console.log('New Google user detected, redirecting to onboarding');
+            return '/onboarding';
+          }
+          
+          // Users who completed onboarding go to dashboard
+          if (hasCompletedOnboarding) {
+            console.log('User has completed onboarding, redirecting to dashboard');
+            return '/dashboard';
+          }
+          
+          // Default: Send to onboarding
+          console.log('User has not completed onboarding, redirecting to onboarding');
+          return '/onboarding';
+          */
+        };
+        
         const redirectPath = await determineRedirect(user);
         console.log('Redirecting user to:', redirectPath);
         
-        // Handle query parameters for special flows like password reset
+        // Check for special cases (password reset, etc.)
         if (location.search) {
           const params = new URLSearchParams(location.search);
           const type = params.get('type');
@@ -186,7 +163,7 @@ const AuthCallback = () => {
           }
         }
         
-        // Complete the authentication process
+        // Perform the redirect
         setLoading(false);
         navigate(redirectPath, { replace: true });
       

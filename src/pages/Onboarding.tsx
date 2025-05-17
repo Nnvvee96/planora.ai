@@ -237,6 +237,37 @@ const Onboarding = () => {
       // Update user metadata to mark onboarding as completed
       await updateOnboardingStatus(currentUser.id, true);
       
+      // Set local storage flag to track that user has completed onboarding
+      // This helps prevent incorrect redirects for Google sign-ins
+      localStorage.setItem('hasCompletedInitialFlow', 'true');
+      
+      // Update user metadata to mark onboarding as completed
+      try {
+        await authService.updateUserMetadata({
+          has_completed_onboarding: true,
+          last_onboarding_date: new Date().toISOString(),
+          // Add other metadata
+          city: formData.departureLocation,
+          travel_preferences: {
+            accommodation_types: formData.accommodationTypes,
+            accommodation_comfort: formData.accommodationComfort,
+            budget_range: formData.budgetRange,
+            budget_tolerance: formData.budgetTolerance,
+            travel_duration: formData.travelDuration,
+            date_flexibility: formData.dateFlexibility,
+            planning_intent: formData.planningIntent,
+            location_preference: formData.locationPreference,
+            flight_type: formData.flightType,
+            prefer_cheaper_with_stopover: formData.preferCheaperWithStopover,
+            departure_location: formData.departureLocation
+          }
+        });
+      } catch (metadataError) {
+        // Don't fail the onboarding if metadata update fails,
+        // since we already saved the preferences in the database
+        console.error('Failed to update user metadata:', metadataError);
+      }
+      
       // Show success message
       toast({
         title: "Preferences Saved",

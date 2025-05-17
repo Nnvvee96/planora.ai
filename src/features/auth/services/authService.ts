@@ -149,5 +149,21 @@ export const authService = {
       console.error('Password update error:', error);
       throw error;
     }
+  },
+  
+  /**
+   * Updates the user's metadata
+   * @param {Record<string, unknown>} metadata - Metadata to update
+   * @returns {Promise<User>} Updated user data
+   * @throws {Error} If metadata update fails
+   */
+  updateUserMetadata: async (metadata: Record<string, unknown>): Promise<User> => {
+    try {
+      // Call the adapter implementation
+      return await supabaseAuthAdapter.updateUserMetadata(metadata);
+    } catch (error) {
+      console.error('Metadata update error:', error);
+      throw error;
+    }
   }
 };
