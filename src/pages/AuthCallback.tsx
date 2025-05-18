@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '@/features/auth/api';
 import { userProfileService } from '@/features/user-profile/api';
+import { getUserTravelPreferences } from '@/features/travel-preferences/api';
 import { supabase } from '@/lib/supabase/supabaseClient';
 
 // Extended User type for auth callback handling
@@ -299,14 +300,31 @@ const AuthCallback = () => {
               console.error('Error checking profile in database:', profileError);
             }
             
+            // Enhanced logging to debug onboarding redirection issue
+            console.log('%c CRITICAL DEBUG - Onboarding Status Check', 'background: #ff0000; color: white; font-size: 20px;');
             console.log('Onboarding status check:', {
               isGoogleAuth,
               email: user.email,
               hasCompletedInitialFlow,
               hasCompletedOnboardingInMetadata,
               hasProfileCreated,
-              hasProfileInDatabase
+              hasProfileInDatabase,
+              user_metadata: user.user_metadata,
+              localStorage_hasCompletedInitialFlow: localStorage.getItem('hasCompletedInitialFlow')
             });
+            
+            // Check travel preferences and use them for onboarding decision
+            let hasTravelPreferences = false;
+            try {
+              const travelPreferences = await getUserTravelPreferences(user.id);
+              hasTravelPreferences = !!travelPreferences;
+              console.log('Travel preferences check:', hasTravelPreferences ? 'Found preferences' : 'No preferences found');
+              if (travelPreferences) {
+                console.log('Travel preferences details:', JSON.stringify(travelPreferences, null, 2));
+              }
+            } catch (travelPrefsError) {
+              console.error('Error checking travel preferences:', travelPrefsError);
+            }
             
             // If we have completed onboarding according to metadata but no profile, force profile creation
             if (isGoogleAuth && hasCompletedOnboardingInMetadata && !hasProfileInDatabase) {
@@ -322,16 +340,69 @@ const AuthCallback = () => {
               }
             }
             
-            // IMPORTANT: For Google sign-in, we prioritize the Supabase metadata over localStorage
-            // This fixes the cross-domain issue where localStorage is empty but user exists in Supabase
-            // We also ensure a profile exists before sending to dashboard
-            if (isGoogleAuth && hasCompletedOnboardingInMetadata && hasProfileInDatabase) {
-              console.log('Google user has completed onboarding according to Supabase - directing to dashboard');
+            // IMPORTANT: Improved logic for Google sign-in users
+            // Check multiple indicators of completed onboarding: profile, metadata, travel preferences
+            if (isGoogleAuth) {
+              // If user has saved travel preferences, they must have completed onboarding
+              if (hasTravelPreferences) {
+                console.log('Google user has saved travel preferences - directing to dashboard');
+                
+                // Sync metadata and profile
+                if (!hasCompletedOnboardingInMetadata) {
+                  console.log('Fixing metadata - user has preferences but onboarding not marked complete');
+                  await authService.updateUserMetadata({
+                    has_completed_onboarding: true
+                  });
+                }
+                
+                if (!hasProfileInDatabase) {
+                  console.log('User has travel preferences but no profile - creating profile');
+                  try {
+                    await userProfileService.ensureProfileExists(user.id);
+                  } catch (profileError) {
+                    console.warn('Failed to create profile, but continuing to dashboard:', profileError);
+                  }
+                }
+                
+                // Sync localStorage
+                localStorage.setItem('hasCompletedInitialFlow', 'true');
+                console.log('Set hasCompletedInitialFlow in localStorage to true');
+                
+                return '/dashboard';
+              }
               
-              // Sync localStorage with Supabase metadata
-              localStorage.setItem('hasCompletedInitialFlow', 'true');
-              console.log('Set hasCompletedInitialFlow in localStorage to true');
-              return '/dashboard';
+              // If user has a profile in database, they must have completed onboarding at some point
+              if (hasProfileInDatabase) {
+                console.log('Google user has a profile in database - directing to dashboard');
+                
+                // Ensure metadata and localStorage are in sync
+                if (!hasCompletedOnboardingInMetadata) {
+                  console.log('Fixing metadata inconsistency - updating onboarding status to completed');
+                  await authService.updateUserMetadata({
+                    has_completed_onboarding: true
+                  });
+                }
+                
+                // Sync localStorage too
+                localStorage.setItem('hasCompletedInitialFlow', 'true');
+                console.log('Set hasCompletedInitialFlow in localStorage to true');
+                
+                return '/dashboard';
+              }
+              
+              // If user has metadata indicating completed onboarding but no profile
+              // try to create a profile and then send to dashboard
+              if (hasCompletedOnboardingInMetadata && !hasProfileInDatabase) {
+                console.log('Google user has metadata but no profile - attempting to create profile');
+                try {
+                  await userProfileService.ensureProfileExists(user.id);
+                  localStorage.setItem('hasCompletedInitialFlow', 'true');
+                  return '/dashboard';
+                } catch (profileError) {
+                  console.error('Failed to create profile for user with completed onboarding:', profileError);
+                  // Fall through to onboarding if profile creation fails
+                }
+              }
             }
             
             // For non-Google auth or if user has completed onboarding according to localStorage
