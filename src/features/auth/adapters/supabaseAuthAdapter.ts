@@ -284,14 +284,20 @@ export const supabaseAuthAdapter = {
    */
   signInWithGoogle: async (): Promise<void> => {
     try {
-      // Before redirecting to Google OAuth, clear any existing session data
-      // This ensures we get fresh authentication data and avoid cached state issues
+      // Clear localStorage flags before Google sign-in to prevent stale state
       localStorage.removeItem('hasCompletedInitialFlow');
+      
+      // Determine the correct redirect URL based on the current domain
+      const currentOrigin = window.location.origin;
+      const redirectPath = '/auth/callback';
+      const redirectTo = `${currentOrigin}${redirectPath}`;
+      
+      console.log(`Initiating Google sign-in with redirect to: ${redirectTo}`);
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${getSiteUrl()}/auth/callback`,
+          redirectTo,
           queryParams: {
             // Request specific OAuth scopes to get profile information
             access_type: 'offline',

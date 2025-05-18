@@ -15,20 +15,41 @@ const Billing: React.FC = () => {
     const checkUserAndRedirect = async () => {
       try {
         const user = await authService.getCurrentUser();
+        if (!user) {
+          console.log('No authenticated user, redirecting to login');
+          navigate('/login', { replace: true });
+          return;
+        }
         
-        // If user exists, check if they've completed onboarding
-        if (user) {
-          const hasCompletedOnboarding = user.hasCompletedOnboarding === true;
-          
-          // If user hasn't completed onboarding, redirect to onboarding page
-          if (!hasCompletedOnboarding) {
-            console.log('User has not completed onboarding, redirecting from Billing to Onboarding');
-            navigate('/onboarding', { replace: true });
-            return;
-          }
+        // Check both Supabase metadata and localStorage to determine onboarding status
+        const hasCompletedInitialFlow = localStorage.getItem('hasCompletedInitialFlow') === 'true';
+        
+        // The user object from authService already has the mapped hasCompletedOnboarding from Supabase metadata
+        const hasCompletedOnboarding = user.hasCompletedOnboarding === true;
+        
+        console.log('Billing page user check:', { 
+          email: user.email,
+          hasCompletedInitialFlow,
+          hasCompletedOnboarding 
+        });
+        
+        // For Google sign-ins, we prioritize Supabase metadata over localStorage
+        // This fixes issues where localStorage is empty but user exists in Supabase
+        if (hasCompletedOnboarding && !hasCompletedInitialFlow) {
+          // Sync localStorage with Supabase metadata
+          console.log('Syncing localStorage with Supabase metadata');
+          localStorage.setItem('hasCompletedInitialFlow', 'true');
+        }
+        
+        // If user hasn't completed onboarding according to both sources, redirect to onboarding
+        if (!hasCompletedOnboarding && !hasCompletedInitialFlow) {
+          console.log('User has not completed onboarding, redirecting from Billing to Onboarding');
+          navigate('/onboarding', { replace: true });
+          return;
         }
       } catch (error) {
         console.error('Error checking user in Billing component:', error);
+        navigate('/login', { replace: true });
       }
     };
     
