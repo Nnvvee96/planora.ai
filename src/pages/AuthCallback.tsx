@@ -287,7 +287,7 @@ const AuthCallback = () => {
             
             // Check both Supabase metadata and localStorage
             const hasCompletedInitialFlow = localStorage.getItem('hasCompletedInitialFlow') === 'true';
-            const hasCompletedOnboardingInMetadata = user.user_metadata?.has_completed_onboarding === true;
+            let hasCompletedOnboardingInMetadata = user.user_metadata?.has_completed_onboarding === true;
             const hasProfileCreated = user.user_metadata?.has_profile_created === true;
             
             // Check directly if a profile exists in the database
@@ -326,83 +326,87 @@ const AuthCallback = () => {
               console.error('Error checking travel preferences:', travelPrefsError);
             }
             
-            // If we have completed onboarding according to metadata but no profile, force profile creation
-            if (isGoogleAuth && hasCompletedOnboardingInMetadata && !hasProfileInDatabase) {
-              console.log('User has completed onboarding but has no profile. Creating profile now.');
-              await userProfileService.ensureProfileExists(user.id);
-              
-              // Recheck if profile exists now
-              try {
-                const profile = await userProfileService.getUserProfile(user.id);
-                hasProfileInDatabase = !!profile;
-              } catch (recheckError) {
-                console.log('Error rechecking profile after creation:', recheckError);
-              }
-            }
-            
-            // IMPORTANT: Improved logic for Google sign-in users
-            // Check multiple indicators of completed onboarding: profile, metadata, travel preferences
+            // CRITICAL FIX: For Google Sign-In users, we implement a more aggressive approach
+            // This is designed to break the onboarding loop for Google users
             if (isGoogleAuth) {
-              // If user has saved travel preferences, they must have completed onboarding
+              console.log('🔍 GOOGLE AUTH DETECTED - Special handling for Google Sign-In');
+              
+              // First, check if we have travel preferences - strongest indicator of completed onboarding
               if (hasTravelPreferences) {
-                console.log('Google user has saved travel preferences - directing to dashboard');
+                console.log('✅ Google user has travel preferences - directing to dashboard');
                 
-                // Sync metadata and profile
-                if (!hasCompletedOnboardingInMetadata) {
-                  console.log('Fixing metadata - user has preferences but onboarding not marked complete');
-                  await authService.updateUserMetadata({
-                    has_completed_onboarding: true
-                  });
-                }
-                
-                if (!hasProfileInDatabase) {
-                  console.log('User has travel preferences but no profile - creating profile');
-                  try {
-                    await userProfileService.ensureProfileExists(user.id);
-                  } catch (profileError) {
-                    console.warn('Failed to create profile, but continuing to dashboard:', profileError);
+                // Fix metadata and profile
+                try {
+                  // Update onboarding status in metadata if needed
+                  if (!hasCompletedOnboardingInMetadata) {
+                    console.log('Fixing metadata - updating onboarding flag');
+                    await authService.updateUserMetadata({
+                      has_completed_onboarding: true
+                    });
+                    hasCompletedOnboardingInMetadata = true;
                   }
+                  
+                  // Ensure profile exists
+                  if (!hasProfileInDatabase) {
+                    console.log('Creating profile for user with travel preferences');
+                    await userProfileService.ensureProfileExists(user.id);
+                    hasProfileInDatabase = true;
+                  }
+                  
+                  // Always set localStorage flag
+                  localStorage.setItem('hasCompletedInitialFlow', 'true');
+                  
+                  console.log('⭐ PROFILE EXISTS + PREFERENCES - Redirecting to dashboard');
+                  return '/dashboard';
+                } catch (error) {
+                  console.error('Error fixing user state, but continuing to dashboard:', error);
+                  // Still redirect to dashboard even with errors
+                  localStorage.setItem('hasCompletedInitialFlow', 'true');
+                  return '/dashboard';
                 }
-                
-                // Sync localStorage
-                localStorage.setItem('hasCompletedInitialFlow', 'true');
-                console.log('Set hasCompletedInitialFlow in localStorage to true');
-                
-                return '/dashboard';
               }
               
-              // If user has a profile in database, they must have completed onboarding at some point
+              // Next, check if the user has a profile in the database
               if (hasProfileInDatabase) {
-                console.log('Google user has a profile in database - directing to dashboard');
+                console.log('✅ Google user has profile in database - directing to dashboard');
                 
-                // Ensure metadata and localStorage are in sync
-                if (!hasCompletedOnboardingInMetadata) {
-                  console.log('Fixing metadata inconsistency - updating onboarding status to completed');
-                  await authService.updateUserMetadata({
-                    has_completed_onboarding: true
-                  });
+                try {
+                  // Update onboarding status in metadata if needed
+                  if (!hasCompletedOnboardingInMetadata) {
+                    await authService.updateUserMetadata({
+                      has_completed_onboarding: true
+                    });
+                  }
+                  
+                  // Set localStorage flag
+                  localStorage.setItem('hasCompletedInitialFlow', 'true');
+                  
+                  return '/dashboard';
+                } catch (error) {
+                  console.error('Error updating metadata, but continuing to dashboard:', error);
+                  // Still redirect to dashboard
+                  localStorage.setItem('hasCompletedInitialFlow', 'true');
+                  return '/dashboard';
                 }
-                
-                // Sync localStorage too
-                localStorage.setItem('hasCompletedInitialFlow', 'true');
-                console.log('Set hasCompletedInitialFlow in localStorage to true');
-                
-                return '/dashboard';
               }
               
-              // If user has metadata indicating completed onboarding but no profile
-              // try to create a profile and then send to dashboard
-              if (hasCompletedOnboardingInMetadata && !hasProfileInDatabase) {
-                console.log('Google user has metadata but no profile - attempting to create profile');
+              // If user has onboarding metadata flag but no profile, create profile
+              if (hasCompletedOnboardingInMetadata) {
+                console.log('✅ User has completed onboarding in metadata - creating profile');
+                
                 try {
                   await userProfileService.ensureProfileExists(user.id);
                   localStorage.setItem('hasCompletedInitialFlow', 'true');
                   return '/dashboard';
-                } catch (profileError) {
-                  console.error('Failed to create profile for user with completed onboarding:', profileError);
-                  // Fall through to onboarding if profile creation fails
+                } catch (error) {
+                  console.error('Failed to create profile despite metadata flags:', error);
+                  // Fall through to onboarding only if we failed to create a profile
                 }
               }
+              
+              // If we reach here, user is probably new or has incomplete data
+              // We'll proceed to onboarding to collect necessary information
+              console.log('⚠️ Google user needs to complete onboarding - proceeding to onboarding flow');
             }
             
             // For non-Google auth or if user has completed onboarding according to localStorage
