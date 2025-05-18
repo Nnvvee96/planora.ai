@@ -252,7 +252,7 @@ export const updateUserProfile = async (userId: string, profileData: Partial<Use
 };
 
 /**
- * Ensures a user profile exists. If no profile exists, creates one with minimal data.
+ * Ensures a user profile exists. If no profile exists, creates one with user data from auth.
  * @param userId The ID of the user
  * @returns True if profile exists or was successfully created
  */
@@ -275,36 +275,80 @@ export const ensureProfileExists = async (userId: string): Promise<boolean> => {
     // Profile exists
     if (count && count > 0) {
       console.log('Profile exists check: profile found for user');
+      
+      // Update the has_completed_onboarding flag to true for existing profiles
+      // This helps with users who may have a profile but the flag wasn't set
+      try {
+        // Use a direct update with a simple flag - no need to fetch first
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            has_completed_onboarding: true
+          } as ProfileUpdate)
+          .match({ id: userId } as Record<string, unknown>);
+        
+        if (updateError) {
+          console.error('Failed to update existing profile onboarding flag:', updateError.message);
+        } else {
+          console.log('Updated existing profile with onboarding completed flag');
+        }
+      } catch (error) {
+        console.error('Error updating profile onboarding flag:', error);
+      }
+      
       return true;
     }
     
-    // Profile doesn't exist, try creating a minimal one
-    console.log('No profile found. Creating minimal profile for user:', userId);
+    // Profile doesn't exist, get user details from auth to create a proper profile
+    console.log('No profile found. Creating profile for user:', userId);
     
-    // Create a minimal valid profile with proper typing
-    const minimalProfile: ProfileInsert = {
+    // First get the user's email and other details from auth
+    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
+    
+    if (userError) {
+      console.error('Error getting user data from auth:', userError.message);
+      // Fall back to creating minimal profile
+    }
+    
+    // Get user details from auth if available
+    const userEmail = userData?.user?.email || '';
+    const firstName = userData?.user?.user_metadata?.first_name || '';
+    const lastName = userData?.user?.user_metadata?.last_name || '';
+    const isGoogleAuth = userData?.user?.app_metadata?.provider === 'google' || 
+                         userData?.user?.identities?.some(i => i.provider === 'google');
+    
+    console.log('User auth details:', { 
+      userEmail, 
+      hasName: !!(firstName || lastName),
+      isGoogleAuth 
+    });
+    
+    // Create a profile with better data from auth
+    const newProfile: ProfileInsert = {
       id: userId,
       created_at: new Date().toISOString(),
-      email: '', // Required field
-      username: '',
-      first_name: '',
-      last_name: '',
-      has_completed_onboarding: false
+      email: userEmail,
+      username: userEmail.split('@')[0] || '',  // Use part of email as username if available
+      first_name: firstName,
+      last_name: lastName,
+      // For Google auth users, assume they've completed onboarding if they're returning
+      has_completed_onboarding: isGoogleAuth ? true : false
     };
     
+    console.log('Creating profile with data:', JSON.stringify(newProfile, null, 2));
+    
     // Use proper array form for inserting with type safety
-     
     const { error } = await supabase
       .from('profiles')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .insert(asSafeInsert(minimalProfile) as any);
+      .insert(asSafeInsert(newProfile) as any);
       
     if (error) {
-      console.error('Failed to create minimal profile:', error.message);
+      console.error('Failed to create profile:', error.message);
       return false;
     }
     
-    console.log('Successfully created minimal profile');
+    console.log('Successfully created profile with proper user data');
     return true;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
