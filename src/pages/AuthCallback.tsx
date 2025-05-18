@@ -106,45 +106,66 @@ const AuthCallback = () => {
           }
         }
         
-        // Determine where to redirect
+        // This function determines where to redirect the user based on their authentication state
         const determineRedirect = async (user: ExtendedUser): Promise<string> => {
           console.log('Determining redirect for user:', JSON.stringify(user, null, 2));
           
-          // TEMPORARY: Force all sign-ins to onboarding for debugging
-          console.log('OVERRIDE: Directing all users to onboarding page');
-          return '/onboarding';
-          
-          /*
-          // Normal logic - commented out during debugging
-          const hasCompletedOnboarding = user.user_metadata?.has_completed_onboarding === true;
-          
-          // Check if user authenticated via Google
-          const isGoogleAuth = user.identities?.some(identity => identity.provider === 'google');
-          const isNewUser = !localStorage.getItem('hasCompletedInitialFlow');
-          
-          console.log('Auth state:', { 
-            isGoogleAuth, 
-            isNewUser,
-            hasCompletedOnboarding,
-            metadata: user.user_metadata
-          });
-          
-          // New Google users always go to onboarding
-          if (isGoogleAuth && isNewUser) {
-            console.log('New Google user detected, redirecting to onboarding');
+          try {
+            // First, check if this is a Google sign-in
+            const isGoogleAuth = user.identities?.some(identity => identity.provider === 'google');
+            
+            // Check localStorage status (this is our primary source of truth)
+            const hasCompletedInitialFlow = localStorage.getItem('hasCompletedInitialFlow') === 'true';
+            // Also check Supabase metadata (secondary source)
+            const hasCompletedOnboardingInMetadata = user.user_metadata?.has_completed_onboarding === true;
+            
+            console.log('Onboarding status check:', {
+              isGoogleAuth,
+              hasCompletedInitialFlow,
+              hasCompletedOnboardingInMetadata
+            });
+            
+            // For returning users who have already completed onboarding
+            if (hasCompletedInitialFlow) {
+              console.log('User has completed onboarding according to localStorage - directing to dashboard');
+              
+              // Sync the Supabase metadata if it doesn't match localStorage
+              if (!hasCompletedOnboardingInMetadata) {
+                console.log('Syncing Supabase metadata with localStorage (completed onboarding)');
+                await authService.updateUserMetadata({
+                  has_completed_onboarding: true
+                });
+              }
+              
+              return '/dashboard';
+            }
+            
+            // Special case for test account
+            if (user.email === 'navyug.singh1996@gmail.com' && isGoogleAuth) {
+              console.log('Detected test account - directing to test destination');
+              // Remove the forced onboarding path - let normal logic apply
+              // If you want to force onboarding for testing, uncomment the next line:
+              // return '/onboarding';
+            }
+            
+            // For Google users with conflicting metadata
+            if (isGoogleAuth && hasCompletedOnboardingInMetadata && !hasCompletedInitialFlow) {
+              // This is likely a returning Google user where localStorage was cleared
+              // but they've already completed onboarding according to Supabase
+              console.log('Google user with completed onboarding in metadata but not localStorage');
+              // Set localStorage to match Supabase
+              localStorage.setItem('hasCompletedInitialFlow', 'true');
+              return '/dashboard';
+            }
+            
+            // New users or users who haven't completed onboarding
+            console.log('User needs to complete onboarding');
+            return '/onboarding';
+          } catch (error) {
+            console.error('Error determining redirect:', error);
+            // Default to onboarding if anything goes wrong
             return '/onboarding';
           }
-          
-          // Users who completed onboarding go to dashboard
-          if (hasCompletedOnboarding) {
-            console.log('User has completed onboarding, redirecting to dashboard');
-            return '/dashboard';
-          }
-          
-          // Default: Send to onboarding
-          console.log('User has not completed onboarding, redirecting to onboarding');
-          return '/onboarding';
-          */
         };
         
         const redirectPath = await determineRedirect(user);
