@@ -189,17 +189,89 @@ export const supabaseAuthAdapter = {
    * Get the current user if authenticated
    */
   getCurrentUser: async (): Promise<User | null> => {
-    const { data, error } = await supabase.auth.getSession();
-    if (error) throw new Error(error.message);
-    if (!data?.session?.user) return null;
-    
-    return mapSupabaseUser(data.session.user);
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw new Error(error.message);
+      if (!data?.session?.user) return null;
+      
+      // Get the raw user from Supabase
+      const rawUser = data.session.user;
+      
+      // Check for Google authentication
+      const isGoogleAuth = rawUser.identities?.some(identity => identity.provider === 'google');
+      
+      // IMPORTANT: Check for the storage flag that indicates this user has gone through onboarding
+      const hasCompletedOnboardingBefore = localStorage.getItem('hasCompletedInitialFlow') === 'true';
+      
+      console.log('Auth status check:', { 
+        isGoogleAuth, 
+        hasCompletedOnboardingBefore,
+        metadata_has_completed_onboarding: rawUser.user_metadata?.has_completed_onboarding
+      });
+      
+      // We need to handle two cases differently:
+      // 1. Returning users who have completed onboarding (send to dashboard)
+      // 2. Users who haven't completed onboarding yet (send to onboarding)
+      
+      if (isGoogleAuth) {
+        if (hasCompletedOnboardingBefore) {
+          // Case 1: This is a returning user who has completed onboarding
+          // Ensure the metadata reflects this
+          console.log('Returning user detected: Ensuring dashboard access');
+          
+          if (rawUser.user_metadata && !rawUser.user_metadata.has_completed_onboarding) {
+            // Fix the metadata to match localStorage state
+            try {
+              await supabase.auth.updateUser({
+                data: { has_completed_onboarding: true }
+              });
+              rawUser.user_metadata.has_completed_onboarding = true;
+              console.log('Updated metadata to reflect completed onboarding');
+            } catch (updateError) {
+              console.error('Failed to update user metadata:', updateError);
+            }
+          }
+        } else {
+          // Case 2: User hasn't completed onboarding
+          // They should go through onboarding regardless of metadata
+          console.log('New user or incomplete onboarding detected');
+          
+          // Temporarily override the metadata for this session
+          if (rawUser.user_metadata) {
+            rawUser.user_metadata.has_completed_onboarding = false;
+          }
+          
+          // Also update in Supabase to persist this change
+          try {
+            await supabase.auth.updateUser({
+              data: { has_completed_onboarding: false }
+            });
+            console.log('Updated user metadata to ensure onboarding flow');
+          } catch (updateError) {
+            console.error('Failed to update user metadata:', updateError);
+          }
+        }
+      }
+      
+      return mapSupabaseUser(rawUser);
+    } catch (error) {
+      console.error('Error in getCurrentUser:', error);
+      return null;
+    }
   },
 
   /**
    * Sign in with Google OAuth
    */
   signInWithGoogle: async (): Promise<void> => {
+    // DEVELOPMENT ONLY: Clear any prior auth state to ensure clean testing
+    try {
+      localStorage.removeItem('hasCompletedInitialFlow');
+      console.log('Cleared local auth state for testing');
+    } catch (e) {
+      console.log('Could not clear local storage:', e);
+    }
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
