@@ -287,10 +287,12 @@ export const supabaseAuthAdapter = {
       // Clear localStorage flags before Google sign-in to prevent stale state
       localStorage.removeItem('hasCompletedInitialFlow');
       
-      // Determine the correct redirect URL based on the current domain
-      const currentOrigin = window.location.origin;
-      const redirectPath = '/auth/callback';
-      const redirectTo = `${currentOrigin}${redirectPath}`;
+      // Use explicit callback URL to avoid inconsistent redirects
+      // For production environments, use the exact full URL to ensure consistency
+      const redirectTo = "https://planora.vercel.app/auth/callback";
+      
+      // Force console logging to debug the redirect URL
+      console.log('FORCED REDIRECT: Using explicit callback URL:', redirectTo);
       
       console.log(`Initiating Google sign-in with redirect to: ${redirectTo}`);
       
@@ -301,7 +303,7 @@ export const supabaseAuthAdapter = {
           queryParams: {
             // Request specific OAuth scopes to get profile information
             access_type: 'offline',
-            prompt: 'consent',
+            prompt: 'consent select_account',
             // Request profile information from Google
             scope: 'email profile'
           }
