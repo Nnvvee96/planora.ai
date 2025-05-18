@@ -161,6 +161,7 @@ const AuthCallback = () => {
               
               // Sync localStorage with Supabase metadata
               localStorage.setItem('hasCompletedInitialFlow', 'true');
+              console.log('Set hasCompletedInitialFlow in localStorage to true');
               return '/dashboard';
             }
             
@@ -201,7 +202,15 @@ const AuthCallback = () => {
         };
         
         const redirectPath = await determineRedirect(user);
-        console.log('Redirecting user to:', redirectPath);
+        console.log('AuthCallback: Determined redirect path:', redirectPath);
+        
+        // Force log the user state to help with debugging
+        console.log('User state before redirect:', {
+          id: user.id,
+          email: user.email,
+          hasCompletedOnboardingInMetadata: user.user_metadata?.has_completed_onboarding === true,
+          hasCompletedInitialFlow: localStorage.getItem('hasCompletedInitialFlow') === 'true'
+        });
         
         // Check for special cases (password reset, etc.)
         if (location.search) {
@@ -218,7 +227,12 @@ const AuthCallback = () => {
         
         // Perform the redirect
         setLoading(false);
-        navigate(redirectPath, { replace: true });
+        console.log(`Redirecting to: ${redirectPath}`);
+        
+        // Ensure the redirect happens with a slight delay to allow console logs to be visible
+        setTimeout(() => {
+          navigate(redirectPath, { replace: true });
+        }, 100);
       
       } catch (error) {
         console.error('Auth callback error:', error);
