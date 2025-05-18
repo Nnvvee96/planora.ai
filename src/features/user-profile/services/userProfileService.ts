@@ -276,21 +276,18 @@ export const ensureProfileExists = async (userId: string): Promise<boolean> => {
     if (count && count > 0) {
       console.log('Profile exists check: profile found for user');
       
-      // Update the has_completed_onboarding flag to true for existing profiles
-      // This helps with users who may have a profile but the flag wasn't set
+      // Following the project's architecture principles: use the updateUserProfile method
+      // This reuses existing type-safe methods established in the codebase
       try {
-        // Use a direct update with a simple flag - no need to fetch first
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            has_completed_onboarding: true
-          } as ProfileUpdate)
-          .match({ id: userId } as Record<string, unknown>);
+        // Use the existing updateUserProfile method which already handles typing properly
+        const updated = await updateUserProfile(userId, {
+          has_completed_onboarding: true
+        });
         
-        if (updateError) {
-          console.error('Failed to update existing profile onboarding flag:', updateError.message);
-        } else {
+        if (updated) {
           console.log('Updated existing profile with onboarding completed flag');
+        } else {
+          console.error('Failed to update profile onboarding flag');
         }
       } catch (error) {
         console.error('Error updating profile onboarding flag:', error);
