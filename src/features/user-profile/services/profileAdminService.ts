@@ -122,6 +122,7 @@ export const createProfileWithServiceRole = async (
         // Using type assertion for Supabase compatibility
         const { error: insertError } = await supabase
           .from('profiles')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .insert([minimalProfile as any]);
         
         if (insertError) {
