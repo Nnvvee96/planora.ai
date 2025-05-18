@@ -13,6 +13,25 @@ import { UserProfile } from '../types/userProfileTypes';
 import { Database } from '@/types/supabaseTypes';
 
 /**
+ * Checks if a user ID is valid for profile operations
+ * @param id The user ID to validate
+ * @returns Whether the ID is valid
+ */
+const isValidProfileId = (id: string): boolean => {
+  return typeof id === 'string' && id.length > 0;
+};
+
+/**
+ * Defines a minimal profile type based on required fields
+ */
+type MinimalProfileInsert = {
+  id: string;
+  email: string;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
  * Creates a user profile using service role permissions to bypass RLS policies.
  * This should ONLY be used for the essential operation of creating a profile
  * during signup/authentication when the user's session may not have the right permissions.
@@ -29,10 +48,19 @@ export const createProfileWithServiceRole = async (
     console.log('Attempting to create profile with service role for user:', userId);
     
     // First check if a profile already exists to avoid duplication
+    // First validate the ID is in the correct format
+    if (!isValidProfileId(userId)) {
+      console.error('Invalid user ID format');
+      return false;
+    }
+    
+    // Use the validated ID with the Supabase query
+    // Using explicit filter function instead of eq for better type safety
     const { count, error: countError } = await supabase
       .from('profiles')
       .select('*', { count: 'exact', head: true })
-      .eq('id', userId as any); // Type cast to bypass TypeScript restriction
+      // Using the filter method which has better type compatibility
+      .filter('id', 'eq', userId);
     
     if (countError) {
       console.error('Error checking for existing profile:', countError.message);
@@ -80,39 +108,55 @@ export const createProfileWithServiceRole = async (
       // try the direct Supabase insert which might work in some cases
       console.log('Serverless function not available, attempting direct insert as fallback');
       
-      const { error: insertError } = await supabase
-        .from('profiles')
-        .insert(profileRecord as any); // Type cast to bypass TypeScript restriction
+      // Try more reliable direct insertion method
+      try {
+        // Create a typed minimal profile object with only required fields
+        const minimalProfile: MinimalProfileInsert = {
+          id: userId,
+          email: profileData.email || '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
         
-      if (insertError) {
-        console.error('Direct profile insert failed:', insertError.message);
+        // Execute the insert with proper typing
+        // Using type assertion for Supabase compatibility
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert([minimalProfile as any]);
         
-        // As a last resort, try the REST API directly with a POST request
-        // This approach avoids accessing protected properties directly
-        const { data: configData } = await supabase.auth.getSession();
-        const accessToken = configData?.session?.access_token;
-        
-        // Get the base URL from window.location for API calls
-        // This avoids accessing protected supabaseUrl property
-        const apiUrl = window.location.hostname.includes('localhost') 
-          ? 'http://localhost:54321' // Local Supabase development URL
-          : 'https://vwzbowcvbrchbpqjcnkg.supabase.co'; // Production Supabase URL
-        
-        const directApiResponse = await fetch(`${apiUrl}/rest/v1/profiles`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': accessToken || '', // Use session token instead of protected key
-            'Authorization': `Bearer ${accessToken || ''}`,
-            'Prefer': 'return=minimal'
-          },
-          body: JSON.stringify(profileRecord)
-        });
-        
-        if (!directApiResponse.ok) {
-          console.error('All profile creation attempts failed');
-          return false;
+        if (insertError) {
+          console.error('Direct profile insert failed:', insertError.message);
+          
+          // As a last resort, try the REST API directly with a POST request
+          // This approach avoids accessing protected properties directly
+          const { data: configData } = await supabase.auth.getSession();
+          const accessToken = configData?.session?.access_token;
+          
+          // Get the base URL from window.location for API calls
+          // This avoids accessing protected supabaseUrl property
+          const apiUrl = window.location.hostname.includes('localhost') 
+            ? 'http://localhost:54321' // Local Supabase development URL
+            : 'https://vwzbowcvbrchbpqjcnkg.supabase.co'; // Production Supabase URL
+          
+          const directApiResponse = await fetch(`${apiUrl}/rest/v1/profiles`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': accessToken || '', // Use session token instead of protected key
+              'Authorization': `Bearer ${accessToken || ''}`,
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify(minimalProfile)
+          });
+          
+          if (!directApiResponse.ok) {
+            console.error('All profile creation attempts failed');
+            return false;
+          }
         }
+      } catch (error) {
+        console.error('Exception during direct profile creation attempts:', error);
+        return false;
       }
     }
     
