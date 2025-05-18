@@ -23,8 +23,18 @@ import { TravelPreferencesDatabase } from '../types/databaseTypes';
  * Transform database response to frontend format
  * This converts snake_case and lowercase DB fields to camelCase for frontend
  */
-const transformDbToFrontend = (data: TravelPreferencesDatabase | null): TravelPreferences => {
-  if (!data) return null;
+/**
+ * Type guard to check if an object is a valid TravelPreferencesDatabase
+ */
+const isTravelPreferencesDatabase = (data: unknown): data is TravelPreferencesDatabase => {
+  return data !== null && typeof data === 'object' && 'id' in data && 'userid' in data;
+};
+
+/**
+ * Transform database response to frontend format
+ */
+const transformDbToFrontend = (data: unknown): TravelPreferences | null => {
+  if (!data || !isTravelPreferencesDatabase(data)) return null;
   
   return {
     id: data.id,
@@ -76,7 +86,7 @@ export const getUserTravelPreferences = async (userId: string): Promise<TravelPr
       throw error;
     }
     
-    // Transform database response to frontend format
+    // Transform database response to frontend format ensuring type safety
     return transformDbToFrontend(data);
   } catch (error) {
     console.error('Error fetching travel preferences:', error);
@@ -163,8 +173,9 @@ export const saveTravelPreferences = async (preferences: TravelPreferencesFormVa
       }
       
       console.log('Successfully updated travel preferences:', data);
-      // Transform to frontend format before returning
-      return transformDbToFrontend(data[0]);
+      // Transform to frontend format before returning with proper type safety
+       
+      return transformDbToFrontend(Array.isArray(data) && data.length > 0 ? data[0] : null);
     } else {
       console.log('Creating new travel preferences');
       // Insert new preferences with created timestamp
@@ -189,8 +200,9 @@ export const saveTravelPreferences = async (preferences: TravelPreferencesFormVa
       }
       
       console.log('Successfully created travel preferences:', data);
-      // Transform to frontend format before returning
-      return transformDbToFrontend(data[0]);
+      // Transform to frontend format before returning with proper type safety
+       
+      return transformDbToFrontend(Array.isArray(data) && data.length > 0 ? data[0] : null);
     }
   } catch (error) {
     console.error('Error saving travel preferences:', error);
