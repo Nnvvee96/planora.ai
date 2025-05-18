@@ -114,18 +114,28 @@ const AuthCallback = () => {
             // First, check if this is a Google sign-in
             const isGoogleAuth = user.identities?.some(identity => identity.provider === 'google');
             
-            // Check localStorage status (this is our primary source of truth)
+            // Check both Supabase metadata and localStorage
             const hasCompletedInitialFlow = localStorage.getItem('hasCompletedInitialFlow') === 'true';
-            // Also check Supabase metadata (secondary source)
             const hasCompletedOnboardingInMetadata = user.user_metadata?.has_completed_onboarding === true;
             
             console.log('Onboarding status check:', {
               isGoogleAuth,
+              email: user.email,
               hasCompletedInitialFlow,
               hasCompletedOnboardingInMetadata
             });
             
-            // For returning users who have already completed onboarding
+            // IMPORTANT: For Google sign-in, we prioritize the Supabase metadata over localStorage
+            // This fixes the cross-domain issue where localStorage is empty but user exists in Supabase
+            if (isGoogleAuth && hasCompletedOnboardingInMetadata) {
+              console.log('Google user has completed onboarding according to Supabase - directing to dashboard');
+              
+              // Sync localStorage with Supabase metadata
+              localStorage.setItem('hasCompletedInitialFlow', 'true');
+              return '/dashboard';
+            }
+            
+            // For non-Google auth or if user has completed onboarding according to localStorage
             if (hasCompletedInitialFlow) {
               console.log('User has completed onboarding according to localStorage - directing to dashboard');
               
@@ -140,23 +150,16 @@ const AuthCallback = () => {
               return '/dashboard';
             }
             
-            // Special case for test account
+            // Force reset for test account if needed
+            // Uncomment this block to force specific test accounts to go through onboarding again
+            /*
             if (user.email === 'navyug.singh1996@gmail.com' && isGoogleAuth) {
-              console.log('Detected test account - directing to test destination');
-              // Remove the forced onboarding path - let normal logic apply
-              // If you want to force onboarding for testing, uncomment the next line:
-              // return '/onboarding';
+              console.log('Detected test account - forcing onboarding');
+              localStorage.removeItem('hasCompletedInitialFlow');
+              await authService.resetOnboardingStatus(user.id);
+              return '/onboarding';
             }
-            
-            // For Google users with conflicting metadata
-            if (isGoogleAuth && hasCompletedOnboardingInMetadata && !hasCompletedInitialFlow) {
-              // This is likely a returning Google user where localStorage was cleared
-              // but they've already completed onboarding according to Supabase
-              console.log('Google user with completed onboarding in metadata but not localStorage');
-              // Set localStorage to match Supabase
-              localStorage.setItem('hasCompletedInitialFlow', 'true');
-              return '/dashboard';
-            }
+            */
             
             // New users or users who haven't completed onboarding
             console.log('User needs to complete onboarding');
