@@ -116,7 +116,8 @@ const AuthCallback = () => {
               const { count, error: countError } = await supabase
                 .from('profiles')
                 .select('*', { count: 'exact', head: true })
-                .eq('id', user.id);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                .eq('id', user.id as any);
               
               let profileExists = false;
               if (countError) {

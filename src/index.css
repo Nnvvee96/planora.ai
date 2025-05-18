@@ -2,8 +2,12 @@
 /* Import font first to comply with CSS rules */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* CSS linting: the following are valid Tailwind CSS directives */
+/* stylelint-disable-next-line */
 @tailwind base;
+/* stylelint-disable-next-line */
 @tailwind components;
+/* stylelint-disable-next-line */
 @tailwind utilities;
 
 @layer base {
@@ -72,20 +76,24 @@
 
 @layer base {
   * {
+    /* stylelint-disable-next-line */
     @apply border-border;
   }
 
   body {
+    /* stylelint-disable-next-line */
     @apply bg-background text-foreground;
   }
 }
 
 @layer components {
   .gradient-text {
+    /* stylelint-disable-next-line */
     @apply bg-clip-text text-transparent bg-gradient-to-r from-planora-accent-purple via-planora-accent-pink to-planora-accent-blue;
   }
 
   .gradient-border {
+    /* stylelint-disable-next-line */
     @apply relative before:absolute before:inset-0 before:p-[1.5px] before:rounded-full before:bg-gradient-to-r before:from-planora-accent-purple before:via-planora-accent-pink before:to-planora-accent-blue before:-z-10;
   }
   
