@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Provider } from 'react-redux';
 import { store } from './store/store';
 import { useState, useEffect, ReactNode } from 'react';
@@ -26,6 +26,35 @@ import { PrivacySecurity } from "./pages/Settings/PrivacySecurity";
 import { Support } from "./pages/Support";
 
 const queryClient = new QueryClient();
+
+// OAuth token detector component for handling tokens in root URL
+const OAuthTokenDetector: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  console.log('OAuthTokenDetector active, checking for tokens in URL');
+  
+  useEffect(() => {
+    // Check if we have OAuth tokens in the hash at the root URL
+    const hasAuthParams = 
+      window.location.pathname === '/' && 
+      window.location.hash && 
+      window.location.hash.includes('access_token');
+    
+    if (hasAuthParams) {
+      console.log('Detected OAuth tokens in root URL hash, redirecting to auth callback');
+      
+      // Preserve the exact hash with all tokens
+      const currentHash = window.location.hash;
+      
+      // Navigate to the auth callback with the same hash
+      navigate(`/auth/callback${currentHash}`, { replace: true });
+      return;
+    }
+  }, [navigate]);
+  
+  return <>{children}</>;
+};
 
 // Protected route component that requires authentication
 interface ProtectedRouteProps {
@@ -74,6 +103,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <OAuthTokenDetector>
           <Routes>
             {/* Public routes */}
             <Route path="/" element={<LandingPage />} />
@@ -141,6 +171,7 @@ const App = () => (
             {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </OAuthTokenDetector>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
