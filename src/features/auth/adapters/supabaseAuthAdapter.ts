@@ -118,7 +118,7 @@ export const supabaseAuthAdapter = {
         username: data.username,
         first_name: data.firstName,
         last_name: data.lastName,
-        has_completed_onboarding: false,
+        has_completed_onboarding: false, // Always false for new registrations
         // Add additional metadata if provided
         ...(data.metadata || {})
       };
@@ -138,26 +138,18 @@ export const supabaseAuthAdapter = {
       if (error) throw new Error(error.message);
       if (!authData?.user) throw new Error('No user returned from registration');
       
-      console.log('Registration successful:', authData.user);
-      
-      // Create profile in profiles table with extended information
-      // Following our architecture principles of clean code and type safety
-      // Create a properly typed profile object according to our architecture principles
+      // Prepare profile data for Supabase profiles table
       const profileData: ProfilesInsert = {
         id: authData.user.id,
-        username: data.username,
-        first_name: data.firstName,
-        last_name: data.lastName,
         email: data.email,
-        // Properly handle metadata with appropriate type conversions for database schema
-        city: typeof data.metadata?.city === 'string' ? data.metadata.city : null,
-        country: typeof data.metadata?.country === 'string' ? data.metadata.country : null,
-        birthdate: typeof data.metadata?.birthdate === 'string' ? data.metadata.birthdate : null,
+        username: data.username || '',
+        first_name: data.firstName || '',
+        last_name: data.lastName || '',
+        // Optional fields based on ProfilesInsert type
         created_at: new Date().toISOString(),
         has_completed_onboarding: false
       };
-
-      // Using proper type definitions following our architectural principles
+      
       // Supabase API requires controlled type assertions for compatibility
       /* eslint-disable @typescript-eslint/no-explicit-any */
       const { error: profileError } = await supabase
@@ -183,6 +175,9 @@ export const supabaseAuthAdapter = {
   signOut: async (): Promise<void> => {
     const { error } = await supabase.auth.signOut();
     if (error) throw new Error(error.message);
+    
+    // Clear localStorage items related to authentication
+    localStorage.removeItem('hasCompletedInitialFlow');
   },
 
   /**
@@ -194,47 +189,47 @@ export const supabaseAuthAdapter = {
       if (error) throw new Error(error.message);
       if (!data?.session?.user) return null;
       
-      // Get the raw user from Supabase
       const rawUser = data.session.user;
       
-      // Check for Google authentication
-      const isGoogleAuth = rawUser.identities?.some(identity => identity.provider === 'google');
+      // Detect Google auth
+      const isGoogleAuth = rawUser.identities?.some(
+        identity => identity.provider === 'google'
+      );
       
-      // IMPORTANT: Check for the storage flag that indicates this user has gone through onboarding
-      const hasCompletedOnboardingBefore = localStorage.getItem('hasCompletedInitialFlow') === 'true';
+      // First check if user has completed onboarding according to localStorage
+      const hasCompletedInitialFlow = localStorage.getItem('hasCompletedInitialFlow') === 'true';
       
       console.log('Auth status check:', { 
         isGoogleAuth, 
-        hasCompletedOnboardingBefore,
+        hasCompletedInitialFlow,
         metadata_has_completed_onboarding: rawUser.user_metadata?.has_completed_onboarding
       });
       
-      // We need to handle two cases differently:
-      // 1. Returning users who have completed onboarding (send to dashboard)
-      // 2. Users who haven't completed onboarding yet (send to onboarding)
-      
+      // For Google auth users, check their onboarding status
       if (isGoogleAuth) {
-        if (hasCompletedOnboardingBefore) {
-          // Case 1: This is a returning user who has completed onboarding
-          // Ensure the metadata reflects this
-          console.log('Returning user detected: Ensuring dashboard access');
+        // If localStorage has completion flag, but metadata doesn't match,
+        // update the metadata to match localStorage (localStorage is source of truth)
+        if (hasCompletedInitialFlow && 
+            rawUser.user_metadata?.has_completed_onboarding !== true) {
           
-          if (rawUser.user_metadata && !rawUser.user_metadata.has_completed_onboarding) {
-            // Fix the metadata to match localStorage state
-            try {
-              await supabase.auth.updateUser({
-                data: { has_completed_onboarding: true }
-              });
+          console.log('Syncing onboarding status to metadata (user has completed onboarding)');
+          try {
+            await supabase.auth.updateUser({
+              data: { has_completed_onboarding: true }
+            });
+            
+            // Update the user object in memory too
+            if (rawUser.user_metadata) {
               rawUser.user_metadata.has_completed_onboarding = true;
-              console.log('Updated metadata to reflect completed onboarding');
-            } catch (updateError) {
-              console.error('Failed to update user metadata:', updateError);
             }
+          } catch (updateError) {
+            console.error('Failed to update user metadata:', updateError);
           }
-        } else {
-          // Case 2: User hasn't completed onboarding
-          // They should go through onboarding regardless of metadata
-          console.log('New user or incomplete onboarding detected');
+        }
+        
+        // For new Google users who haven't completed onboarding
+        if (!hasCompletedInitialFlow) {
+          console.log('New Google user or incomplete onboarding detected');
           
           // Temporarily override the metadata for this session
           if (rawUser.user_metadata) {
@@ -261,32 +256,57 @@ export const supabaseAuthAdapter = {
   },
 
   /**
+   * Reset onboarding status for a user (used for testing or special cases)
+   */
+  resetOnboardingStatus: async (): Promise<User | null> => {
+    try {
+      // Clear localStorage flag
+      localStorage.removeItem('hasCompletedInitialFlow');
+      
+      // Update Supabase metadata
+      const { data, error } = await supabase.auth.updateUser({
+        data: { has_completed_onboarding: false }
+      });
+      
+      if (error) throw new Error(error.message);
+      if (!data?.user) throw new Error('No user returned from metadata update');
+      
+      console.log('Onboarding status reset successfully');
+      return mapSupabaseUser(data.user);
+    } catch (error) {
+      console.error('Failed to reset onboarding status:', error);
+      return null;
+    }
+  },
+
+  /**
    * Sign in with Google OAuth
    */
   signInWithGoogle: async (): Promise<void> => {
-    // DEVELOPMENT ONLY: Clear any prior auth state to ensure clean testing
     try {
+      // Before redirecting to Google OAuth, clear any existing session data
+      // This ensures we get fresh authentication data and avoid cached state issues
       localStorage.removeItem('hasCompletedInitialFlow');
-      console.log('Cleared local auth state for testing');
-    } catch (e) {
-      console.log('Could not clear local storage:', e);
-    }
-    
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${getSiteUrl()}/auth/callback`,
-        queryParams: {
-          // Request specific OAuth scopes to get profile information
-          access_type: 'offline',
-          prompt: 'consent',
-          // Request profile information from Google
-          scope: 'email profile'
+      
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${getSiteUrl()}/auth/callback`,
+          queryParams: {
+            // Request specific OAuth scopes to get profile information
+            access_type: 'offline',
+            prompt: 'consent',
+            // Request profile information from Google
+            scope: 'email profile'
+          }
         }
-      }
-    });
-    
-    if (error) throw new Error(error.message);
+      });
+      
+      if (error) throw new Error(error.message);
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+      throw error;
+    }
   },
 
   /**

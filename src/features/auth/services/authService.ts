@@ -165,5 +165,25 @@ export const authService = {
       console.error('Metadata update error:', error);
       throw error;
     }
+  },
+  
+  /**
+   * Specifically resets a user's onboarding status to false
+   * @param {string} userId - User ID to reset onboarding status for
+   * @returns {Promise<{error?: Error}>} Result of the operation
+   */
+  resetOnboardingStatus: async (userId: string): Promise<{error?: Error}> => {
+    try {
+      // Use the updateUserMetadata method to set has_completed_onboarding to false
+      await supabaseAuthAdapter.updateUserMetadata({
+        has_completed_onboarding: false
+      });
+      
+      console.log('Successfully reset onboarding status for user:', userId);
+      return {}; // Success
+    } catch (error) {
+      console.error('Failed to reset onboarding status:', error);
+      return { error: error as Error };
+    }
   }
 };
