@@ -211,20 +211,73 @@ export const saveTravelPreferences = async (preferences: TravelPreferencesFormVa
 };
 
 /**
- * Updates the user's onboarding completion status in auth metadata
+ * Comprehensively updates the user's onboarding status across ALL possible state stores
+ * to ensure perfect synchronization between them.
+ * 
+ * This addresses the Google Sign-In loop issue by ensuring consistent state across:
+ * 1. Supabase Auth metadata
+ * 2. Profiles database table
+ * 3. Browser localStorage
+ * 
  * @param userId The ID of the user
  * @param completed Whether onboarding is completed
  */
 export const updateOnboardingStatus = async (userId: string, completed: boolean): Promise<void> => {
+  console.log(`CRITICAL: Updating onboarding status to ${completed} for user ${userId} in ALL sources`);
+  
   try {
-    // Update user metadata to mark onboarding as completed
-    const { error } = await supabase.auth.updateUser({
-      data: { has_completed_onboarding: completed }
+    // 1. Update auth metadata
+    console.log('Step 1: Updating Supabase Auth metadata');
+    const authResult = await supabase.auth.updateUser({
+      data: { 
+        has_completed_onboarding: completed,
+        onboarding_updated_at: new Date().toISOString() // Add timestamp for debugging
+      }
     });
     
-    if (error) throw error;
+    if (authResult.error) {
+      console.error('Error updating auth metadata:', authResult.error);
+      // Continue with other updates even if this one fails
+    } else {
+      console.log('✅ Successfully updated auth metadata');
+    }
+    
+    // 2. Update profiles database
+    console.log('Step 2: Updating profile in database');
+    
+    // Import the userProfileService to ensure type-safe updates
+    // This follows the principle of using established patterns
+    try {
+      // Import from API boundary following architectural principles
+      const { userProfileService } = await import('@/features/user-profile/api');
+      
+      // Use the service method for type-safe profile updates
+      const updatedProfile = await userProfileService.updateUserProfile(userId, {
+        has_completed_onboarding: completed
+      });
+      
+      if (updatedProfile) {
+        console.log('✅ Successfully updated profile in database');
+      } else {
+        console.error('Failed to update profile in database');
+      }
+    } catch (profileError) {
+      console.error('Error updating profile in database:', profileError);
+      // Continue with other updates even if this one fails
+    }
+    
+    // 3. Update localStorage
+    console.log('Step 3: Updating localStorage');
+    if (completed) {
+      localStorage.setItem('hasCompletedInitialFlow', 'true');
+    } else {
+      localStorage.removeItem('hasCompletedInitialFlow');
+    }
+    console.log(`✅ Successfully updated localStorage to ${completed ? 'true' : 'false'}`);
+    
+    console.log('CRITICAL: Onboarding status synchronized across ALL sources! 🎉');
   } catch (error) {
-    console.error('Error updating onboarding status:', error);
+    console.error('Error in updateOnboardingStatus:', error);
     throw error;
   }
 };

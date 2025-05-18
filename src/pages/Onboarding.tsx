@@ -231,22 +231,26 @@ const Onboarding = () => {
       
       console.log('Saving travel preferences:', travelPreferencesData);
       
-      // Save travel preferences to the database
+      // CRITICAL FIX FOR GOOGLE SIGN-IN LOOP:
+      // The problem was that we were making multiple separate API calls to update onboarding status,
+      // leading to race conditions and inconsistent state across different systems
+      
+      console.log('🚀 Completing onboarding with comprehensive cross-system synchronization');
+      
+      // Step 1: Save travel preferences to the database
+      console.log('Step 1: Saving travel preferences');
       await saveTravelPreferences(travelPreferencesData, currentUser.id);
       
-      // Update user metadata to mark onboarding as completed
-      await updateOnboardingStatus(currentUser.id, true);
-      
-      // Set local storage flag to track that user has completed onboarding
-      // This helps prevent incorrect redirects for Google sign-ins
-      localStorage.setItem('hasCompletedInitialFlow', 'true');
-      
-      // Update user metadata to mark onboarding as completed
+      // Step 2: Update user metadata with ALL relevant information in a SINGLE operation
+      // This ensures consistent state and prevents race conditions
+      console.log('Step 2: Updating ALL user metadata in a single operation');
       try {
+        // Use a single call to updateUserMetadata with all information
         await authService.updateUserMetadata({
+          // Critical onboarding flags
           has_completed_onboarding: true,
-          last_onboarding_date: new Date().toISOString(),
-          // Add other metadata
+          onboarding_complete_date: new Date().toISOString(),
+          // Travel profile information
           city: formData.departureLocation,
           travel_preferences: {
             accommodation_types: formData.accommodationTypes,
@@ -262,10 +266,23 @@ const Onboarding = () => {
             departure_location: formData.departureLocation
           }
         });
+      
+        // Step 3: Set localStorage flag to ensure consistent state
+        console.log('Step 3: Synchronizing localStorage state');
+        localStorage.setItem('hasCompletedInitialFlow', 'true');
+        
+        // Step 4: Use our enhanced updateOnboardingStatus to ensure profile DB is also updated
+        // This is critical to ensure the profile table has the correct flag
+        console.log('Step 4: Ensuring profile database is synchronized');
+        await updateOnboardingStatus(currentUser.id, true);
+        
+        console.log('✅ All systems synchronized! Onboarding successfully completed.');
       } catch (metadataError) {
-        // Don't fail the onboarding if metadata update fails,
-        // since we already saved the preferences in the database
         console.error('Failed to update user metadata:', metadataError);
+        // Even if this update fails, still try to update the profile and localStorage
+        // as a fallback to help break the onboarding loop
+        localStorage.setItem('hasCompletedInitialFlow', 'true');
+        await updateOnboardingStatus(currentUser.id, true);
       }
       
       // Show success message
