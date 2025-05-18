@@ -26,11 +26,15 @@ const Billing: React.FC = () => {
         
         // The user object from authService already has the mapped hasCompletedOnboarding from Supabase metadata
         const hasCompletedOnboarding = user.hasCompletedOnboarding === true;
+        const hasSuabaseMetadataOnboarding = user.user_metadata?.has_completed_onboarding === true;
         
         console.log('Billing page user check:', { 
           email: user.email,
+          id: user.id,
           hasCompletedInitialFlow,
-          hasCompletedOnboarding 
+          hasCompletedOnboarding,
+          hasSuabaseMetadataOnboarding,
+          user_metadata: user.user_metadata || {} 
         });
         
         // For Google sign-ins, we prioritize Supabase metadata over localStorage
@@ -41,12 +45,17 @@ const Billing: React.FC = () => {
           localStorage.setItem('hasCompletedInitialFlow', 'true');
         }
         
-        // If user hasn't completed onboarding according to both sources, redirect to onboarding
-        if (!hasCompletedOnboarding && !hasCompletedInitialFlow) {
-          console.log('User has not completed onboarding, redirecting from Billing to Onboarding');
-          navigate('/onboarding', { replace: true });
+        // If user has completed onboarding, redirect to dashboard
+        if (hasCompletedOnboarding || hasSuabaseMetadataOnboarding || hasCompletedInitialFlow) {
+          console.log('User has completed onboarding, redirecting from Billing to Dashboard');
+          navigate('/dashboard', { replace: true });
           return;
         }
+        
+        // If user hasn't completed onboarding according to any source, redirect to onboarding
+        console.log('User has not completed onboarding, redirecting from Billing to Onboarding');
+        navigate('/onboarding', { replace: true });
+        return;
       } catch (error) {
         console.error('Error checking user in Billing component:', error);
         navigate('/login', { replace: true });

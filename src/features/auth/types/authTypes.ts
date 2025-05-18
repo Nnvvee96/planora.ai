@@ -16,6 +16,10 @@ export interface User {
   firstName?: string;
   lastName?: string;
   hasCompletedOnboarding?: boolean;
+  user_metadata?: {
+    has_completed_onboarding?: boolean;
+    [key: string]: unknown;
+  };
 }
 
 export interface LoginCredentials {
