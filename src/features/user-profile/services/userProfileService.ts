@@ -252,106 +252,253 @@ export const updateUserProfile = async (userId: string, profileData: Partial<Use
 };
 
 /**
- * Ensures a user profile exists. If no profile exists, creates one with user data from auth.
+ * Ensures that a profile exists for the specified user ID
+ * Will create a profile if one doesn't exist using multiple fallback methods
+ * This is a critical function for fixing the Google Sign-In loop
+ * 
  * @param userId The ID of the user
- * @returns True if profile exists or was successfully created
+ * @returns True if the profile exists or was created successfully
  */
 export const ensureProfileExists = async (userId: string): Promise<boolean> => {
-  try {
-    console.log('Ensuring profile exists for user:', userId);
-    
-    // First try to check if profile exists through the count API instead of single
-    // This avoids the "JSON object requested, multiple (or no) rows returned" error
-    const { count, error: countError } = await withSafeId(
-      supabase.from('profiles').select('*', { count: 'exact', head: true }),
-      userId
-    );
-    
-    if (countError) {
-      console.log('Profile count error:', countError.message);
-      // Continue to try creating anyway
-    }
-    
-    // Profile exists
-    if (count && count > 0) {
-      console.log('Profile exists check: profile found for user');
+  console.log('⚠️ CRITICAL FUNCTION - Ensuring profile exists for user:', userId);
+  
+  // Try up to 3 times to ensure profile creation
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      console.log(`Attempt ${attempt} to ensure profile exists`);
       
-      // Following the project's architecture principles: use the updateUserProfile method
-      // This reuses existing type-safe methods established in the codebase
+      // STEP 1: Check if profile already exists using most reliable method
+      // Use count() to avoid potential RLS issues with single()
+      console.log('Step 1: Checking if profile exists using count method');
+      const { count, error: countError } = await withSafeId(
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        userId
+      );
+      
+      if (countError) {
+        console.error(`Count error (attempt ${attempt}):`, countError.message);
+      } else {
+        console.log(`Profile count result: ${count}`);
+      }
+      
+      // If profile exists, update it and return success
+      if (count && count > 0) {
+        console.log('✅ Profile found! Updating it with completed onboarding flag');
+        
+        try {
+          // Use the established mapUserProfileToUpdate helper to ensure type safety
+          const profileUpdate = mapUserProfileToUpdate({
+            has_completed_onboarding: true
+          });
+          
+          // We can't directly add updated_at to ProfileUpdate as it's not part of our type definition
+          // So we need to use a type assertion to include it, following architectural principles
+          // This ensures we're only modifying the specific fields we intend to
+          const update = {
+            ...profileUpdate,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any; // Type assertion needed for database compatibility
+          
+          // Add the updated_at field after the type assertion
+          update.updated_at = new Date().toISOString();
+          
+          // Note: We use 'update' not 'profileUpdate' here to include the updated_at field
+          const { error: updateError } = await withSafeId(
+            supabase.from('profiles').update(update),
+            userId
+          );
+            
+          if (updateError) {
+            console.error('Error updating existing profile:', updateError.message);
+          } else {
+            console.log('✅ Successfully updated profile onboarding flag');
+          }
+        } catch (updateError) {
+          console.error('Exception updating profile:', updateError);
+        }
+        
+        // Even if update fails, profile exists so return true
+        return true;
+      }
+      
+      // STEP 2: Get user details from auth for profile creation
+      console.log('Step 2: Getting user details from auth');
+      let userEmail = '';
+      let firstName = '';
+      let lastName = '';
+      let fullName = '';
+      let isGoogleAuth = false;
+      
       try {
-        // Use the existing updateUserProfile method which already handles typing properly
-        const updated = await updateUserProfile(userId, {
+        // First try with admin API
+        const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
+        
+        if (userError) {
+          console.error('Error getting user data with admin API:', userError.message);
+        } else if (userData?.user) {
+          userEmail = userData.user.email || '';
+          firstName = userData.user.user_metadata?.first_name || '';
+          lastName = userData.user.user_metadata?.last_name || '';
+          fullName = userData.user.user_metadata?.full_name || '';
+          
+          // Check if this is a Google auth user
+          isGoogleAuth = userData.user.app_metadata?.provider === 'google' || 
+                        (userData.user.identities?.some(i => i.provider === 'google') || false);
+                        
+          console.log('User details retrieved from admin API:', { 
+            userEmail, 
+            firstName, 
+            lastName,
+            isGoogleAuth 
+          });
+        }
+      } catch (adminError) {
+        console.error('Exception getting user with admin API:', adminError);
+        
+        // Fall back to regular auth API
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (sessionData?.session?.user) {
+            const user = sessionData.session.user;
+            userEmail = user.email || '';
+            firstName = user.user_metadata?.first_name || '';
+            lastName = user.user_metadata?.last_name || '';
+            fullName = user.user_metadata?.full_name || '';
+            isGoogleAuth = user.app_metadata?.provider === 'google' || false;
+            
+            console.log('User details retrieved from session:', { 
+              userEmail, 
+              firstName, 
+              lastName,
+              isGoogleAuth 
+            });
+          }
+        } catch (sessionError) {
+          console.error('Exception getting user session:', sessionError);
+        }
+      }
+      
+      // STEP 3: Create profile with available data
+      console.log('Step 3: Creating new profile with gathered data');
+      
+      // Prepare minimum viable profile data
+      const username = userEmail ? userEmail.split('@')[0] : `user_${Math.random().toString(36).substring(2, 10)}`;
+      
+      // Method 1: Try standard insert first
+      try {
+        console.log('Creating profile - Method 1: Standard insert');
+        
+        // Create a proper profile using the mapUserProfileToInsert helper that conforms to ProfileInsert type
+        const profileInsert = mapUserProfileToInsert({
+          id: userId,
+          username: username,
+          email: userEmail,
+          first_name: firstName || '',
+          last_name: lastName || '',
+          has_completed_onboarding: true // Critical fix: Always set this to true
+        });
+        
+        // Use asSafeInsert helper to ensure proper array format for Supabase insert
+        const { error: insertError } = await supabase
+          .from('profiles')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .insert(asSafeInsert(profileInsert) as any);
+          
+        if (insertError) {
+          console.error('Standard insert failed:', insertError.message);
+        } else {
+          console.log('✅ Profile created successfully with standard insert!');
+          return true;
+        }
+      } catch (insertError) {
+        console.error('Exception in standard insert:', insertError);
+      }
+      
+      // Method 2: Try upsert if insert failed
+      try {
+        console.log('Creating profile - Method 2: Upsert operation');
+        
+        // Create a proper profile using the mapUserProfileToInsert helper that conforms to ProfileInsert type
+        const profileInsert = mapUserProfileToInsert({
+          id: userId,
+          username: username,
+          email: userEmail,
+          first_name: firstName || '',
+          last_name: lastName || '',
+          has_completed_onboarding: true // Critical fix: Always set this to true
+        });
+        
+        // Use asSafeInsert helper to ensure proper array format for Supabase upsert
+        const { error: upsertError } = await supabase
+          .from('profiles')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .upsert(asSafeInsert(profileInsert) as any, { onConflict: 'id' });
+          
+        if (upsertError) {
+          console.error('Upsert operation failed:', upsertError.message);
+        } else {
+          console.log('✅ Profile created successfully with upsert!');
+          return true;
+        }
+      } catch (upsertError) {
+        console.error('Exception in upsert operation:', upsertError);
+      }
+      
+      // Method 3: Try RPC call to bypass RLS policies
+      try {
+        console.log('Creating profile - Method 3: RPC call');
+        const { error: rpcError } = await supabase.rpc('create_profile_with_admin', {
+          user_id: userId,
+          user_email: userEmail,
+          user_username: username,
+          user_first_name: firstName || '',
+          user_last_name: lastName || '',
+          user_full_name: fullName || `${firstName} ${lastName}`.trim(),
           has_completed_onboarding: true
         });
         
-        if (updated) {
-          console.log('Updated existing profile with onboarding completed flag');
+        if (rpcError) {
+          console.error('RPC call failed:', rpcError.message);
         } else {
-          console.error('Failed to update profile onboarding flag');
+          console.log('✅ Profile created successfully with RPC call!');
+          return true;
         }
-      } catch (error) {
-        console.error('Error updating profile onboarding flag:', error);
+      } catch (rpcError) {
+        console.error('Exception in RPC call:', rpcError);
       }
       
-      return true;
+      console.log(`❌ All methods failed in attempt ${attempt}. ${attempt < 3 ? 'Retrying...' : 'Giving up.'}`);
+      
+      // Short delay before retrying
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+    } catch (attemptError) {
+      console.error(`Critical error in attempt ${attempt}:`, attemptError);
     }
-    
-    // Profile doesn't exist, get user details from auth to create a proper profile
-    console.log('No profile found. Creating profile for user:', userId);
-    
-    // First get the user's email and other details from auth
-    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
-    
-    if (userError) {
-      console.error('Error getting user data from auth:', userError.message);
-      // Fall back to creating minimal profile
-    }
-    
-    // Get user details from auth if available
-    const userEmail = userData?.user?.email || '';
-    const firstName = userData?.user?.user_metadata?.first_name || '';
-    const lastName = userData?.user?.user_metadata?.last_name || '';
-    const isGoogleAuth = userData?.user?.app_metadata?.provider === 'google' || 
-                         userData?.user?.identities?.some(i => i.provider === 'google');
-    
-    console.log('User auth details:', { 
-      userEmail, 
-      hasName: !!(firstName || lastName),
-      isGoogleAuth 
+  }
+  
+  // Last resort: update auth metadata even if profile creation failed
+  try {
+    console.log('🚨 All profile creation attempts failed. Updating auth metadata as last resort');
+    await supabase.auth.updateUser({
+      data: { 
+        has_completed_onboarding: true,
+        profile_creation_failed: true,
+        profile_creation_attempted_at: new Date().toISOString()
+      }
     });
     
-    // Create a profile with better data from auth
-    const newProfile: ProfileInsert = {
-      id: userId,
-      created_at: new Date().toISOString(),
-      email: userEmail,
-      username: userEmail.split('@')[0] || '',  // Use part of email as username if available
-      first_name: firstName,
-      last_name: lastName,
-      // For Google auth users, assume they've completed onboarding if they're returning
-      has_completed_onboarding: isGoogleAuth ? true : false
-    };
-    
-    console.log('Creating profile with data:', JSON.stringify(newProfile, null, 2));
-    
-    // Use proper array form for inserting with type safety
-    const { error } = await supabase
-      .from('profiles')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .insert(asSafeInsert(newProfile) as any);
-      
-    if (error) {
-      console.error('Failed to create profile:', error.message);
-      return false;
+    // Set localStorage as a fallback
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('hasCompletedInitialFlow', 'true');
+      localStorage.setItem('profileCreationFailed', 'true');
     }
-    
-    console.log('Successfully created profile with proper user data');
-    return true;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error ensuring profile exists:', errorMessage);
-    return false;
+  } catch (metadataError) {
+    console.error('Failed to update auth metadata as last resort:', metadataError);
   }
+  
+  console.log('⚠️ Failed to ensure profile exists after multiple attempts');
+  return false;
 };
 
 // Export the service methods
