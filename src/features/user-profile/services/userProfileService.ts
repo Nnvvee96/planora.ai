@@ -228,56 +228,6 @@ export const updateUserProfile = async (userId: string, profileData: Partial<Use
  * Ensures a user profile exists. If no profile exists, creates one with minimal data.
  * @param userId The ID of the user
  * @returns True if profile exists or was successfully created
- */
-export const ensureProfileExists = async (userId: string): Promise<boolean> => {
-  try {
-    console.log('Ensuring profile exists for user:', userId);
-    
-    // First check if profile already exists
-    const { data: existingProfile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', userId as any)
-      .single();
-      
-    if (existingProfile) {
-      console.log('Profile already exists for user');
-      return true;
-    }
-    
-    // Profile doesn't exist, create a minimal one
-    console.log('No profile found. Creating minimal profile for user:', userId);
-    // Create a minimal valid profile with proper typing
-    const minimalProfile = {
-      id: userId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      // Required fields with defaults
-      username: '',
-      email: '',
-      first_name: '',
-      last_name: '',
-      full_name: '',
-      avatar_url: ''
-    };
-    
-    const { error } = await supabase
-      .from('profiles')
-      .insert(minimalProfile);
-      
-    if (error) {
-      console.error('Failed to create minimal profile:', error.message, error.code);
-      return false;
-    }
-    
-    console.log('Successfully created minimal profile');
-    return true;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error ensuring profile exists:', errorMessage);
-    return false;
-  }
-};
 
 // Export the service methods
 export const userProfileService = {
