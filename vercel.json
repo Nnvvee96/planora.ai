@@ -3,13 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install --legacy-peer-deps",
-  "redirects": [
-    { 
-      "source": "/#access_token=:token(.*)&expires_at=:expiry(.*)", 
-      "destination": "/auth/callback#access_token=:token&expires_at=:expiry", 
-      "permanent": false 
-    }
-  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
