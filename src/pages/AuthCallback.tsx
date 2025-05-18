@@ -32,7 +32,8 @@ interface ExtendedUser {
     last_name?: string;
     full_name?: string;
     email?: string;
-    [key: string]: any; // Allow other metadata properties
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    [key: string]: any; // Allow other metadata properties from different auth providers
   };
 }
 
@@ -158,6 +159,7 @@ const AuthCallback = () => {
                       last_name: profileData.last_name,
                       full_name: profileData.full_name,
                       avatar_url: profileData.avatar_url
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     } as any);
                   
                   if (!insertError) {
@@ -185,6 +187,7 @@ const AuthCallback = () => {
                         last_name: profileData.last_name,
                         full_name: profileData.full_name,
                         avatar_url: profileData.avatar_url
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       } as any, { onConflict: 'id' });
                     
                     if (!upsertError) {
@@ -244,6 +247,7 @@ const AuthCallback = () => {
                 await authService.updateUserMetadata({
                   has_profile_created: true,
                   profile_created_at: new Date().toISOString()
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 } as Record<string, any>);
                 console.log('Updated user metadata with profile creation status');
               } catch (metadataError) {
