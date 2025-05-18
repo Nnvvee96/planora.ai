@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '@/features/auth/api';
 import { userProfileService } from '@/features/user-profile/api';
+import { supabase } from '@/lib/supabase/supabaseClient';
 
 // Extended User type for auth callback handling
 interface ExtendedUser {
@@ -48,10 +49,38 @@ const AuthCallback = () => {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
+      // Check if URL has auth hash parameters (direct redirect from Google)
+      const hasAuthParams = window.location.hash && window.location.hash.includes('access_token');
       try {
         setLoading(true);
-        console.log('Auth callback triggered', { hash: location.hash, search: location.search });
-
+        console.log('Auth callback triggered', { hash: location.hash, search: location.search, hasAuthParams });
+        
+        // If we have auth params in URL hash, process them first
+        if (hasAuthParams) {
+          console.log('Processing auth parameters from URL hash');
+          // Use the current hash to set the session
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          
+          if (accessToken) {
+            try {
+              // Set the session using the access token
+              const { data, error } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: hashParams.get('refresh_token') || '',
+              });
+              
+              if (error) {
+                console.error('Error setting session from URL hash:', error);
+              } else if (data) {
+                console.log('Successfully set session from URL hash');
+              }
+            } catch (error) {
+              console.error('Error processing auth hash:', error);
+            }
+          }
+        }
+        
         // Get the current user
         const user = await authService.getCurrentUser() as ExtendedUser;
         
