@@ -155,7 +155,7 @@ const Dashboard = () => {
         <div className="container mx-auto px-4 md:px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <Logo />
+              <Logo href="/dashboard" />
               <div className="ml-8 hidden md:block">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40 h-4 w-4" />
