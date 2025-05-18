@@ -17,16 +17,13 @@ import { ProfilesInsert } from '@/lib/supabase/supabaseTypes';
  * Following our architectural principles of separation of concerns and clean code
  */
 const getSiteUrl = (): string => {
-  // Get current origin for properly handling both dev and production environments
-  const origin = window.location.origin;
-  
-  // In production (Vercel), use the deployment URL to maintain consistency
+  // Always use explicit URLs for consistency across environments
   if (import.meta.env.PROD) {
-    return 'https://planora.vercel.app';
+    return 'https://planora-ai-beta.vercel.app';
   }
   
-  // In development, use the origin
-  return origin;
+  // In development, use localhost
+  return 'http://localhost:5173';
 };
 
 /**
@@ -287,12 +284,11 @@ export const supabaseAuthAdapter = {
       // Clear localStorage flags before Google sign-in to prevent stale state
       localStorage.removeItem('hasCompletedInitialFlow');
       
-      // Use explicit callback URL to avoid inconsistent redirects
-      // For production environments, use the exact full URL to ensure consistency
-      const redirectTo = "https://planora.vercel.app/auth/callback";
+      // Use explicit callback URL based on environment
+      const baseUrl = getSiteUrl();
+      const redirectTo = `${baseUrl}/auth/callback`;
       
-      // Force console logging to debug the redirect URL
-      console.log('FORCED REDIRECT: Using explicit callback URL:', redirectTo);
+      console.log('Google sign-in using callback URL:', redirectTo);
       
       console.log(`Initiating Google sign-in with redirect to: ${redirectTo}`);
       
