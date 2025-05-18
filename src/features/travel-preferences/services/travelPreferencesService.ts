@@ -64,7 +64,8 @@ export const getUserTravelPreferences = async (userId: string): Promise<TravelPr
     const { data, error } = await supabase
       .from('travel_preferences')
       .select('*')
-      .eq('userid', userId)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .eq('userid', userId as any)
       .single();
     
     if (error) {
@@ -102,7 +103,8 @@ export const saveTravelPreferences = async (preferences: TravelPreferencesFormVa
     const { data: existing, error: existingError } = await supabase
       .from('travel_preferences')
       .select('*')
-      .eq('userid', userId)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .eq('userid', userId as any)
       .single();
     
     console.log('Existing preferences:', existing ? 'Found' : 'Not found');
@@ -149,8 +151,10 @@ export const saveTravelPreferences = async (preferences: TravelPreferencesFormVa
       // Update existing preferences
       const { data, error } = await supabase
         .from('travel_preferences')
-        .update(preferencesData)
-        .eq('userid', userId)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .update(preferencesData as any)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .eq('userid', userId as any)
         .select();
       
       if (error) {
@@ -175,7 +179,8 @@ export const saveTravelPreferences = async (preferences: TravelPreferencesFormVa
       
       const { data, error } = await supabase
         .from('travel_preferences')
-        .insert(dataWithCreatedAt)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .insert([dataWithCreatedAt as any])
         .select();
       
       if (error) {
