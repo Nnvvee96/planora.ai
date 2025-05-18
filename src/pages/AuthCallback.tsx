@@ -24,12 +24,15 @@ interface ExtendedUser {
   }>;
   user_metadata?: {
     has_completed_onboarding?: boolean;
+    has_profile_created?: boolean;
+    profile_created_at?: string;
     avatar_url?: string;
     username?: string;
     first_name?: string;
     last_name?: string;
     full_name?: string;
     email?: string;
+    [key: string]: any; // Allow other metadata properties
   };
 }
 
@@ -104,27 +107,43 @@ const AuthCallback = () => {
             const userMetadata = user.user_metadata || {};
             
             try {
-              // Update the user profile with Google data
-              const profileData = {
-                id: user.id,
-                username: userMetadata.username || identityData.name?.toLowerCase().replace(/\s+/g, '') || '',
-                first_name: userMetadata.first_name || identityData.given_name || '',
-                last_name: userMetadata.last_name || identityData.family_name || '',
-                full_name: userMetadata.full_name || identityData.name || '',
-                email: userMetadata.email || user.email || identityData.email || '',
-                birthdate: identityData.birthdate || '',
-                city: identityData.locale?.split('_')[1] || '',
-                country: identityData.locale?.split('_')[0] || '',
-                avatar_url: typeof userMetadata.avatar_url === 'string' ? userMetadata.avatar_url : '',
-                updated_at: new Date().toISOString()
-              };
+              // CRITICAL FIX: First ensure a profile exists for this user
+              // This will create a minimal profile if one doesn't exist yet
+              console.log('Ensuring profile exists before updating with Google data');
+              const profileExists = await userProfileService.ensureProfileExists(user.id);
               
-              const profileResult = await userProfileService.updateUserProfile(user.id, profileData);
+              if (profileExists) {
+                console.log('Profile exists or was created successfully, proceeding with update');
                 
-              if (!profileResult) {
-                console.error('Error updating profile with Google data');
+                // Now update the profile with Google data
+                const profileData = {
+                  username: userMetadata.username || identityData.name?.toLowerCase().replace(/\s+/g, '') || '',
+                  first_name: userMetadata.first_name || identityData.given_name || '',
+                  last_name: userMetadata.last_name || identityData.family_name || '',
+                  full_name: userMetadata.full_name || identityData.name || '',
+                  email: userMetadata.email || user.email || identityData.email || '',
+                  birthdate: identityData.birthdate || '',
+                  city: identityData.locale?.split('_')[1] || '',
+                  country: identityData.locale?.split('_')[0] || '',
+                  avatar_url: typeof userMetadata.avatar_url === 'string' ? userMetadata.avatar_url : '',
+                  updated_at: new Date().toISOString()
+                };
+                
+                const profileResult = await userProfileService.updateUserProfile(user.id, profileData);
+                  
+                if (!profileResult) {
+                  console.error('Error updating profile with Google data');
+                } else {
+                  console.log('Successfully updated profile with Google data');
+                  
+                  // Also update the user metadata to indicate profile has been created
+                  await authService.updateUserMetadata({
+                    has_profile_created: true,
+                    profile_created_at: new Date().toISOString()
+                  } as Record<string, any>); // Use type assertion to avoid errors
+                }
               } else {
-                console.log('Successfully updated profile with Google data');
+                console.error('Failed to ensure profile exists - this is a critical issue');
               }
             } catch (error) {
               console.error('Failed to update profile table:', error);
@@ -134,8 +153,7 @@ const AuthCallback = () => {
             console.error('No identity data found in Google account information');
           }
         }
-        
-        // This function determines where to redirect the user based on their authentication state
+                // This function determines where to redirect the user based on their authentication state
         const determineRedirect = async (user: ExtendedUser): Promise<string> => {
           console.log('Determining redirect for user:', JSON.stringify(user, null, 2));
           
@@ -146,17 +164,45 @@ const AuthCallback = () => {
             // Check both Supabase metadata and localStorage
             const hasCompletedInitialFlow = localStorage.getItem('hasCompletedInitialFlow') === 'true';
             const hasCompletedOnboardingInMetadata = user.user_metadata?.has_completed_onboarding === true;
+            const hasProfileCreated = user.user_metadata?.has_profile_created === true;
+            
+            // Check directly if a profile exists in the database
+            let hasProfileInDatabase = false;
+            try {
+              const profile = await userProfileService.getUserProfile(user.id);
+              hasProfileInDatabase = !!profile;
+              console.log('Profile database check result:', hasProfileInDatabase ? 'Found profile' : 'No profile found');
+            } catch (profileError) {
+              console.error('Error checking profile in database:', profileError);
+            }
             
             console.log('Onboarding status check:', {
               isGoogleAuth,
               email: user.email,
               hasCompletedInitialFlow,
-              hasCompletedOnboardingInMetadata
+              hasCompletedOnboardingInMetadata,
+              hasProfileCreated,
+              hasProfileInDatabase
             });
+            
+            // If we have completed onboarding according to metadata but no profile, force profile creation
+            if (isGoogleAuth && hasCompletedOnboardingInMetadata && !hasProfileInDatabase) {
+              console.log('User has completed onboarding but has no profile. Creating profile now.');
+              await userProfileService.ensureProfileExists(user.id);
+              
+              // Recheck if profile exists now
+              try {
+                const profile = await userProfileService.getUserProfile(user.id);
+                hasProfileInDatabase = !!profile;
+              } catch (recheckError) {
+                console.log('Error rechecking profile after creation:', recheckError);
+              }
+            }
             
             // IMPORTANT: For Google sign-in, we prioritize the Supabase metadata over localStorage
             // This fixes the cross-domain issue where localStorage is empty but user exists in Supabase
-            if (isGoogleAuth && hasCompletedOnboardingInMetadata) {
+            // We also ensure a profile exists before sending to dashboard
+            if (isGoogleAuth && hasCompletedOnboardingInMetadata && hasProfileInDatabase) {
               console.log('Google user has completed onboarding according to Supabase - directing to dashboard');
               
               // Sync localStorage with Supabase metadata
