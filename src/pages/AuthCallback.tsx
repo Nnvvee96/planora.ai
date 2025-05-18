@@ -107,43 +107,161 @@ const AuthCallback = () => {
             const userMetadata = user.user_metadata || {};
             
             try {
-              // CRITICAL FIX: First ensure a profile exists for this user
-              // This will create a minimal profile if one doesn't exist yet
-              console.log('Ensuring profile exists before updating with Google data');
-              const profileExists = await userProfileService.ensureProfileExists(user.id);
+              // CRITICAL FIX: First check if a profile exists using a direct method
+              // that's more resilient against RLS policy issues
+              console.log('Checking if profile exists using reliable method');
+              
+              // First try with the count approach instead of single() to avoid the 406 error
+              const { count, error: countError } = await supabase
+                .from('profiles')
+                .select('*', { count: 'exact', head: true })
+                .eq('id', user.id);
+              
+              let profileExists = false;
+              if (countError) {
+                console.warn('Profile count check failed:', countError.message);
+                // Try a different approach
+              } else if (count && count > 0) {
+                console.log('Profile exists check: profile found for user');
+                profileExists = true;
+              }
+              
+              // Prepare profile data from Google identity
+              const profileData = {
+                username: userMetadata.username || identityData.name?.toLowerCase().replace(/\s+/g, '') || '',
+                first_name: userMetadata.first_name || identityData.given_name || '',
+                last_name: userMetadata.last_name || identityData.family_name || '',
+                full_name: userMetadata.full_name || identityData.name || '',
+                email: userMetadata.email || user.email || identityData.email || '',
+                birthdate: identityData.birthdate || '',
+                city: identityData.locale?.split('_')[1] || '',
+                country: identityData.locale?.split('_')[0] || '',
+                avatar_url: typeof userMetadata.avatar_url === 'string' ? userMetadata.avatar_url : '',
+                updated_at: new Date().toISOString()
+              };
+              
+              // If profile doesn't exist, try multiple methods to create it
+              if (!profileExists) {
+                console.log('No profile found. Attempting to create profile with multiple methods');
+                
+                // Method 1: Standard insert
+                try {
+                  const { error: insertError } = await supabase
+                    .from('profiles')
+                    .insert({
+                      id: user.id,
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString(),
+                      username: profileData.username,
+                      email: profileData.email,
+                      first_name: profileData.first_name,
+                      last_name: profileData.last_name,
+                      full_name: profileData.full_name,
+                      avatar_url: profileData.avatar_url
+                    } as any);
+                  
+                  if (!insertError) {
+                    console.log('Successfully created profile (standard insert)');
+                    profileExists = true;
+                  } else {
+                    console.warn('Standard insert failed:', insertError.message);
+                  }
+                } catch (e) {
+                  console.warn('Exception in standard insert:', e);
+                }
+                
+                // Method 2: Try with upsert if insert failed
+                if (!profileExists) {
+                  try {
+                    const { error: upsertError } = await supabase
+                      .from('profiles')
+                      .upsert({
+                        id: user.id,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        username: profileData.username,
+                        email: profileData.email,
+                        first_name: profileData.first_name,
+                        last_name: profileData.last_name,
+                        full_name: profileData.full_name,
+                        avatar_url: profileData.avatar_url
+                      } as any, { onConflict: 'id' });
+                    
+                    if (!upsertError) {
+                      console.log('Successfully created profile (upsert)');
+                      profileExists = true;
+                    } else {
+                      console.warn('Upsert failed:', upsertError.message);
+                    }
+                  } catch (e) {
+                    console.warn('Exception in upsert:', e);
+                  }
+                }
+                
+                // Method 3: Try REST API directly to bypass potential RLS issues
+                if (!profileExists) {
+                  try {
+                    // Get the session token for authenticated API call
+                    const { data: sessionData } = await supabase.auth.getSession();
+                    if (sessionData?.session?.access_token) {
+                      const response = await fetch(`${window.location.origin}/api/create-profile`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                          userId: user.id,
+                          profileData: {
+                            id: user.id,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                            username: profileData.username,
+                            email: profileData.email,
+                            first_name: profileData.first_name,
+                            last_name: profileData.last_name,
+                            full_name: profileData.full_name,
+                            avatar_url: profileData.avatar_url
+                          },
+                          token: sessionData.session.access_token
+                        })
+                      });
+                      
+                      if (response.ok) {
+                        console.log('Successfully created profile (with API endpoint)');
+                        profileExists = true;
+                      } else {
+                        console.warn('API endpoint approach failed:', await response.text());
+                      }
+                    }
+                  } catch (e) {
+                    console.warn('Exception in API endpoint approach:', e);
+                  }
+                }
+              }
+              
+              // Update metadata regardless of profile creation result to avoid endless loop
+              try {
+                await authService.updateUserMetadata({
+                  has_profile_created: true,
+                  profile_created_at: new Date().toISOString()
+                } as Record<string, any>);
+                console.log('Updated user metadata with profile creation status');
+              } catch (metadataError) {
+                console.error('Failed to update user metadata:', metadataError);
+              }
               
               if (profileExists) {
-                console.log('Profile exists or was created successfully, proceeding with update');
-                
-                // Now update the profile with Google data
-                const profileData = {
-                  username: userMetadata.username || identityData.name?.toLowerCase().replace(/\s+/g, '') || '',
-                  first_name: userMetadata.first_name || identityData.given_name || '',
-                  last_name: userMetadata.last_name || identityData.family_name || '',
-                  full_name: userMetadata.full_name || identityData.name || '',
-                  email: userMetadata.email || user.email || identityData.email || '',
-                  birthdate: identityData.birthdate || '',
-                  city: identityData.locale?.split('_')[1] || '',
-                  country: identityData.locale?.split('_')[0] || '',
-                  avatar_url: typeof userMetadata.avatar_url === 'string' ? userMetadata.avatar_url : '',
-                  updated_at: new Date().toISOString()
-                };
-                
+                console.log('Profile exists, updating with Google data');
                 const profileResult = await userProfileService.updateUserProfile(user.id, profileData);
                   
                 if (!profileResult) {
                   console.error('Error updating profile with Google data');
                 } else {
                   console.log('Successfully updated profile with Google data');
-                  
-                  // Also update the user metadata to indicate profile has been created
-                  await authService.updateUserMetadata({
-                    has_profile_created: true,
-                    profile_created_at: new Date().toISOString()
-                  } as Record<string, any>); // Use type assertion to avoid errors
                 }
               } else {
-                console.error('Failed to ensure profile exists - this is a critical issue');
+                console.error('Failed to ensure profile exists after multiple attempts - this is a critical issue');
+                // Continue despite error - we'll try again on next login
               }
             } catch (error) {
               console.error('Failed to update profile table:', error);
