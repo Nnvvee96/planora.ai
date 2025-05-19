@@ -8,7 +8,8 @@
  */
 
 import { supabaseAuthAdapter } from '../adapters/supabaseAuthAdapter';
-import { LoginCredentials, RegisterData, User } from '../types/authTypes';
+import { googleAuthAdapter } from '../adapters/googleAuthAdapter';
+import type { LoginCredentials, RegisterData, User } from '../types/authTypes';
 
 /**
  * Auth Service
@@ -94,11 +95,12 @@ export const authService = {
    */
   signInWithGoogle: async (): Promise<void> => {
     try {
-      // Call the adapter implementation
-      await supabaseAuthAdapter.signInWithGoogle();
+      // CRITICAL FIX: Use the simplified Google auth adapter
+      // This follows Supabase documentation exactly
+      await googleAuthAdapter.signInWithGoogle();
     } catch (error) {
       console.error('Google sign-in error:', error);
-      throw error;
+      // Don't throw - authentication redirects the browser
     }
   },
   
