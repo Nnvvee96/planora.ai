@@ -1,9 +1,8 @@
 /**
  * Authentication Callback Component
  * 
- * This component handles the callback from OAuth providers with proper token handling.
- * CRITICAL FIX: Completely reworked to properly handle the PKCE flow for Google Auth
- * Following the official Supabase v2 approach for handling authentication
+ * This component handles OAuth callbacks and authentication redirects.
+ * Following Planora's architectural principles with clean code and proper type safety.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -13,7 +12,10 @@ import { userProfileService } from '@/features/user-profile/api';
 import { checkTravelPreferencesExist } from '@/features/travel-preferences/api';
 import { supabase } from '@/lib/supabase/supabaseClient';
 
-// Extended User type for auth callback handling
+/**
+ * Extended User type for auth callback handling
+ * Type-safety is essential for Planora's architecture
+ */
 interface ExtendedUser {
   id: string;
   email?: string;
@@ -50,8 +52,17 @@ interface ExtendedUser {
 }
 
 /**
+ * Log with timestamp and context
+ * Helps identify issues in the auth flow
+ */
+const logWithContext = (message: string, data?: Record<string, unknown>): void => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] 🔐 Auth: ${message}`, data || '');
+};
+
+/**
  * Auth Callback Component
- * Handles redirects from authentication providers and determines where to send the user
+ * Handles redirects and authentication verification
  */
 const AuthCallback: React.FC = () => {
   const navigate = useNavigate();
@@ -60,157 +71,149 @@ const AuthCallback: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Handle the authentication callback process
     const handleAuthCallback = async (): Promise<void> => {
-      console.log('Auth callback initiated with new PKCE flow handler');
+      logWithContext('Starting auth callback handler');
       setLoading(true);
       setError(null);
 
       try {
-        // CRITICAL FIX: Simplify the auth flow to follow Supabase's documentation exactly
-        console.log('Getting auth session state...');
+        // === STEP 1: Wait for Supabase to process the auth code from the URL ===
+        // We're purposely not doing anything here - Supabase automatically processes the code on init
+        logWithContext('Waiting for Supabase to process auth code');
         
-        // First check existing session - DON'T try to get/set the session when we don't need to
-        const { data: existingSession } = await supabase.auth.getSession();
+        // Give Supabase time to process the auth code
+        await new Promise(resolve => setTimeout(resolve, 800));
         
-        // If we don't have a session yet, we need to parse the URL for auth code
-        if (!existingSession?.session) {
-          console.log('No existing session, checking URL parameters...');
-          
-          // Check if we have a code in the URL (used by PKCE flow)
-          const hasCode = location.search.includes('code=');
-          
-          if (hasCode) {
-            console.log('Auth code detected in URL, proceeding with PKCE flow');
-            
-            // DONT manually call exchangeCodeForSession
-            // Let Supabase's internal mechanisms handle this!
-            // Supabase initializes and automatically handles the code exchange
-          } else {
-            console.error('No auth code found in URL');
-            throw new Error('No authentication code found. Please try signing in again.');
-          }
-        } else {
-          console.log('Existing session found, proceeding with user data retrieval');
-        }
-        
-        // Wait briefly to ensure Supabase's internal code exchange completes
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Now get the current session (which should be established by now)
+        // === STEP 2: Now check if we have a valid session ===
+        logWithContext('Checking for authenticated session');
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
-          console.error('Error getting session:', sessionError.message);
-          throw sessionError;
+          logWithContext('Error getting session', { error: sessionError.message });
+          throw new Error(`Authentication error: ${sessionError.message}`);
         }
         
-        if (!sessionData?.session) {
-          console.error('No session established after auth flow');
-          throw new Error('Failed to establish authenticated session');
+        if (!sessionData.session) {
+          // Check if we're in a silent refresh scenario (no code but an existing session might exist)
+          const currentUser = await authService.getCurrentUser();
+          if (currentUser) {
+            logWithContext('No session in URL but current user exists');
+            // Still got a user, so proceed with that
+          } else {
+            logWithContext('No active session established', { sessionData });
+            throw new Error('Failed to establish authentication session');
+          }
+        } else {
+          logWithContext('Valid session found', { userId: sessionData.session.user.id });
         }
         
-        console.log('Session successfully established');
+        // === STEP 3: Get user data ===
+        logWithContext('Retrieving user data');
+        const user = await authService.getCurrentUser() as ExtendedUser | null;
         
-        // Get the authenticated user data
-        const user = await authService.getCurrentUser() as ExtendedUser;
         if (!user) {
-          console.error('No user found in session');
-          throw new Error('Authentication succeeded but user data is unavailable');
+          logWithContext('No user found after session verification');
+          throw new Error('Unable to retrieve user data');
         }
         
-        console.log('Successfully retrieved user:', user.id);
+        logWithContext('User retrieved successfully', { userId: user.id });
         
-        // Detect if this is a Google sign-in
-        const isGoogleAuth = user.identities?.some(identity => identity.provider === 'google');
-        console.log('Is Google authentication:', isGoogleAuth);
-        
-        // Ensure user profile exists
+        // === STEP 4: Ensure user profile exists ===
+        // Critical for new Google sign-ins to work properly
         let profileExists = false;
+        
         try {
+          logWithContext('Checking if user profile exists');
           profileExists = await userProfileService.checkProfileExists(user.id);
-          console.log('Profile exists check:', profileExists);
           
           if (!profileExists) {
-            console.log('Creating new user profile...');
-            const profileCreated = await userProfileService.ensureProfileExists(user.id);
-            console.log('Profile creation result:', profileCreated);
-            
-            if (!profileCreated) {
-              console.error('Failed to create user profile');
-            }
+            logWithContext('Creating user profile');
+            await userProfileService.ensureProfileExists(user.id);
+            logWithContext('Profile created successfully');
+          } else {
+            logWithContext('User profile already exists');
           }
         } catch (profileError) {
-          console.error('Error with profile operations:', profileError);
+          // Log but continue - this isn't a fatal error
+          logWithContext('Error with profile operations', { error: profileError });
         }
         
-        // Determine where to redirect the user
+        // === STEP 5: Determine redirect path ===
+        logWithContext('Determining redirect path');
         const redirectPath = await determineRedirectPath(user);
-        console.log('Redirecting user to:', redirectPath);
+        logWithContext('Redirect path determined', { path: redirectPath });
         
+        // === STEP 6: Complete and redirect ===
         setLoading(false);
         navigate(redirectPath, { replace: true });
       } catch (error) {
-        console.error('Authentication callback failed:', error);
         const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+        logWithContext('Authentication process failed', { error: errorMessage });
         
         setError(errorMessage);
         setLoading(false);
         
         // Redirect to login after a delay
-        setTimeout(() => navigate('/', { replace: true }), 2000);
+        setTimeout(() => navigate('/', { replace: true }), 3000);
       }
     };
     
     /**
      * Determines where to redirect the user after authentication
-     * 
-     * @param user The authenticated user
-     * @returns The path to redirect to
+     * Simplified logic prioritizing the most reliable indicators of user state
      */
     async function determineRedirectPath(user: ExtendedUser): Promise<string> {
       try {
-        console.log('Determining redirect destination for user:', user.id, user.email);
+        logWithContext('Analyzing user state to determine redirect', {
+          userId: user.id,
+          email: user.email
+        });
         
-        // Check all indicators of user state
+        // === RELIABLE INDICATOR 1: Check for travel preferences ===
+        let hasTravelPreferences = false;
+        try {
+          hasTravelPreferences = await checkTravelPreferencesExist(user.id);
+          logWithContext('Travel preferences check', { exists: hasTravelPreferences });
+        } catch (error) {
+          logWithContext('Error checking travel preferences', { error });
+          // Continue even if this check fails
+        }
+        
+        // === RELIABLE INDICATOR 2: Check user profile existence ===
+        let hasProfileInDatabase = false;
+        try {
+          hasProfileInDatabase = await userProfileService.checkProfileExists(user.id);
+          logWithContext('Profile exists check', { exists: hasProfileInDatabase });
+        } catch (error) {
+          logWithContext('Error checking profile existence', { error });
+          // If we can't check, continue with evaluation
+        }
+        
+        // === SECONDARY INDICATORS: Check metadata and localStorage ===
         const userMetadata = user.user_metadata || {};
         const hasCompletedOnboardingInMetadata = userMetadata.has_completed_onboarding === true;
         const hasCompletedInitialFlow = localStorage.getItem('hasCompletedInitialFlow') === 'true';
         
-        // Check if profile exists in database
-        let hasProfileInDatabase = false;
-        try {
-          hasProfileInDatabase = await userProfileService.checkProfileExists(user.id);
-        } catch (error) {
-          console.error('Error checking profile existence:', error);
-          // If we can't check, try to create one anyway to be safe
-          await userProfileService.ensureProfileExists(user.id);
-        }
-        
-        // Check for travel preferences
-        let hasTravelPreferences = false;
-        try {
-          hasTravelPreferences = await checkTravelPreferencesExist(user.id);
-        } catch (error) {
-          console.error('Error checking travel preferences:', error);
-        }
-        
-        // Log current state
-        console.log('User state analysis:', {
+        // Log all state checks for debugging
+        logWithContext('Complete user state analysis', {
           userId: user.id,
-          email: user.email,
-          hasCompletedOnboardingInMetadata,
-          hasCompletedInitialFlow,
+          hasTravelPreferences,
           hasProfileInDatabase,
-          hasTravelPreferences
+          hasCompletedOnboardingInMetadata,
+          hasCompletedInitialFlow
         });
         
-        // Apply decision logic with priority order
+        // === DECISION LOGIC: Prioritized from most to least reliable ===
         
-        // CASE 1: User has travel preferences - fully onboarded
+        // CASE 1: User has completed travel preferences - fully onboarded
         if (hasTravelPreferences) {
-          console.log('User has travel preferences - directing to dashboard');
+          logWithContext('Redirecting to dashboard - user has travel preferences');
+          
+          // Ensure state consistency
           localStorage.setItem('hasCompletedInitialFlow', 'true');
           
+          // Update metadata if needed
           if (!hasCompletedOnboardingInMetadata) {
             await authService.updateUserMetadata({ has_completed_onboarding: true });
           }
@@ -218,41 +221,35 @@ const AuthCallback: React.FC = () => {
           return '/dashboard';
         }
         
-        // CASE 2: User has profile but no preferences
+        // CASE 2: User has profile - partially onboarded
         if (hasProfileInDatabase) {
-          console.log('User has profile but no preferences');
-          
-          // For existing users with onboarding flag - go to dashboard
+          // For existing users who have been onboarded
           if (hasCompletedOnboardingInMetadata || hasCompletedInitialFlow) {
+            logWithContext('Redirecting to dashboard - user has profile and onboarding flags');
             localStorage.setItem('hasCompletedInitialFlow', 'true');
             return '/dashboard';
           }
           
-          // For new users with just a profile - go to onboarding
+          // For new users who have profile but need onboarding
+          logWithContext('Redirecting to onboarding - user has profile but needs preferences');
           return '/onboarding';
         }
         
-        // CASE 3: New user (especially Google users)
-        console.log('New user detected - directing to onboarding');
-        
-        // Try to create profile for new user
-        try {
-          await userProfileService.ensureProfileExists(user.id);
-        } catch (createError) {
-          console.error('Error creating profile for new user:', createError);
-        }
-        
+        // CASE 3: New user - needs onboarding
+        logWithContext('Redirecting to onboarding - new user');
         return '/onboarding';
       } catch (error) {
-        console.error('Error determining redirect path:', error);
-        // Default to onboarding on any error
+        logWithContext('Error determining redirect path', { error });
+        // Default to onboarding on error
         return '/onboarding';
       }
     }
 
+    // Execute the handler when the component mounts
     handleAuthCallback();
   }, [location, navigate]);
 
+  // Simple, visually appealing loading and error UI
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 space-y-4 bg-planora-purple-dark">
       {loading ? (
@@ -264,11 +261,12 @@ const AuthCallback: React.FC = () => {
       ) : error ? (
         <div className="w-full max-w-md rounded-lg border border-white/10 bg-white/5 p-8 backdrop-blur-md">
           <p className="text-xl font-semibold text-red-400">{error}</p>
-          <p className="mt-2 text-sm text-white/70">Redirecting to login...</p>
+          <p className="mt-2 text-sm text-white/70">Redirecting to login page...</p>
         </div>
       ) : null}
     </div>
   );
 };
 
+// Use named exports as per Planora's architectural principles
 export { AuthCallback };

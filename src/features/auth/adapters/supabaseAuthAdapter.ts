@@ -6,7 +6,7 @@
  * separation of concerns and future-proofing the auth feature.
  */
 
-import { AuthError } from '@supabase/supabase-js';
+import { AuthError, OAuthResponse } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/supabaseClient';
 import { LoginCredentials, RegisterData, User } from '../types/authTypes';
 import { SupabaseUser, SupabaseIdentity } from '../types/supabaseTypes';
@@ -23,7 +23,7 @@ const getSiteUrl = (): string => {
   }
   
   // In development, use localhost
-  return 'http://localhost:5173';
+  return window.location.origin || 'http://localhost:5173';
 };
 
 /**
@@ -73,6 +73,7 @@ export const mapSupabaseUser = (userData: SupabaseUser): User => {
 
 /**
  * Supabase implementation of authentication operations
+ * Follows Planora's architectural principles with feature-first organization
  */
 export const supabaseAuthAdapter = {
   /**
@@ -96,72 +97,45 @@ export const supabaseAuthAdapter = {
   registerUser: async (data: RegisterData): Promise<User> => {
     try {
       // First, check if the email already exists to provide better error messages
-      // Following architectural principles with proper type safety
-      // Using controlled type assertions for Supabase API compatibility
-      /* eslint-disable @typescript-eslint/no-explicit-any */
-      const { data: existingUser, error: checkError } = await supabase
+      const { data: emailCheckData, error: emailCheckError } = await supabase
         .from('profiles')
-        .select('email')
-        .eq('email', data.email as any)
+        .select('id')
+        .eq('email', data.email)
         .maybeSingle();
-      /* eslint-enable @typescript-eslint/no-explicit-any */
         
-      if (existingUser) {
+      if (emailCheckData) {
         throw new Error('An account with this email already exists');
       }
-
-      // Prepare user metadata
-      const userMetadata = {
-        username: data.username,
-        first_name: data.firstName,
-        last_name: data.lastName,
-        has_completed_onboarding: false, // Always false for new registrations
-        // Add additional metadata if provided
-        ...(data.metadata || {})
-      };
-
-      console.log('Registering with metadata:', userMetadata);
-
-      // Register the user with Supabase Auth
-      const { data: authData, error } = await supabase.auth.signUp({
+      
+      // Create the user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
-          data: userMetadata,
-          emailRedirectTo: `${getSiteUrl()}/auth/callback`
+          emailRedirectTo: `${getSiteUrl()}/auth/callback`,
+          data: {
+            first_name: data.firstName,
+            last_name: data.lastName,
+            username: data.username || `${data.firstName.toLowerCase()}${data.lastName.toLowerCase()}`,
+            has_completed_onboarding: false,
+            has_profile_created: false
+          }
         }
       });
       
-      if (error) throw new Error(error.message);
-      if (!authData?.user) throw new Error('No user returned from registration');
-      
-      // Prepare profile data for Supabase profiles table
-      const profileData: ProfilesInsert = {
-        id: authData.user.id,
-        email: data.email,
-        username: data.username || '',
-        first_name: data.firstName || '',
-        last_name: data.lastName || '',
-        // Optional fields based on ProfilesInsert type
-        created_at: new Date().toISOString(),
-        has_completed_onboarding: false
-      };
-      
-      // Supabase API requires controlled type assertions for compatibility
-      /* eslint-disable @typescript-eslint/no-explicit-any */
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([profileData] as any);
-      /* eslint-enable @typescript-eslint/no-explicit-any */
-      
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
-        // We'll continue despite profile creation errors and fix later if needed
-      }
+      if (authError) throw authError;
+      if (!authData?.user) throw new Error('User registration failed');
       
       return mapSupabaseUser(authData.user);
     } catch (error) {
-      console.error('Registration error in adapter:', error);
+      // Handle specific error messages
+      if (error instanceof AuthError) {
+        if (error.message.includes('already registered')) {
+          throw new Error('An account with this email already exists');
+        }
+        throw new Error(error.message);
+      }
+      
       throw error;
     }
   },
@@ -172,9 +146,6 @@ export const supabaseAuthAdapter = {
   signOut: async (): Promise<void> => {
     const { error } = await supabase.auth.signOut();
     if (error) throw new Error(error.message);
-    
-    // Clear localStorage items related to authentication
-    localStorage.removeItem('hasCompletedInitialFlow');
   },
 
   /**
@@ -182,70 +153,32 @@ export const supabaseAuthAdapter = {
    */
   getCurrentUser: async (): Promise<User | null> => {
     try {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) throw new Error(error.message);
-      if (!data?.session?.user) return null;
+      // Get session from Supabase
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
-      const rawUser = data.session.user;
-      
-      // Detect Google auth
-      const isGoogleAuth = rawUser.identities?.some(
-        identity => identity.provider === 'google'
-      );
-      
-      // First check if user has completed onboarding according to localStorage
-      const hasCompletedInitialFlow = localStorage.getItem('hasCompletedInitialFlow') === 'true';
-      
-      console.log('Auth status check:', { 
-        isGoogleAuth, 
-        hasCompletedInitialFlow,
-        metadata_has_completed_onboarding: rawUser.user_metadata?.has_completed_onboarding
-      });
-      
-      // For Google auth users, check their onboarding status
-      if (isGoogleAuth) {
-        // If localStorage has completion flag, but metadata doesn't match,
-        // update the metadata to match localStorage (localStorage is source of truth)
-        if (hasCompletedInitialFlow && 
-            rawUser.user_metadata?.has_completed_onboarding !== true) {
-          
-          console.log('Syncing onboarding status to metadata (user has completed onboarding)');
-          try {
-            await supabase.auth.updateUser({
-              data: { has_completed_onboarding: true }
-            });
-            
-            // Update the user object in memory too
-            if (rawUser.user_metadata) {
-              rawUser.user_metadata.has_completed_onboarding = true;
-            }
-          } catch (updateError) {
-            console.error('Failed to update user metadata:', updateError);
-          }
-        }
-        
-        // For new Google users who haven't completed onboarding
-        if (!hasCompletedInitialFlow) {
-          console.log('New Google user or incomplete onboarding detected');
-          
-          // Temporarily override the metadata for this session
-          if (rawUser.user_metadata) {
-            rawUser.user_metadata.has_completed_onboarding = false;
-          }
-          
-          // Also update in Supabase to persist this change
-          try {
-            await supabase.auth.updateUser({
-              data: { has_completed_onboarding: false }
-            });
-            console.log('Updated user metadata to ensure onboarding flow');
-          } catch (updateError) {
-            console.error('Failed to update user metadata:', updateError);
-          }
-        }
+      if (sessionError) {
+        console.error('Error getting session:', sessionError.message);
+        return null;
       }
       
-      return mapSupabaseUser(rawUser);
+      // If no session, user is not authenticated
+      if (!sessionData.session) {
+        return null;
+      }
+      
+      // Get user data
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('Error getting user:', userError.message);
+        return null;
+      }
+      
+      if (!userData.user) {
+        return null;
+      }
+      
+      return mapSupabaseUser(userData.user);
     } catch (error) {
       console.error('Error in getCurrentUser:', error);
       return null;
@@ -257,69 +190,71 @@ export const supabaseAuthAdapter = {
    */
   resetOnboardingStatus: async (): Promise<User | null> => {
     try {
-      // Clear localStorage flag
-      localStorage.removeItem('hasCompletedInitialFlow');
+      const { data: userData, error: userError } = await supabase.auth.getUser();
       
-      // Update Supabase metadata
+      if (userError || !userData.user) {
+        console.error('Error getting user for reset:', userError?.message || 'No user found');
+        return null;
+      }
+      
+      // Update user metadata
       const { data, error } = await supabase.auth.updateUser({
-        data: { has_completed_onboarding: false }
+        data: { 
+          has_completed_onboarding: false
+        }
       });
       
-      if (error) throw new Error(error.message);
-      if (!data?.user) throw new Error('No user returned from metadata update');
+      if (error || !data.user) {
+        console.error('Error resetting onboarding status:', error?.message || 'User data not returned');
+        return null;
+      }
       
-      console.log('Onboarding status reset successfully');
+      // Update profiles table if needed
+      await supabase
+        .from('profiles')
+        .update({ has_completed_onboarding: false })
+        .eq('id', userData.user.id);
+      
       return mapSupabaseUser(data.user);
     } catch (error) {
-      console.error('Failed to reset onboarding status:', error);
+      console.error('Error in resetOnboardingStatus:', error);
       return null;
     }
   },
 
   /**
    * Sign in with Google OAuth
-   * CRITICAL FIX FOR PKCE FLOW: Completely reworked to follow Supabase v2 best practices
+   * FIX FOR AUTH ISSUE: Proper implementation of OAuth for Google Sign-In
    */
   signInWithGoogle: async (): Promise<void> => {
     try {
-      console.log('Initiating Google sign-in with PKCE flow');
+      // CRITICAL: Redirect URL must match exactly what is configured in Google Cloud Console
+      const redirectTo = `${getSiteUrl()}/auth/callback`;
+      console.log('Google auth redirect URL:', redirectTo);
       
-      // CRITICAL FIX: Let storage be managed internally by Supabase
-      // Manually clearing storage creates issues with PKCE flow
-      // The code verifier needs to be preserved between requests
+      // Do NOT clear localStorage items - Supabase needs them for PKCE
+      // Don't modify standard auth flow process
       
-      // Use explicit callback URL based on environment
-      const baseUrl = getSiteUrl();
-      const redirectTo = `${baseUrl}/auth/callback`;
-      
-      console.log('Google sign-in redirecting to:', redirectTo);
-      
-      // CRITICAL FIX: Use signInWithOAuth exactly as documented by Supabase
-      // This ensures the PKCE code verifier is properly stored and used
-      // https://supabase.com/docs/reference/javascript/auth-signinwithoauth
+      // Simple, clean implementation following Supabase docs exactly
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo,
-          // Don't modify this or it breaks the PKCE flow
           queryParams: {
-            // These are standard Google OAuth parameters
+            // Standard Google OAuth parameters
             access_type: 'offline',
-            prompt: 'select_account',
+            prompt: 'select_account'
           }
         }
       });
       
-      // Log success or error but don't throw - browser will redirect to OAuth provider
+      // Just log any errors, don't throw - browser will be redirected by Supabase
       if (error) {
-        console.error('Failed to initiate Google OAuth flow:', error.message);
-      } else {
-        console.log('Google sign-in flow started successfully');
+        console.error('Error starting Google auth flow:', error.message);
       }
     } catch (error) {
-      console.error('Unexpected error during Google sign-in initiation:', error);
-      // Don't rethrow - just log the error
-      // Throwing here would prevent the browser redirection
+      // Just log the error, don't throw - browser will be redirected
+      console.error('Unexpected error in Google sign-in:', error);
     }
   },
 
@@ -329,15 +264,15 @@ export const supabaseAuthAdapter = {
   verifyEmail: async (token: string): Promise<User> => {
     const { data, error } = await supabase.auth.verifyOtp({
       token_hash: token,
-      type: 'email'
+      type: 'email',
     });
     
     if (error) throw new Error(error.message);
-    if (!data?.user) throw new Error('No user returned from verification');
+    if (!data.user) throw new Error('Email verification failed');
     
     return mapSupabaseUser(data.user);
   },
-  
+
   /**
    * Update user metadata
    */
@@ -347,7 +282,7 @@ export const supabaseAuthAdapter = {
     });
     
     if (error) throw new Error(error.message);
-    if (!data?.user) throw new Error('No user returned from metadata update');
+    if (!data.user) throw new Error('User metadata update failed');
     
     return mapSupabaseUser(data.user);
   },
@@ -357,7 +292,7 @@ export const supabaseAuthAdapter = {
    */
   resetPassword: async (email: string): Promise<void> => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${getSiteUrl()}/auth/reset-password`
+      redirectTo: `${getSiteUrl()}/auth/callback`,
     });
     
     if (error) throw new Error(error.message);
@@ -369,35 +304,42 @@ export const supabaseAuthAdapter = {
    */
   updatePassword: async (currentPassword: string, newPassword: string): Promise<User> => {
     try {
-      // First verify the current password by attempting to sign in
-      // Get current user email
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user?.email) {
-        throw new Error('No authenticated user found');
+      // First verify the current password by attempting to sign in with it
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (!sessionData.session) {
+        throw new Error('You must be logged in to change your password');
       }
       
-      // Verify current password by attempting to sign in
+      const userEmail = sessionData.session.user.email;
+      if (!userEmail) {
+        throw new Error('Cannot retrieve user email from session');
+      }
+      
+      // Try to sign in with current password to verify it
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: userData.user.email,
-        password: currentPassword
+        email: userEmail,
+        password: currentPassword,
       });
       
       if (signInError) {
         throw new Error('Current password is incorrect');
       }
       
-      // Update to the new password
-      const { data, error } = await supabase.auth.updateUser({ 
-        password: newPassword 
+      // If sign-in succeeded, update the password
+      const { data, error } = await supabase.auth.updateUser({
+        password: newPassword,
       });
       
       if (error) throw new Error(error.message);
-      if (!data?.user) throw new Error('No user returned from password update');
+      if (!data.user) throw new Error('Password update failed');
       
       return mapSupabaseUser(data.user);
     } catch (error) {
-      console.error('Password update error:', error);
-      throw error;
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Failed to update password');
     }
   }
 };
