@@ -235,57 +235,111 @@ export const supabaseAuthService = {
         console.warn('Non-fatal error updating profile with Google data:', profileErr);
       }
       
-      // First look in auth.users metadata for onboarding status
-      // This is more reliable since it's part of the primary auth system
-      let hasCompletedOnboarding = false;
-      if (user && user.user_metadata && user.user_metadata.has_completed_onboarding === true) {
-        console.log('User has completed onboarding according to auth metadata');
-        hasCompletedOnboarding = true;
-      }
+      console.log('⚠️ CRITICAL DEBUGGING: Authentication callback authentication status check');
+      console.log('User data:', { 
+        id: user.id, 
+        email: user.email,
+        metadata: user.user_metadata 
+      });
+      
+      // SECTION 1: Check localStorage first (most reliable client-side indicator)
+      const localStorageOnboardingComplete = localStorage.getItem('hasCompletedInitialFlow') === 'true';
+      console.log('🔍 Source 1 - localStorage hasCompletedInitialFlow:', localStorageOnboardingComplete);
+      
+      // SECTION 2: Check auth.users metadata (server-side, tied to auth system)
+      const metadataOnboardingComplete = 
+        user?.user_metadata?.has_completed_onboarding === true;
+      console.log('🔍 Source 2 - Auth metadata has_completed_onboarding:', metadataOnboardingComplete);
 
-      // Check profiles table as secondary source of truth
+      // SECTION 3: Check profiles table (database record)
+      // Force using primary RLS permissions with explicit auth refresh
+      await supabase.auth.refreshSession();
+      
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
       
-      // Log the profile data for debugging
-      console.log('Profile data from database:', profile);
+      // Detailed profile data logging
+      if (profile) {
+        console.log('🔍 Source 3 - Profile data retrieved:', { 
+          id: profile.id,
+          email: profile.email,
+          hasCompletedOnboarding: profile.has_completed_onboarding,
+          firstName: profile.first_name,
+          lastName: profile.last_name
+        });
+      } else {
+        console.warn('❌ No profile found in database');
+        if (profileError) {
+          console.error('Profile retrieval error:', profileError);
+        }
+      }
 
-      if (!profile || profileError) {
-        console.warn('Profile not found after auth callback, treating as new user');
+      // SECTION 4: Check for travel preferences data (indicates completed onboarding)
+      const { data: travelPrefs } = await supabase
+        .from('travel_preferences')
+        .select('id')
+        .eq('user_id', user.id);
         
-        if (hasCompletedOnboarding) {
-          // Profile missing but metadata says onboarding is complete - trust the metadata
-          return {
-            success: true,
-            user,
-            registrationStatus: UserRegistrationStatus.RETURNING_USER
-          };
+      const hasTravelPreferences = travelPrefs && travelPrefs.length > 0;
+      console.log('🔍 Source 4 - Has travel preferences:', hasTravelPreferences);
+      
+      // PRIORITY DECISION: If ANY reliable source indicates completion, trust it
+      // This breaks the redirect loop for users who completed onboarding
+      const onboardingCompleteFromAnySource = 
+        localStorageOnboardingComplete || 
+        metadataOnboardingComplete || 
+        (profile && profile.has_completed_onboarding === true) ||
+        hasTravelPreferences;
+        
+      console.log('🚨 FINAL DECISION - Onboarding complete from ANY source:', onboardingCompleteFromAnySource);
+        
+      // FORCE bypass onboarding if any source indicates completion
+      if (onboardingCompleteFromAnySource) {
+        console.log('✅ User has completed onboarding according to at least one source - bypassing onboarding');
+        
+        // Also update all sources to be consistent
+        try {
+          // Set local storage flag
+          localStorage.setItem('hasCompletedInitialFlow', 'true');
+          
+          // Update user metadata if needed
+          if (!metadataOnboardingComplete) {
+            await supabase.auth.updateUser({
+              data: { has_completed_onboarding: true }
+            });
+          }
+          
+          // Update profile if it exists and flag not set
+          if (profile && profile.has_completed_onboarding !== true) {
+            await supabase
+              .from('profiles')
+              .update({ has_completed_onboarding: true })
+              .eq('id', user.id);
+          }
+        } catch (syncError) {
+          console.error('Non-fatal error synchronizing onboarding status:', syncError);
+          // Continue anyway as we're bypassing onboarding
         }
         
-        // New user should go to onboarding
+        return {
+          success: true,
+          user,
+          registrationStatus: UserRegistrationStatus.RETURNING_USER
+        };
+      }
+      
+      // If we reach here, no source indicated onboarding completion
+      
+      // Handle case where profile doesn't exist
+      if (!profile || profileError) {
+        console.warn('No profile found, treating as new user requiring onboarding');
         return {
           success: true,
           user,
           registrationStatus: UserRegistrationStatus.NEW_USER
-        };
-      } 
-      
-      // Check the has_completed_onboarding flag in the profile
-      const profileOnboardingComplete = profile.has_completed_onboarding === true;
-      console.log('Profile onboarding complete:', profileOnboardingComplete);
-      
-      // Use either source - if either one indicates completion, consider onboarding complete
-      const isOnboardingComplete = hasCompletedOnboarding || profileOnboardingComplete;
-      
-      if (!isOnboardingComplete) {
-        console.log('User has not completed onboarding');
-        return {
-          success: true,
-          user,
-          registrationStatus: UserRegistrationStatus.INCOMPLETE_ONBOARDING
         };
       }
       
