@@ -80,8 +80,14 @@ const App = () => {
               <Sonner />
               <DebugComponent />
               <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<LandingPage />} />
+                {/* Public routes - with authentication check for root path */}
+                <Route path="/" element={
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+                    <ProtectedRoute redirectToIfAuthenticated="/dashboard" requireAuth={false}>
+                      <LandingPage />
+                    </ProtectedRoute>
+                  </Suspense>
+                } />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/auth/callback" element={<Suspense fallback={<div className="flex items-center justify-center h-screen">Processing authentication...</div>}><AuthCallback /></Suspense>} />
