@@ -501,9 +501,38 @@ export const ensureProfileExists = async (userId: string): Promise<boolean> => {
   return false;
 };
 
+/**
+ * Checks if a profile exists for the specified user ID
+ * 
+ * @param userId The ID of the user to check
+ * @returns Boolean indicating if the profile exists
+ */
+export const checkProfileExists = async (userId: string): Promise<boolean> => {
+  console.log('Checking if profile exists for user:', userId);
+  
+  try {
+    // Use count() to avoid potential RLS issues with single()
+    const { count, error } = await withSafeId(
+      supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      userId
+    );
+    
+    if (error) {
+      console.error('Error checking profile existence:', error.message);
+      return false;
+    }
+    
+    return count ? count > 0 : false;
+  } catch (error) {
+    console.error('Exception checking profile existence:', error);
+    return false;
+  }
+};
+
 // Export the service methods
 export const userProfileService = {
   getUserProfile,
   updateUserProfile,
-  ensureProfileExists
+  ensureProfileExists,
+  checkProfileExists
 };
