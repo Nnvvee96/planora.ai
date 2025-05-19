@@ -1,28 +1,70 @@
 /**
- * Public API for the user-profile feature
- * This file exports only what should be accessible to other parts of the application
- * It serves as the boundary for this feature
+ * User Profile API
+ * 
+ * TEMPORARY MOCK VERSION - Non-functional placeholder
+ * Following Planora's architectural principles with feature-first organization
  */
 
-// Export types from a centralized type file
-import { UserProfile, UserSettings } from './types/userProfileTypes';
-export type { UserProfile, UserSettings };
+/**
+ * User Profile interface
+ * Properly typed according to Planora's architectural principles
+ */
+export interface UserProfile {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatarUrl?: string;
+  username?: string;
+  bio?: string;
+  phoneNumber?: string;
+  location?: string;
+  hasCompletedOnboarding?: boolean;
+}
 
-// Export component types without importing the actual components
-// This breaks the circular dependency
-export type { UserProfileMenuProps } from './components/UserProfileMenu';
-export type { ProfileModalProps, ProfileFormValues } from './components/modals/ProfileModal';
-export type { SettingsModalProps, PasswordFormValues } from './components/modals/SettingsModal';
+/**
+ * Mock user profile service
+ * Provides dummy implementations for profile-related functionality
+ */
+export const userProfileService = {
+  /**
+   * Check if a profile exists for a user
+   * Always returns true in mock mode
+   */
+  checkProfileExists: async (_userId: string): Promise<boolean> => {
+    console.log('MOCK: Checking if profile exists');
+    return true;
+  },
 
-// Import and export services
-import { userProfileService } from './services/userProfileService';
-export { userProfileService };
+  /**
+   * Ensure a profile exists for a user
+   * Does nothing in mock mode
+   */
+  ensureProfileExists: async (_userId: string): Promise<boolean> => {
+    console.log('MOCK: Ensuring profile exists');
+    return true;
+  },
 
-// Export components from their own files (not re-exporting)
-// This avoids circular dependencies while maintaining the API boundary
-export { UserProfileMenu } from './components/UserProfileMenu';
-export { ProfileModal } from './components/modals/ProfileModal';
-export { SettingsModal } from './components/modals/SettingsModal';
+  /**
+   * Get a user's profile
+   * Returns dummy data in mock mode
+   */
+  getUserProfile: async (_userId: string): Promise<UserProfile> => {
+    console.log('MOCK: Getting user profile');
+    return {
+      id: 'mock-user-id',
+      firstName: 'Mock',
+      lastName: 'User',
+      email: 'mockuser@example.com'
+    };
+  },
 
-// When we add hooks, they would be exported here
-// export { useUserProfile } from './hooks/useUserProfile';
+  /**
+   * Update a user's profile
+   * Does nothing in mock mode
+   */
+  updateUserProfile: async (_userId: string, _profileData: Partial<UserProfile>): Promise<boolean> => {
+    console.log('MOCK: Updating user profile');
+    return true;
+  }
+};
