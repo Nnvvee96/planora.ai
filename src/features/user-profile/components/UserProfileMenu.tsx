@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { ProfileModal } from './modals/ProfileModal';
 import { SettingsModal } from './modals/SettingsModal';
-import { authService } from '@/features/auth/api';
+import { authService } from '../../auth/api';
 import { userProfileService } from '@/features/user-profile/api';
 import { ProfileFormData, ProfileModalProps, SettingsModalProps } from '@/features/user-profile/types/profileTypes';
 

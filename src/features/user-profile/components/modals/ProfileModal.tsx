@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { DatePickerInput } from '@/components/ui/DatePickerInput';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { authService } from '@/features/auth/api';
+import { authService } from '../../../auth/api';
 import { userProfileService } from '@/features/user-profile/api';
 
 const profileSchema = z.object({

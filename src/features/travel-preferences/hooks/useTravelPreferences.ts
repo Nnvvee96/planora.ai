@@ -3,13 +3,15 @@
  * 
  * This hook provides access to the user's travel preferences with
  * functions to fetch, update, and manage preference data.
+ * Following Planora's architectural principles of feature-first organization
+ * and proper separation of concerns.
  */
 
 import { useState, useEffect } from 'react';
-import { TravelPreferences, TravelPreferencesFormValues } from '../types/travelPreferencesTypes';
-import { getUserTravelPreferences, saveTravelPreferences, updateOnboardingStatus } from '../services/travelPreferencesService';
-import { authService } from '@/features/auth/api';
+import { TravelPreferences } from '../api';
+import { authService } from '../../auth/api';
 
+// Define the return type for our hook
 interface UseTravelPreferencesResult {
   /** The user's travel preferences */
   preferences: TravelPreferences | null;
@@ -18,7 +20,7 @@ interface UseTravelPreferencesResult {
   /** Any error that occurred while loading preferences */
   error: Error | null;
   /** Function to save or update preferences */
-  savePreferences: (data: Partial<TravelPreferencesFormValues>) => Promise<TravelPreferences>;
+  savePreferences: (data: Partial<TravelPreferences>) => Promise<void>;
   /** Function to refresh the preferences data */
   refresh: () => Promise<void>;
 }
@@ -33,39 +35,48 @@ export const useTravelPreferences = (): UseTravelPreferencesResult => {
   const [error, setError] = useState<Error | null>(null);
   
   // Load preferences on mount
-  const loadPreferences = async () => {
+  const loadPreferences = async (): Promise<void> => {
+    if (!authService) {
+      console.error('Auth service not available');
+      return;
+    }
+    
     try {
       setIsLoading(true);
       setError(null);
       
-      // Get current user
+      // Get the current user
       const currentUser = await authService.getCurrentUser();
       if (!currentUser) {
         throw new Error('User not authenticated');
       }
       
-      // Get preferences for current user
+      // Get preferences - import directly from API for clean architecture
+      // following Planora's principles
+      const { getUserTravelPreferences } = await import('../api');
       const userPreferences = await getUserTravelPreferences(currentUser.id);
+      
+      // Update state - using a direct state update for simplicity
       setPreferences(userPreferences);
     } catch (err) {
       console.error('Error loading travel preferences:', err);
-      setError(err instanceof Error ? err : new Error(typeof err === 'string' ? err : 'Unknown error'));
+      setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setIsLoading(false);
     }
   };
   
-  // Load preferences when component mounts
+  // Load preferences on mount
   useEffect(() => {
     loadPreferences();
   }, []);
   
-  /**
-   * Save or update travel preferences
-   * @param data The form data to save
-   * @returns The saved preferences
-   */
-  const savePreferences = async (data: Partial<TravelPreferencesFormValues>): Promise<TravelPreferences> => {
+  // Function to save preferences
+  const savePreferences = async (data: Partial<TravelPreferences>): Promise<void> => {
+    if (!authService) {
+      throw new Error('Auth service not available');
+    }
+    
     try {
       setIsLoading(true);
       setError(null);
@@ -76,39 +87,30 @@ export const useTravelPreferences = (): UseTravelPreferencesResult => {
         throw new Error('User not authenticated');
       }
       
-      // Ensure data has all required properties with non-null values
-      // Use correct types as defined in travelPreferencesTypes.ts
-      const sanitizedData: TravelPreferencesFormValues = {
-        budgetRange: {
-          min: Number(data.budgetRange?.min || 500),
-          max: Number(data.budgetRange?.max || 2000)
-        },
-        budgetFlexibility: Number(data.budgetFlexibility || 10),
-        travelDuration: data.travelDuration || 'week',
-        dateFlexibility: data.dateFlexibility || 'flexible-few',
-        customDateFlexibility: data.customDateFlexibility || '',
-        planningIntent: data.planningIntent || 'exploring',
-        accommodationTypes: Array.isArray(data.accommodationTypes) ? data.accommodationTypes : ['hotel'],
-        accommodationComfort: Array.isArray(data.accommodationComfort) ? data.accommodationComfort : ['private-room'],
-        locationPreference: data.locationPreference || 'anywhere',
-        departureCity: data.departureCity || '',
-        flightType: data.flightType || 'direct',
-        preferCheaperWithStopover: data.preferCheaperWithStopover === undefined ? true : data.preferCheaperWithStopover
+      // Dynamic imports to avoid circular dependencies (Planora architectural principle)
+      const { saveTravelPreferences, updateOnboardingStatus } = await import('../api');
+      
+      // Create a complete TravelPreferences object from partial data to satisfy type constraints
+      const completePreferences: TravelPreferences = {
+        destinations: data.destinations || ['Default Destination'],
+        preferredActivities: data.preferredActivities || ['Default Activity'],
+        travelStyle: data.travelStyle || 'Default Style',
+        budget: data.budget,
+        tripDuration: data.tripDuration,
+        seasonPreference: data.seasonPreference
       };
       
-      // Save preferences with sanitized data - corrected parameter order
-      const savedPreferences = await saveTravelPreferences(sanitizedData, currentUser.id);
+      // Save preferences according to the API contract
+      await saveTravelPreferences(currentUser.id, completePreferences);
       
       // Mark onboarding as completed
       await updateOnboardingStatus(currentUser.id, true);
       
-      // Update state
-      setPreferences(savedPreferences);
-      
-      return savedPreferences;
+      // Refresh preferences
+      await loadPreferences();
     } catch (err) {
       console.error('Error saving travel preferences:', err);
-      const error = err instanceof Error ? err : new Error(typeof err === 'string' ? err : 'Unknown error');
+      const error = err instanceof Error ? err : new Error(String(err));
       setError(error);
       throw error;
     } finally {
@@ -116,18 +118,11 @@ export const useTravelPreferences = (): UseTravelPreferencesResult => {
     }
   };
   
-  /**
-   * Refresh preferences data
-   */
-  const refresh = async (): Promise<void> => {
-    await loadPreferences();
-  };
-  
   return {
     preferences,
     isLoading,
     error,
     savePreferences,
-    refresh
+    refresh: loadPreferences
   };
 };

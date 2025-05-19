@@ -5,6 +5,12 @@
  * Following Planora's architectural principles with feature-first organization
  */
 
+// Export the TravelPreferencesPanel component for use by pages
+export { TravelPreferencesPanel } from './components/TravelPreferencesPanel';
+
+// Export the travel preferences hook for use by pages
+export { useTravelPreferences } from './hooks/useTravelPreferences';
+
 /**
  * Travel Preferences interface
  * Properly typed according to Planora's architectural principles
