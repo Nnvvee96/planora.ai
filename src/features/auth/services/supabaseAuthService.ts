@@ -255,15 +255,56 @@ export const supabaseAuthService = {
       // Force using primary RLS permissions with explicit auth refresh
       await supabase.auth.refreshSession();
       
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+      // First try to get the profile
+      let profile;
+      let profileError;
+      
+      try {
+        const profileResult = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle(); // Use maybeSingle to avoid errors if no profile found
+          
+        profile = profileResult.data;
+        profileError = profileResult.error;
+        
+        // If no profile found, try to create one
+        if (!profile && !profileError) {
+          console.log('🔨 No profile found - attempting to create one automatically');
+          
+          // Create a new profile with user data
+          const createResult = await supabase
+            .from('profiles')
+            .insert([
+              {
+                id: user.id,
+                email: user.email,
+                first_name: user.user_metadata?.first_name || '',
+                last_name: user.user_metadata?.last_name || '',
+                avatar_url: user.user_metadata?.avatar_url || '',
+                has_completed_onboarding: user.user_metadata?.has_completed_onboarding || false,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              }
+            ])
+            .select()
+            .single();
+            
+          if (createResult.data) {
+            console.log('✅ Successfully created profile for user', user.id);
+            profile = createResult.data;
+          } else if (createResult.error) {
+            console.error('Failed to create profile:', createResult.error);
+          }
+        }
+      } catch (err) {
+        console.error('Error in profile retrieval/creation:', err);
+      }
       
       // Detailed profile data logging
       if (profile) {
-        console.log('🔍 Source 3 - Profile data retrieved:', { 
+        console.log('🔍 Source 3 - Profile data retrieved or created:', { 
           id: profile.id,
           email: profile.email,
           hasCompletedOnboarding: profile.has_completed_onboarding,
@@ -271,7 +312,7 @@ export const supabaseAuthService = {
           lastName: profile.last_name
         });
       } else {
-        console.warn('❌ No profile found in database');
+        console.warn('❌ No profile found in database and creation failed');
         if (profileError) {
           console.error('Profile retrieval error:', profileError);
         }
