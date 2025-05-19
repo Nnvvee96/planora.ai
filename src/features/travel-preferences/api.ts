@@ -1,39 +1,51 @@
 /**
  * Travel Preferences API
  * 
- * This file serves as the public API boundary for the travel-preferences feature.
- * It exports only what should be accessible to other parts of the application,
- * enforcing proper feature isolation and encapsulation.
+ * TEMPORARY MOCK VERSION - Non-functional placeholder
+ * Following Planora's architectural principles with feature-first organization
  */
 
-// Export types that are needed by other features
-export type { 
-  TravelPreferences,
-  TravelPreferencesFormValues,
-  AccommodationType,
-  ComfortPreference,
-  DateFlexibilityType,
-  TravelDurationType,
-  PlanningIntent,
-  LocationPreference,
-  FlightType,
-  BudgetRange
-} from './types/travelPreferencesTypes';
+/**
+ * Travel Preferences interface
+ * Properly typed according to Planora's architectural principles
+ */
+export interface TravelPreferences {
+  destinations: string[];
+  preferredActivities: string[];
+  travelStyle: string;
+  budget?: string;
+  tripDuration?: string;
+  seasonPreference?: string;
+}
 
-// Export components that should be used by pages
-export { TravelPreferencesPanel } from './components/TravelPreferencesPanel';
+/**
+ * Mock travel preferences checking function
+ * Always returns that preferences exist
+ */
+export const checkTravelPreferencesExist = async (_userId: string): Promise<boolean> => {
+  console.log('MOCK: Checking travel preferences');
+  return true;
+};
 
-// Export hooks for integration
-export { useTravelPreferences } from './hooks/useTravelPreferences';
+/**
+ * Mock get travel preferences function
+ * Returns dummy data
+ */
+export const getUserTravelPreferences = async (_userId: string): Promise<TravelPreferences> => {
+  console.log('MOCK: Getting travel preferences');
+  return {
+    destinations: ['Paris', 'Tokyo', 'New York'],
+    preferredActivities: ['Sightseeing', 'Food Tours', 'Museums'],
+    travelStyle: 'Explorer'
+  };
+};
 
-// Export service functions that need to be accessed from outside
-export { 
-  getUserTravelPreferences,
-  saveTravelPreferences,
-  updateOnboardingStatus
-} from './services/travelPreferencesService';
-
-// Export utility functions
-export {
-  checkTravelPreferencesExist
-} from './services/travelPreferencesUtils';
+/**
+ * Mock save travel preferences function
+ * Doesn't actually save anything
+ */
+export const saveTravelPreferences = async (_userId: string, _preferences: TravelPreferences): Promise<void> => {
+  console.log('MOCK: Saving travel preferences');
+  // Just redirect to dashboard in mock mode
+  window.location.href = '/dashboard';
+};
