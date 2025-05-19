@@ -26,11 +26,32 @@ export interface AuthState {
   error: string | null;
 }
 
+// Login credentials interface
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
 /**
  * Auth service mock - non-functional placeholder
  */
 export const authService = {
-  // Mock sign-in, doesn't actually authenticate
+  // Mock login with email/password, doesn't actually authenticate
+  login: async (credentials: LoginCredentials): Promise<User> => {
+    console.log('MOCK: Login requested with:', credentials);
+    // Return mock user and redirect to dashboard
+    const mockUser = {
+      id: 'mock-user-id',
+      email: credentials.email,
+      username: credentials.email.split('@')[0],
+      firstName: 'Mock',
+      lastName: 'User',
+      hasCompletedOnboarding: true
+    };
+    return mockUser;
+  },
+  
+  // Mock sign-in with Google, doesn't actually authenticate
   signInWithGoogle: async (): Promise<void> => {
     console.log('MOCK: Google sign-in requested');
     // Redirect directly to onboarding in mock mode

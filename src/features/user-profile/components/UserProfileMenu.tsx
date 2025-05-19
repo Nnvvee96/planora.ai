@@ -24,8 +24,13 @@ import {
 import { ProfileModal } from './modals/ProfileModal';
 import { SettingsModal } from './modals/SettingsModal';
 import { authService } from '@/features/auth/api';
-import { userProfileService } from '../services/userProfileService';
+import { userProfileService } from '@/features/user-profile/api';
+import { ProfileFormData, ProfileModalProps, SettingsModalProps } from '@/features/user-profile/types/profileTypes';
 
+/**
+ * UserProfileMenu - A component that displays the user profile menu with dropdown options
+ * for profile management, settings, and logout functionality.
+ */
 export interface UserProfileMenuProps {
   userName: string;
   userEmail?: string;
@@ -36,10 +41,6 @@ export interface UserProfileMenuProps {
   onLogout?: () => void;
 }
 
-/**
- * UserProfileMenu - A component that displays the user profile menu with dropdown options
- * for profile management, settings, and logout functionality.
- */
 const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ 
   userName, 
   userEmail, 
@@ -73,10 +74,10 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
             const profileData = await userProfileService.getUserProfile(currentUser.id);
             
             // Use data from the profile or fall back to props
-            const combinedFirstName = profileData?.first_name || currentUser.firstName || firstName || '';
-            const combinedLastName = profileData?.last_name || currentUser.lastName || lastName || '';
+            const combinedFirstName = profileData?.firstName || currentUser.firstName || firstName || '';
+            const combinedLastName = profileData?.lastName || currentUser.lastName || lastName || '';
             const combinedEmail = currentUser.email || profileData?.email || userEmail || '';
-            const combinedBirthdate = profileData?.birthdate || birthdate || '';
+            const combinedBirthdate = birthdate || '';
             
             setProfileData({
               firstName: combinedFirstName,

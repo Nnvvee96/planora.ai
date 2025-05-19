@@ -10,7 +10,7 @@ import * as z from 'zod';
 import { DatePickerInput } from '@/components/ui/DatePickerInput';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { authService } from '@/features/auth/api';
-import { userProfileService } from '../../services/userProfileService';
+import { userProfileService } from '@/features/user-profile/api';
 
 const profileSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required" }),
@@ -21,16 +21,8 @@ const profileSchema = z.object({
 
 export type ProfileFormValues = z.infer<typeof profileSchema>;
 
-export interface ProfileModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  userName: string;
-  userEmail: string;
-  firstName?: string;
-  lastName?: string;
-  birthdate?: string;
-  onProfileUpdate?: (data: ProfileFormValues) => void;
-}
+// Import shared types from the types directory to prevent circular dependencies
+import { ProfileModalProps } from '@/features/user-profile/types/profileTypes';
 
 /**
  * ProfileModal - A component for editing user profile information
@@ -73,10 +65,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
             const profileData = await userProfileService.getUserProfile(currentUser.id);
             
             // Combine all sources with priority: provided props > profile data > current user data
-            const combinedFirstName = firstName || profileData?.first_name || currentUser.firstName || userName.split(' ')[0] || '';
-            const combinedLastName = lastName || profileData?.last_name || currentUser.lastName || userName.split(' ')[1] || '';
+            const combinedFirstName = firstName || profileData?.firstName || currentUser.firstName || userName.split(' ')[0] || '';
+            const combinedLastName = lastName || profileData?.lastName || currentUser.lastName || userName.split(' ')[1] || '';
             const combinedEmail = userEmail || profileData?.email || currentUser.email || '';
-            const combinedBirthdate = birthdate || profileData?.birthdate || '';
+            const combinedBirthdate = birthdate || '';
             
             // Reset form with combined data
             form.reset({
