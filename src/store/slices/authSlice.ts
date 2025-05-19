@@ -1,10 +1,12 @@
 /**
  * Auth Slice for Redux Store
  * 
+ * TEMPORARY MOCK VERSION - Non-functional placeholder
  * Manages authentication-related state in the global store
+ * Following Planora's architectural principles with feature-first organization
  */
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { AuthState, User } from '@/features/auth/api';
+import type { AuthState, User } from '@/features/auth/api';
 
 // Initial state
 const initialState: AuthState = {

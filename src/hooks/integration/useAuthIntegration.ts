@@ -1,22 +1,45 @@
 /**
  * useAuthIntegration hook
  * 
+ * TEMPORARY MOCK VERSION - Non-functional placeholder
  * This is an integration hook that provides a clean interface to the auth feature.
- * It isolates the implementation details of the auth feature and provides only what other
- * features need to know about authentication.
+ * Following Planora's architectural principles with feature-first organization.
  */
 
 // Import only from the feature's public API
-import { useAuth, User } from '@/features/auth/api';
+import { authService, User } from '@/features/auth/api';
+import { useState, useEffect } from 'react';
 
 /**
- * useAuthIntegration
+ * Mock useAuthIntegration hook
  * 
  * @returns Interface to interact with the auth feature
  */
 export function useAuthIntegration() {
-  // Use the auth feature's public hook
-  const { user, isAuthenticated, loading, logout } = useAuth();
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  // Simulate fetching user on mount
+  useEffect(() => {
+    const fetchUser = async () => {
+      setLoading(true);
+      const userData = await authService.getCurrentUser();
+      setUser(userData);
+      setIsAuthenticated(!!userData);
+      setLoading(false);
+    };
+    
+    fetchUser();
+  }, []);
+  
+  // Mock logout function
+  const logout = async () => {
+    console.log('MOCK: Logout requested');
+    setUser(null);
+    setIsAuthenticated(false);
+    window.location.href = '/';
+  };
   
   // Return a clean interface that other features can use
   return {
