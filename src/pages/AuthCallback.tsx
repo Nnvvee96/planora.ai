@@ -1,20 +1,16 @@
 /**
  * Authentication Callback Component
  * 
- * This component handles the callback from various authentication flows:
- * - OAuth providers (Google, Apple)
- * - Email verification
- * - Password reset
- * 
- * It determines where to redirect users based on their authentication state
- * and ensures profiles are properly created and maintained.
+ * This component handles the callback from OAuth providers with proper token handling.
+ * It focuses on resolving the critical Google Auth flow issues by correctly
+ * parsing and managing authentication tokens.
  */
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '@/features/auth/api';
 import { userProfileService } from '@/features/user-profile/api';
-import { getUserTravelPreferences, checkTravelPreferencesExist } from '@/features/travel-preferences/api';
+import { checkTravelPreferencesExist } from '@/features/travel-preferences/api';
 import { supabase } from '@/lib/supabase/supabaseClient';
 
 // Extended User type for auth callback handling
@@ -65,135 +61,94 @@ const AuthCallback: React.FC = () => {
 
   useEffect(() => {
     const handleAuthCallback = async (): Promise<void> => {
+      console.log('Auth callback initiated');
+      setLoading(true);
+      setError(null);
+
       try {
-        // Check for auth parameters in URL
-        const hasAuthParams = location.hash || location.search.includes('access_token') || location.search.includes('refresh_token');
-        console.log('Auth callback start, hasAuthParams:', hasAuthParams, 'hash:', location.hash);
+        // CRITICAL FIX: Use Supabase's built-in URL parser to extract auth data 
+        // This method correctly handles code exchange for OAuth flows
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         
-        setLoading(true);
-        setError(null);
-        
-        // Step 1: Process auth callback data (crucial for Google OAuth)
-        if (location.hash) {
-          console.log('Processing hash parameters from OAuth provider');
-          try {
-            const { data, error } = await supabase.auth.getSession();
-            if (error) {
-              console.error('Error getting session from hash:', error.message);
-              throw error;
-            }
-            console.log('Successfully retrieved session from hash');
-          } catch (hashError) {
-            console.error('Error processing auth hash:', hashError);
-            // Don't exit here, try to continue with the flow
-          }
-        }
-        
-        // Step 2: Verify the user is authenticated
-        let user: ExtendedUser | null = null;
-        
-        try {
-          // First, get the current user session
-          const { data: sessionData } = await supabase.auth.getSession();
+        // If we already have a session, we can skip code exchange
+        if (sessionData?.session) {
+          console.log('Existing session found, skipping code exchange');
+        } 
+        // Otherwise try to exchange code in URL for a session
+        else {
+          console.log('No existing session, checking URL for auth code');
           
-          if (!sessionData.session) {
-            console.error('No active session found');
-            throw new Error('No active session');
-          }
-          
-          // Then get the current user
-          user = await authService.getCurrentUser() as ExtendedUser;
-          
-          if (!user) {
-            console.error('No authenticated user found');
-            throw new Error('No authenticated user');
-          }
-          
-          console.log('Successfully retrieved authenticated user:', user.id, user.email);
-        } catch (authError) {
-          console.error('Error retrieving authenticated user:', authError);
-          
-          // Special handling for case where user was deleted from Supabase but still exists in Google
+          // Check if this is a callback with code or tokens
+          const hasAuthParams = location.hash || 
+                              location.search.includes('code=') || 
+                              location.search.includes('access_token') || 
+                              location.search.includes('refresh_token');
+                              
           if (hasAuthParams) {
-            console.log('Handling potential deleted user case (auth params present but no user)');
+            console.log('Auth parameters detected in URL:', { 
+              hasHash: !!location.hash, 
+              hasSearch: !!location.search
+            });
             
             try {
-              // Extract tokens from hash params
-              const hashParams = new URLSearchParams(window.location.hash.substring(1));
-              const accessToken = hashParams.get('access_token');
-              const refreshToken = hashParams.get('refresh_token');
-              
-              if (accessToken && refreshToken) {
-                console.log('Found OAuth tokens, attempting to recreate session');
+              // CRITICAL FIX: Use Supabase's exchangeCodeForSession method to handle the OAuth code
+              const { data, error } = await supabase.auth.exchangeCodeForSession(
+                window.location.href
+              );
                 
-                // Try to establish a new session with the tokens
-                const { data, error } = await supabase.auth.setSession({
-                  access_token: accessToken,
-                  refresh_token: refreshToken,
-                });
-                
-                if (error) {
-                  console.error('Failed to recreate session with tokens:', error);
-                  throw error;
-                }
-                
-                if (data?.user) {
-                  console.log('Successfully recreated user session:', data.user.id);
-                  user = await authService.getCurrentUser() as ExtendedUser;
-                  
-                  if (!user) {
-                    console.error('User recreation succeeded but getCurrentUser failed');
-                    throw new Error('User recreation succeeded but getCurrentUser failed');
-                  }
-                } else {
-                  console.error('Session recreation succeeded but no user data returned');
-                  throw new Error('No user data after session recreation');
-                }
-              } else {
-                console.error('Auth params present but no OAuth tokens found');
-                throw new Error('Missing OAuth tokens');
+              if (error) {
+                console.error('Error exchanging code for session:', error.message);
+                throw error;
               }
-            } catch (recreationError) {
-              console.error('Failed to handle deleted user case:', recreationError);
+                  
+              if (!data?.session) {
+                console.error('No session returned from code exchange');
+                throw new Error('Authentication failed: No session created');
+              }
+                
+              console.log('Successfully exchanged code for session');
+            } catch (exchangeError) {
+              console.error('Failed during code exchange:', exchangeError);
               setError('Authentication failed. Please try again.');
               setLoading(false);
               
-              // Redirect to login after a brief delay
-              setTimeout(() => navigate('/', { replace: true }), 2000);
+              // Redirect to login after a delay
+              setTimeout(() => navigate('/', { replace: true }), 3000);
               return;
             }
           } else {
-            console.error('Authentication failed and no auth parameters to recover with');
-            setError('Authentication failed. Please try again.');
+            console.error('No auth parameters found in URL');
+            setError('Authentication failed. No auth parameters found.');
             setLoading(false);
             
-            // Redirect to login
-            setTimeout(() => navigate('/', { replace: true }), 2000);
+            // Redirect to login after a delay
+            setTimeout(() => navigate('/', { replace: true }), 3000);
             return;
           }
         }
         
-        // Step 3: Process user data and determine redirect path
-        if (!user) {
-          console.error('Critical error: User still null after all recovery attempts');
-          setError('Authentication failed. Please try again.');
-          setLoading(false);
-          setTimeout(() => navigate('/', { replace: true }), 2000);
-          return;
+        // At this point, we should have a valid session
+        // Refresh the session to make sure we have the latest data
+        const { data: refreshData } = await supabase.auth.getSession();
+        if (!refreshData?.session) {
+          console.error('No session found after code exchange');
+          throw new Error('No session found after authentication');
         }
         
-        console.log('Processing authenticated user:', user.id, user.email);
+        // Get the user data
+        const user = await authService.getCurrentUser() as ExtendedUser;
+        if (!user) {
+          console.error('No user found in session');
+          throw new Error('Authentication failed: Unable to retrieve user data');
+        }
         
-        // Detect if this is a Google sign-in
+        console.log('Successfully retrieved user:', user.id, user.email);
+        
+        // Detect if this is a Google sign-in and ensure profile exists
         const isGoogleAuth = user.identities?.some(identity => identity.provider === 'google');
         console.log('Is Google authentication:', isGoogleAuth);
         
         if (isGoogleAuth) {
-          const googleIdentity = user.identities?.find(identity => identity.provider === 'google');
-          const identityData = googleIdentity?.identity_data;
-          console.log('Google identity data available:', !!identityData);
-          
-          // Step 4: Ensure user profile exists
           try {
             // Check if profile exists
             const profileExists = await userProfileService.checkProfileExists(user.id);
@@ -202,7 +157,7 @@ const AuthCallback: React.FC = () => {
             if (!profileExists) {
               console.log('Profile does not exist, creating new profile');
               
-              // Try to create profile with retry logic
+              // Create profile with retry logic
               const profileCreated = await userProfileService.ensureProfileExists(user.id);
               console.log('Profile creation result:', profileCreated);
               
@@ -216,33 +171,31 @@ const AuthCallback: React.FC = () => {
           }
         }
         
-        // Step 5: Determine where to redirect the user
+        // Determine where to redirect the user
         const redirectPath = await determineRedirectPath(user);
         console.log('Final redirect destination:', redirectPath);
         
-        // Step 6: Perform the redirect
         setLoading(false);
-        console.log(`Redirecting to: ${redirectPath}`);
         
+        // Redirect to the appropriate page
         setTimeout(() => {
           navigate(redirectPath, { replace: true });
         }, 100);
       } catch (finalError) {
-        console.error('Unhandled auth callback error:', finalError);
         const errorMessage = finalError instanceof Error ? finalError.message : 'Authentication failed';
+        console.error('Auth callback error:', finalError);
         setError(errorMessage);
         setLoading(false);
         
         // Redirect to login after a delay
         setTimeout(() => {
           navigate('/', { replace: true });
-        }, 2000);
+        }, 3000);
       }
     };
     
     /**
      * Determines where to redirect the user after authentication
-     * Simplified logic to reliably route users to the correct destination
      * 
      * @param user The authenticated user
      * @returns The path to redirect to
@@ -251,15 +204,12 @@ const AuthCallback: React.FC = () => {
       try {
         console.log('Determining redirect destination for user:', user.id, user.email);
         
-        // STEP 1: Check if this is a Google sign-in
-        const isGoogleAuth = user.identities?.some(identity => identity.provider === 'google');
-        
-        // STEP 2: Check all possible indicators of user state
+        // Check all indicators of user state
         const userMetadata = user.user_metadata || {};
         const hasCompletedOnboardingInMetadata = userMetadata.has_completed_onboarding === true;
         const hasCompletedInitialFlow = localStorage.getItem('hasCompletedInitialFlow') === 'true';
         
-        // STEP 3: Check if profile exists in database (most reliable indicator)
+        // Check if profile exists in database
         let hasProfileInDatabase = false;
         try {
           hasProfileInDatabase = await userProfileService.checkProfileExists(user.id);
@@ -269,38 +219,31 @@ const AuthCallback: React.FC = () => {
           await userProfileService.ensureProfileExists(user.id);
         }
         
-        // STEP 4: Check for travel preferences (strongest indicator of completed onboarding)
+        // Check for travel preferences
         let hasTravelPreferences = false;
         try {
-          // Use imported function directly, following Planora's architectural principles
           hasTravelPreferences = await checkTravelPreferencesExist(user.id);
         } catch (error) {
           console.error('Error checking travel preferences:', error);
         }
         
-        // Log current state for debugging
+        // Log current state
         console.log('User state analysis:', {
           userId: user.id,
           email: user.email,
-          isGoogleAuth,
           hasCompletedOnboardingInMetadata,
           hasCompletedInitialFlow,
           hasProfileInDatabase,
-          hasTravelPreferences,
-          timestamps: {
-            googleAuthStarted: localStorage.getItem('googleAuthStarted'),
-            now: Date.now()
-          }
+          hasTravelPreferences
         });
         
-        // STEP 5: Apply decision logic with priority order
+        // Apply decision logic with priority order
         
-        // CASE 1: User is fully onboarded - has travel preferences
+        // CASE 1: User has travel preferences - fully onboarded
         if (hasTravelPreferences) {
           console.log('User has travel preferences - directing to dashboard');
-          
-          // Ensure state consistency
           localStorage.setItem('hasCompletedInitialFlow', 'true');
+          
           if (!hasCompletedOnboardingInMetadata) {
             await authService.updateUserMetadata({ has_completed_onboarding: true });
           }
@@ -308,11 +251,11 @@ const AuthCallback: React.FC = () => {
           return '/dashboard';
         }
         
-        // CASE 2: User has profile but hasn't completed onboarding with preferences
+        // CASE 2: User has profile but no preferences
         if (hasProfileInDatabase) {
-          console.log('User has profile but no preferences - ');
+          console.log('User has profile but no preferences');
           
-          // For existing users - go to dashboard
+          // For existing users with onboarding flag - go to dashboard
           if (hasCompletedOnboardingInMetadata || hasCompletedInitialFlow) {
             localStorage.setItem('hasCompletedInitialFlow', 'true');
             return '/dashboard';
@@ -322,22 +265,16 @@ const AuthCallback: React.FC = () => {
           return '/onboarding';
         }
         
-        // CASE 3: Google user with first sign-in (special case)
-        if (isGoogleAuth && !hasProfileInDatabase && !hasCompletedInitialFlow) {
-          console.log('New Google user detected - creating profile and directing to onboarding');
-          
-          // Create profile for new Google user
-          try {
-            await userProfileService.ensureProfileExists(user.id);
-          } catch (createError) {
-            console.error('Error creating profile for new Google user:', createError);
-          }
-          
-          return '/onboarding';
+        // CASE 3: New user (especially Google users)
+        console.log('New user detected - directing to onboarding');
+        
+        // Try to create profile for new user
+        try {
+          await userProfileService.ensureProfileExists(user.id);
+        } catch (createError) {
+          console.error('Error creating profile for new user:', createError);
         }
         
-        // CASE 4: Default for questionable states - cautiously direct to onboarding
-        console.log('Unrecognized user state - directing to onboarding for safety');
         return '/onboarding';
       } catch (error) {
         console.error('Error determining redirect path:', error);
