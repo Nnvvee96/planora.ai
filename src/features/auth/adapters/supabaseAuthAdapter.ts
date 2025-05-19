@@ -278,14 +278,18 @@ export const supabaseAuthAdapter = {
 
   /**
    * Sign in with Google OAuth
-   * Enhanced implementation to ensure clean state and proper redirects
+   * CRITICAL FIX: Properly configured to ensure reliable token handling
    */
   signInWithGoogle: async (): Promise<void> => {
     try {
-      // Clear all authentication-related localStorage flags to prevent stale state
+      // BUGFIX: First clear ALL localStorage items that might interfere with auth flow
       localStorage.removeItem('hasCompletedInitialFlow');
       localStorage.removeItem('authRedirectPath');
       localStorage.removeItem('supabase.auth.token');
+      localStorage.removeItem('supabase-auth-token');
+      localStorage.removeItem('sb-refresh-token');
+      localStorage.removeItem('sb-access-token');
+      localStorage.removeItem('sb:token');
       
       // Use explicit callback URL based on environment
       const baseUrl = getSiteUrl();
@@ -296,15 +300,21 @@ export const supabaseAuthAdapter = {
       // Store timestamp to detect stale auth sessions
       localStorage.setItem('googleAuthStarted', Date.now().toString());
       
+      // BUGFIX: Configure proper auth parameters
+      // The key fix is ensuring we're using the code flow with PKCE
+      // And making sure we're requesting proper scopes
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo,
+          skipBrowserRedirect: false,
+          // BUGFIX: Configure queryParams carefully
           queryParams: {
-            // Force account selection to avoid wrong account issues
+            // Use offline access for refresh tokens
             access_type: 'offline',
+            // Force consent and account selection every time to avoid wrong accounts
             prompt: 'consent select_account',
-            // Request all profile information needed for onboarding
+            // We need proper scopes for our use case
             scope: 'email profile openid'
           }
         }
