@@ -14,7 +14,8 @@ import type {
   AuthResponse, 
   UserRegistrationStatus,
   GoogleAuthCredentials,
-  SessionInfo
+  SessionInfo,
+  RegisterData
 } from './types/authTypes';
 
 // Import the auth service directly to prevent circular dependencies
@@ -63,20 +64,76 @@ export const mapSupabaseUser = (user: SupabaseUser): AppUser => {
 // Export the auth types for use throughout the application
 export type { AuthResponse, UserRegistrationStatus, GoogleAuthCredentials, SessionInfo };
 
-// Export authentication components for use in the app
-export { AuthCallback } from './components/AuthCallback';
-export { ProtectedRoute } from './components/ProtectedRoute';
-export { GoogleLoginButton } from './components/GoogleLoginButton';
-export { AuthProvider, useAuthContext } from './components/AuthProvider';
+/**
+ * AuthService interface
+ * Defines the shape of authentication service for type safety
+ */
+export interface AuthService {
+  signInWithGoogle(): Promise<void>;
+  updateUserMetadata(metadata: Record<string, unknown>): Promise<void>;
+  getCurrentUser(): Promise<AppUser | null>;
+  logout(): Promise<void>;
+  handleAuthCallback(): Promise<AuthResponse>;
+  register(data: RegisterData): Promise<void>;
+  updatePassword(currentPassword: string, newPassword: string): Promise<void>;
+  checkOnboardingStatus(userId: string): Promise<boolean>;
+  updateOnboardingStatus(userId: string, hasCompleted?: boolean): Promise<boolean>;
+}
 
-// Export authentication routes
+// Import lazy for component lazy loading
+import { lazy } from 'react';
+
+// Export factory functions for authentication components to avoid circular dependencies
+export const getAuthCallbackComponent = () => {
+  return lazy(() => import('./components/AuthCallback').then(module => ({
+    default: module.AuthCallback
+  })));
+};
+
+export const getProtectedRouteComponent = () => {
+  return lazy(() => import('./components/ProtectedRoute').then(module => ({
+    default: module.ProtectedRoute
+  })));
+};
+
+export const getGoogleLoginButtonComponent = () => {
+  return lazy(() => import('./components/GoogleLoginButton').then(module => ({
+    default: module.GoogleLoginButton
+  })));
+};
+
+export const getAuthProviderComponent = () => {
+  return lazy(() => import('./components/AuthProvider').then(module => ({
+    default: module.AuthProvider
+  })));
+};
+
+// Export auth context hook with a factory function
+export const getAuthContextHook = async () => {
+  const module = await import('./components/AuthProvider');
+  return module.useAuthContext;
+};
+
+// Export routes
 export { authRoutes } from './routes/authRoutes';
 
 /**
- * Auth service for application use
- * Provides methods for authentication operations
+ * Factory function for auth service
+ * Provides authentication functionality while avoiding circular dependencies
+ * @returns An AuthService instance with authentication functionality
  */
-export const authService = {
+export const getAuthService = (): AuthService => {
+  return {
+    ...authService
+  };
+};
+
+/**
+ * Auth service object
+ * Provides authentication functionality
+ * Private implementation, not directly exported
+ */
+const authService = {
   /**
    * Sign in with Google
    * Initiates Google OAuth flow
@@ -127,6 +184,26 @@ export const authService = {
    * Update onboarding status
    */
   updateOnboardingStatus: async (userId: string, hasCompleted: boolean = true): Promise<boolean> => {
-    return supabaseAuthService.updateOnboardingStatus(userId);
+    try {
+      await supabaseAuthService.updateUserMetadata({ hasCompletedOnboarding: hasCompleted });
+      return true;
+    } catch (error) {
+      console.error('Error updating onboarding status:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Register a new user
+   */
+  register: async (data: RegisterData): Promise<void> => {
+    return supabaseAuthService.register(data);
+  },
+
+  /**
+   * Update user password
+   */
+  updatePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    return supabaseAuthService.updatePassword(currentPassword, newPassword);
   }
 };

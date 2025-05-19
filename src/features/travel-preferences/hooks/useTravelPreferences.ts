@@ -7,16 +7,25 @@
  * and proper separation of concerns.
  */
 
-import { useState, useEffect } from 'react';
-import { TravelPreferences } from '../api';
-import { authService } from '../../auth/api';
+import { useState, useEffect, useCallback } from 'react';
+import { 
+  TravelPreferences, 
+  TravelDurationType, 
+  DateFlexibilityType, 
+  AccommodationType, 
+  ComfortPreference, 
+  LocationPreference, 
+  FlightType, 
+  PlanningIntent 
+} from '../types/travelPreferencesTypes';
+import { getAuthService, AuthService } from '../../auth/api';
 
 // Define the return type for our hook
 interface UseTravelPreferencesResult {
   /** The user's travel preferences */
   preferences: TravelPreferences | null;
   /** Whether preferences are currently being loaded */
-  isLoading: boolean;
+  loading: boolean;
   /** Any error that occurred while loading preferences */
   error: Error | null;
   /** Function to save or update preferences */
@@ -29,47 +38,59 @@ interface UseTravelPreferencesResult {
  * Hook for accessing and managing travel preferences
  * @returns Object with preferences data and management functions
  */
-export const useTravelPreferences = (): UseTravelPreferencesResult => {
+export function useTravelPreferences(): UseTravelPreferencesResult {
+  // State variables
   const [preferences, setPreferences] = useState<TravelPreferences | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   
+  // Initialize auth service using factory function
+  const [authService, setAuthService] = useState<AuthService | null>(null);
+  
+  // Load auth service on component mount
+  useEffect(() => {
+    setAuthService(getAuthService());
+  }, []);
+  
   // Load preferences on mount
-  const loadPreferences = async (): Promise<void> => {
-    if (!authService) {
-      console.error('Auth service not available');
-      return;
-    }
-    
+  const loadPreferences = useCallback(async (): Promise<void> => {
     try {
-      setIsLoading(true);
+      setLoading(true);
       setError(null);
+      
+      // Check if auth service is initialized
+      if (!authService) {
+        setError(new Error('Authentication service not available'));
+        return;
+      }
       
       // Get the current user
       const currentUser = await authService.getCurrentUser();
       if (!currentUser) {
-        throw new Error('User not authenticated');
+        // Not logged in
+        setPreferences(null);
+        return;
       }
       
-      // Get preferences - import directly from API for clean architecture
-      // following Planora's principles
+      // Get preferences from the database or API
+      // This would be an API call in a real app
+      // In our mock version, just set some defaults
+      // This is a placeholder implementation
       const { getUserTravelPreferences } = await import('../api');
       const userPreferences = await getUserTravelPreferences(currentUser.id);
-      
-      // Update state - using a direct state update for simplicity
       setPreferences(userPreferences);
     } catch (err) {
       console.error('Error loading travel preferences:', err);
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  };
+  }, [authService]);
   
-  // Load preferences on mount
+  // Call loadPreferences on mount
   useEffect(() => {
     loadPreferences();
-  }, []);
+  }, [loadPreferences]);
   
   // Function to save preferences
   const savePreferences = async (data: Partial<TravelPreferences>): Promise<void> => {
@@ -78,7 +99,7 @@ export const useTravelPreferences = (): UseTravelPreferencesResult => {
     }
     
     try {
-      setIsLoading(true);
+      setLoading(true);
       setError(null);
       
       // Get current user
@@ -91,13 +112,21 @@ export const useTravelPreferences = (): UseTravelPreferencesResult => {
       const { saveTravelPreferences, updateOnboardingStatus } = await import('../api');
       
       // Create a complete TravelPreferences object from partial data to satisfy type constraints
+      // We ensure all required fields have a default value if not provided
       const completePreferences: TravelPreferences = {
-        destinations: data.destinations || ['Default Destination'],
-        preferredActivities: data.preferredActivities || ['Default Activity'],
-        travelStyle: data.travelStyle || 'Default Style',
-        budget: data.budget,
-        tripDuration: data.tripDuration,
-        seasonPreference: data.seasonPreference
+        userId: currentUser.id,
+        budgetRange: data.budgetRange || { min: 1000, max: 5000 },
+        budgetFlexibility: data.budgetFlexibility || 0,
+        travelDuration: data.travelDuration || TravelDurationType.WEEK,
+        dateFlexibility: data.dateFlexibility || DateFlexibilityType.FLEXIBLE_WEEK,
+        customDateFlexibility: data.customDateFlexibility,
+        planningIntent: data.planningIntent || PlanningIntent.PLANNING,
+        accommodationTypes: data.accommodationTypes || [AccommodationType.HOTEL],
+        accommodationComfort: data.accommodationComfort || [ComfortPreference.PRIVATE_ROOM],
+        locationPreference: data.locationPreference || LocationPreference.CENTER,
+        flightType: data.flightType || FlightType.DIRECT,
+        preferCheaperWithStopover: data.preferCheaperWithStopover || false,
+        departureCity: data.departureCity || 'New York'
       };
       
       // Save preferences according to the API contract
@@ -111,16 +140,16 @@ export const useTravelPreferences = (): UseTravelPreferencesResult => {
     } catch (err) {
       console.error('Error saving travel preferences:', err);
       const error = err instanceof Error ? err : new Error(String(err));
-      setError(error);
+      setError(new Error(error.message || 'An error occurred loading preferences'));
       throw error;
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
   
   return {
     preferences,
-    isLoading,
+    loading,
     error,
     savePreferences,
     refresh: loadPreferences
