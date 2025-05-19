@@ -1,9 +1,9 @@
 /**
  * useTravelPlanningIntegration hook
  * 
+ * TEMPORARY MOCK VERSION - Non-functional placeholder
  * This is an integration hook that provides a clean interface to the travel-planning feature.
- * It isolates the implementation details of the travel-planning feature and provides only what other
- * features need to know about travel planning.
+ * Following Planora's architectural principles with feature-first organization.
  */
 
 // Import only from the feature's public API
@@ -36,21 +36,27 @@ export function useTravelPlanningIntegration() {
           name: 'Paris',
           country: 'France',
           arrivalDate: new Date('2025-07-01'),
-          departureDate: new Date('2025-07-05')
+          departureDate: new Date('2025-07-05'),
+          latitude: 48.8566,
+          longitude: 2.3522
         },
         {
           id: '2',
           name: 'Rome',
           country: 'Italy',
           arrivalDate: new Date('2025-07-05'),
-          departureDate: new Date('2025-07-10')
+          departureDate: new Date('2025-07-10'),
+          latitude: 41.9028,
+          longitude: 12.4964
         },
         {
           id: '3',
           name: 'Barcelona',
           country: 'Spain',
           arrivalDate: new Date('2025-07-10'),
-          departureDate: new Date('2025-07-15')
+          departureDate: new Date('2025-07-15'),
+          latitude: 41.3851,
+          longitude: 2.1734
         }
       ],
       activities: [],

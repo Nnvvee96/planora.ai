@@ -1,54 +1,54 @@
 /**
  * Type definitions for the user-profile feature
  * 
- * Following architecture principles:
+ * TEMPORARY MOCK VERSION - Non-functional placeholder
+ * 
+ * Following Planora's architectural principles:
  * - Feature-First Organization: Types specific to the user-profile feature
  * - Clean Code: Clear type definitions with proper documentation
  * - Separation of Concerns: Separating database schema from application types
  * 
  * This file contains application-level types used throughout the UI
- * and feature components, transformed from database types as needed.
+ * and feature components.
  */
-
-import { ProfilesRow } from '@/lib/supabase/supabaseTypes';
 
 /**
  * User profile interface for application use
- * Transformed from database types to provide a clean API for components
  */
 export interface UserProfile {
   id: string;
   username?: string;
-  email?: string;
-  first_name?: string;
-  last_name?: string;
-  full_name?: string; // Computed field from first_name + last_name
-  avatar_url?: string;
-  birthdate?: string;
-  city?: string;
-  country?: string;
-  updated_at?: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber?: string;
+  bio?: string;
+  avatarUrl?: string;
+  location?: string;
+  hasCompletedOnboarding: boolean;
+  createdAt: Date;
+  updatedAt: Date;
   settings?: UserSettings;
-  has_completed_onboarding?: boolean;
 }
 
 /**
- * Factory function to create a UserProfile from a database row
- * This ensures consistent transformation from database to application types
+ * MOCK: Creating a user profile for our non-functional mockup
  */
-export function createUserProfileFromRow(profile: ProfilesRow): UserProfile {
+export function createMockUserProfile(): UserProfile {
   return {
-    id: profile.id,
-    username: profile.username,
-    email: profile.email,
-    first_name: profile.first_name,
-    last_name: profile.last_name,
-    full_name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || undefined,
-    city: profile.city || undefined,
-    country: profile.country || undefined,
-    birthdate: profile.birthdate || undefined,
-    updated_at: profile.created_at, // Using created_at as updated_at if needed
-    has_completed_onboarding: profile.has_completed_onboarding
+    id: 'mock-user-id',
+    username: 'mockuser',
+    firstName: 'Mock',
+    lastName: 'User',
+    email: 'mockuser@example.com',
+    phoneNumber: '+1234567890',
+    bio: 'This is a mock user profile for testing',
+    avatarUrl: 'https://via.placeholder.com/150',
+    location: 'San Francisco, CA',
+    hasCompletedOnboarding: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    settings: DEFAULT_USER_SETTINGS
   };
 }
 

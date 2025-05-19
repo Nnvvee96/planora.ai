@@ -19,6 +19,19 @@ export interface TravelPreferences {
 }
 
 /**
+ * Travel Preferences Form Values
+ * Used for form input of travel preferences
+ */
+export interface TravelPreferencesFormValues {
+  destinations: string[];
+  preferredActivities: string[];
+  travelStyle: string;
+  budget: string;
+  tripDuration: string;
+  seasonPreference: string;
+}
+
+/**
  * Mock travel preferences checking function
  * Always returns that preferences exist
  */

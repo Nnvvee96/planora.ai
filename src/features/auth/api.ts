@@ -4,6 +4,7 @@
  * TEMPORARY MOCK VERSION - Non-functional placeholder
  * This is just a placeholder API that simulates authentication flow
  * without actually connecting to any backend services.
+ * Following Planora's architectural principles with feature-first organization.
  */
 
 // Non-functional mock user type
@@ -14,6 +15,15 @@ export interface User {
   firstName: string;
   lastName: string;
   hasCompletedOnboarding: boolean;
+  avatarUrl?: string;
+}
+
+// Auth state interface for state management
+export interface AuthState {
+  isAuthenticated: boolean;
+  user: User | null;
+  loading: boolean;
+  error: string | null;
 }
 
 /**
