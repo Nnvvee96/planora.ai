@@ -8,7 +8,7 @@ import { Provider } from 'react-redux';
 import { store } from './store/store';
 
 // Import our auth API components
-import { AuthProvider, ProtectedRoute, AuthCallback as AuthCallbackComponent } from '@/features/auth/api';
+import { AuthProvider, ProtectedRoute, AuthCallback } from '@/features/auth/api';
 
 // Import error boundary component
 import { ErrorBoundary } from '@/ui/organisms/ErrorBoundary';
@@ -64,7 +64,7 @@ const App = () => (
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                <Route path="/auth/callback" element={<AuthCallbackComponent />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/debug" element={<DebugScreen />} />
                 
                 {/* Protected routes that require authentication */}
