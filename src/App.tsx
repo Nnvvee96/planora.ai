@@ -53,12 +53,12 @@ const App = () => (
   <ErrorBoundary>
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <DebugComponent />
-            <BrowserRouter>
+        <BrowserRouter>
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <DebugComponent />
               <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<LandingPage />} />
@@ -127,9 +127,9 @@ const App = () => (
                 {/* Catch-all route */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </AuthProvider>
+            </TooltipProvider>
+          </AuthProvider>
+        </BrowserRouter>
       </QueryClientProvider>
     </Provider>
   </ErrorBoundary>
