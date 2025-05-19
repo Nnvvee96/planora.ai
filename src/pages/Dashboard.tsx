@@ -49,6 +49,12 @@ const Dashboard = () => {
     const loadUserData = async () => {
       try {
         setLoading(true);
+        // Check if auth service is available
+        if (!authService) {
+          console.log('Auth service not yet initialized, skipping user data load');
+          return;
+        }
+        
         // Get authenticated user through auth service
         const currentUser = await authService.getCurrentUser();
         if (currentUser) {
