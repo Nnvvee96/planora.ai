@@ -16,21 +16,26 @@ import {
   XCircle
 } from 'lucide-react';
 import { Logo } from '@/ui/atoms/Logo';
-import { UserProfileMenu } from '@/features/user-profile/api';
+import { Suspense, lazy } from 'react';
+import { getUserProfileMenuComponent } from '@/features/user-profile/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/ui/atoms/Card';
 import { Progress } from '@/components/ui/progress';
 import { useNavigate, Link } from 'react-router-dom';
 import { Footer } from '@/ui/organisms/Footer';
-import { authService, User } from '@/features/auth/api';
+import { authService } from '@/features/auth/api';
+import { AppUser } from '@/features/auth/types/authTypes';
 import { userProfileService, UserProfile } from '@/features/user-profile/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  
+  // Get the UserProfileMenu component using the factory function
+  const UserProfileMenu = getUserProfileMenuComponent();
   
   // Load user data on component mount
   useEffect(() => {
@@ -64,9 +69,9 @@ const Dashboard = () => {
   }, []);
   
   // Get user's name from various sources in priority order
-  const userFirstName = user?.firstName || userProfile?.first_name || '';
-  const userLastName = user?.lastName || userProfile?.last_name || '';
-  const userFullName = userProfile?.full_name || `${userFirstName} ${userLastName}`.trim();
+  const userFirstName = user?.firstName || userProfile?.firstName || '';
+  const userLastName = user?.lastName || userProfile?.lastName || '';
+  const userFullName = `${userFirstName} ${userLastName}`.trim();
   const userName = userFullName || user?.username || "Guest";
   
   // Handler for directing to chat interface
@@ -179,14 +184,17 @@ const Dashboard = () => {
                 <Calendar className="h-5 w-5" />
               </Button>
               
-              <UserProfileMenu 
-                userName={userName} 
-                userEmail={user?.email || userProfile?.email} 
-                firstName={userFirstName}
-                lastName={userLastName}
-                birthdate={userProfile?.birthdate}
-                mini={false} 
-              />
+              <Suspense fallback={<div>Loading...</div>}>
+                <UserProfileMenu 
+                  userName={userName} 
+                  userEmail={user?.email || userProfile?.email} 
+                  firstName={userFirstName}
+                  lastName={userLastName}
+                  // The birthdate is not available directly in UserProfile
+                  // but the UserProfileMenu component might expect it
+                  mini={false} 
+                />
+              </Suspense>
             </div>
           </div>
         </div>
