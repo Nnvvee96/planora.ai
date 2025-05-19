@@ -141,35 +141,63 @@ export const travelPreferencesService = {
    */
   saveTravelPreferences: async (userId: string, preferences: Partial<TravelPreferencesFormValues>): Promise<boolean> => {
     try {
+      console.log('Saving travel preferences for user:', userId);
+      console.log('Preferences data:', JSON.stringify(preferences, null, 2));
+      
+      if (!userId) {
+        console.error('Cannot save travel preferences: Missing user ID');
+        return false;
+      }
+      
       // Check if preferences already exist
       const exists = await travelPreferencesService.checkTravelPreferencesExist(userId);
+      console.log('Existing preferences found:', exists);
       
-      // Convert to database format
+      // Convert to database format with explicit type handling
       const prefsWithUserId = {
         ...preferences,
         userId
       };
+      
+      // Ensure budget values are properly converted to numbers
+      if (preferences.budgetRange) {
+        preferences.budgetRange.min = Number(preferences.budgetRange.min);
+        preferences.budgetRange.max = Number(preferences.budgetRange.max);
+      }
+      
+      if (preferences.budgetFlexibility) {
+        preferences.budgetFlexibility = Number(preferences.budgetFlexibility);
+      }
+      
       const dbPrefs = mapToDbTravelPreferences(prefsWithUserId);
+      console.log('Mapped DB preferences:', dbPrefs);
       
       let error: Error | null = null;
       
       if (exists) {
         // Update existing preferences
+        console.log('Updating existing travel preferences');
         const result = await supabase
           .from('travel_preferences')
-          .update(dbPrefs)
+          .update({
+            ...dbPrefs,
+            updated_at: new Date().toISOString()
+          })
           .eq('user_id', userId);
         
         error = result.error;
       } else {
         // Create new preferences
-        dbPrefs.created_at = new Date().toISOString();
+        console.log('Creating new travel preferences');
+        const timestamp = new Date().toISOString();
         
         const result = await supabase
           .from('travel_preferences')
           .insert({
             ...dbPrefs,
-            user_id: userId
+            user_id: userId,
+            created_at: timestamp,
+            updated_at: timestamp
           });
         
         error = result.error;
