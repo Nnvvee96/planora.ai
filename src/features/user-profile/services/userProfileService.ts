@@ -41,9 +41,138 @@ const mapUserProfileToDbProfile = (profile: Partial<UserProfile>): Partial<DbUse
 };
 
 /**
+ * Function to extract name data from Google user metadata
+ * @param user Supabase user with metadata
+ * @returns Object with firstName and lastName extracted
+ */
+const extractNameFromGoogleData = (user: { id: string; email?: string; user_metadata?: Record<string, unknown> }): { firstName: string, lastName: string } => {
+  const { user_metadata } = user;
+  
+  // Log the user metadata to see its structure
+  console.log('Extracting name from Google metadata:', user_metadata);
+  
+  // Extract first and last name from various possible Google metadata formats
+  let firstName = '';
+  let lastName = '';
+  
+  // Try different paths where Google might provide name info
+  if (typeof user_metadata?.name === 'string') {
+    // Name provided as a single string, try to split it
+    const nameParts = (user_metadata.name as string).split(' ');
+    firstName = nameParts[0] || '';
+    lastName = nameParts.slice(1).join(' ') || '';
+  } else {
+    // Try different field variations
+    firstName = (user_metadata?.given_name as string) || (user_metadata?.first_name as string) || '';
+    lastName = (user_metadata?.family_name as string) || (user_metadata?.last_name as string) || '';
+  }
+  
+  // If still empty and we have email, extract username part as fallback
+  if (!firstName && user.email) {
+    const emailParts = user.email.split('@');
+    // Fix the escape character issue by using a proper regex
+    const nameParts = emailParts[0].split(/[.|_|-]/);
+    if (nameParts.length > 1) {
+      firstName = nameParts[0] || '';
+      lastName = nameParts.slice(1).join(' ') || '';
+    } else {
+      firstName = emailParts[0] || '';
+    }
+  }
+  
+  console.log('Extracted name info:', { firstName, lastName });
+  return { firstName, lastName };
+};
+
+/**
  * User profile service for managing profile data
  */
 export const userProfileService = {
+  /**
+   * Update profile with Google user data
+   * @param user Supabase user object
+   * @returns True if update was successful
+   */
+  updateProfileWithGoogleData: async (user: { id: string; email?: string; user_metadata?: Record<string, unknown> }): Promise<boolean> => {
+    try {
+      if (!user || !user.id) {
+        console.error('Cannot update profile: Invalid user object');
+        return false;
+      }
+      
+      console.log('Updating profile with Google data for user:', user.id);
+      
+      // Extract name from Google data
+      const { firstName, lastName } = extractNameFromGoogleData(user);
+      
+      // Check if profile exists
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      const timestamp = new Date().toISOString();
+      
+      if (!data || error) {
+        // Profile doesn't exist, create it
+        console.log('Profile not found, creating new profile with Google data');
+        
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            first_name: firstName,
+            last_name: lastName,
+            email: user.email,
+            avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || '',
+            has_completed_onboarding: false,
+            created_at: timestamp,
+            updated_at: timestamp
+          });
+          
+        if (insertError) {
+          console.error('Error creating profile with Google data:', insertError);
+          return false;
+        }
+      } else {
+        // Profile exists, update it if first/last name are empty
+        console.log('Existing profile found, updating with Google data if needed');
+        
+        // Only update if current values are empty
+        const updates: Record<string, unknown> = {
+          updated_at: timestamp
+        };
+        
+        if (!data.first_name && firstName) {
+          updates.first_name = firstName;
+        }
+        
+        if (!data.last_name && lastName) {
+          updates.last_name = lastName;
+        }
+        
+        if (Object.keys(updates).length > 1) { // If we have more than just updated_at
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update(updates)
+            .eq('id', user.id);
+            
+          if (updateError) {
+            console.error('Error updating profile with Google data:', updateError);
+            return false;
+          }
+        }
+      }
+      
+      console.log('Successfully updated profile with Google data');
+      return true;
+    } catch (err) {
+      console.error('Error updating profile with Google data:', err);
+      return false;
+    }
+  },
+  
   /**
    * Check if a profile exists for a user
    * @param userId The user ID to check

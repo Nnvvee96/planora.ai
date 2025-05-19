@@ -18,23 +18,56 @@ export interface BudgetRange {
  */
 
 // Travel duration from Onboarding - "How long are your trips?"
-export type TravelDurationType = 'weekend' | 'week' | 'two-weeks' | 'longer';
+export enum TravelDurationType {
+  WEEKEND = 'weekend',
+  WEEK = 'week',
+  TWO_WEEKS = 'two-weeks',
+  LONGER = 'longer'
+}
 
 // Date flexibility from Onboarding - "Date Flexibility"
-export type DateFlexibilityType = 'flexible-few' | 'flexible-week' | 'fixed' | 'very-flexible';
+export enum DateFlexibilityType {
+  FLEXIBLE_FEW = 'flexible-few',
+  FLEXIBLE_WEEK = 'flexible-week',
+  FIXED = 'fixed',
+  VERY_FLEXIBLE = 'very-flexible'
+}
 
 // Accommodation types from Onboarding - "Where do you prefer to stay?"
-export type AccommodationType = 'hotel' | 'apartment' | 'hostel' | 'resort';
+export enum AccommodationType {
+  HOTEL = 'hotel',
+  APARTMENT = 'apartment',
+  HOSTEL = 'hostel',
+  RESORT = 'resort'
+}
 
 // Comfort preferences from Onboarding - "What are your accommodation preferences?"
-export type ComfortPreference = 'private-room' | 'shared-room' | 'private-bathroom' | 'shared-bathroom' | 'luxury';
+export enum ComfortPreference {
+  PRIVATE_ROOM = 'private-room',
+  SHARED_ROOM = 'shared-room',
+  PRIVATE_BATHROOM = 'private-bathroom',
+  SHARED_BATHROOM = 'shared-bathroom',
+  LUXURY = 'luxury'
+}
 
 // Planning intent from Onboarding - "Are you dreaming or planning?"
-export type PlanningIntent = 'exploring' | 'planning';
+export enum PlanningIntent {
+  EXPLORING = 'exploring',
+  PLANNING = 'planning'
+}
 
 // Location preference from Onboarding - "Preferred distance from city center?"
-export type LocationPreference = 'center' | 'near' | 'outskirts' | 'anywhere';
-export type FlightType = 'direct' | 'any';
+export enum LocationPreference {
+  CENTER = 'center',
+  NEAR = 'near',
+  OUTSKIRTS = 'outskirts',
+  ANYWHERE = 'anywhere'
+}
+
+export enum FlightType {
+  DIRECT = 'direct',
+  ANY = 'any'
+}
 
 /**
  * Travel Preferences Form values

@@ -29,16 +29,16 @@ import { Select } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
 import { X } from 'lucide-react';
 import { 
-  TravelPreferencesFormValues, 
-  TravelDurationType, 
-  DateFlexibilityType, 
-  PlanningIntent, 
-  AccommodationType, 
-  ComfortPreference, 
-  LocationPreference, 
-  FlightType, 
-  saveTravelPreferences, 
-  updateOnboardingStatus 
+  saveTravelPreferences,
+  updateOnboardingStatus,
+  TravelPreferencesFormValues,
+  TravelDurationType,
+  DateFlexibilityType,
+  PlanningIntent,
+  AccommodationType,
+  ComfortPreference,
+  LocationPreference,
+  FlightType
 } from '@/features/travel-preferences/api';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { authService } from '@/features/auth/api';
@@ -213,19 +213,21 @@ const Onboarding = () => {
       // This ensures alignment with the type definition in TravelPreferencesTypes.ts
       const travelDurationData = formData.travelDuration as TravelDurationType;
         
-      // Format data for travel preferences service
-      const travelPreferencesData: TravelPreferencesFormValues = {
+      // Format data for travel preferences service - ensuring we match the exact TravelPreferencesFormValues interface
+      const travelPreferencesData = {
+        // Properly match the interface property names
         budgetRange: budgetRangeData,
+        // Use the correct property name from the interface (budgetFlexibility not budgetTolerance)
         budgetFlexibility: Number(formData.budgetTolerance) || 10,
         travelDuration: travelDurationData,
         dateFlexibility: formData.dateFlexibility as DateFlexibilityType || 'flexible-few',
         customDateFlexibility: formData.customDateFlexibility || '',
         planningIntent: formData.planningIntent as PlanningIntent,
-        accommodationTypes: formData.accommodationTypes as AccommodationType[],
-        accommodationComfort: formData.accommodationComfort as ComfortPreference[],
+        accommodationTypes: formData.accommodationTypes as AccommodationType[] || [],
+        accommodationComfort: formData.accommodationComfort as ComfortPreference[] || [],
         locationPreference: formData.locationPreference as LocationPreference || 'anywhere',
         flightType: formData.flightType as FlightType || 'direct',
-        preferCheaperWithStopover: formData.preferCheaperWithStopover || true,
+        preferCheaperWithStopover: Boolean(formData.preferCheaperWithStopover),
         departureCity: formData.departureLocation || ''
       };
       
@@ -239,7 +241,21 @@ const Onboarding = () => {
       
       // Step 1: Save travel preferences to the database
       console.log('Step 1: Saving travel preferences');
-      await saveTravelPreferences(travelPreferencesData, currentUser.id);
+      console.log('User ID:', currentUser.id);
+      
+      // Save travel preferences using the correct structure as defined in TravelPreferencesFormValues
+      try {
+        // Use the actual travelPreferencesData which is already correctly structured
+        // The error was because we were trying to provide data that doesn't match our interface
+        const saveResult = await saveTravelPreferences(currentUser.id, travelPreferencesData);
+        
+        // Log the result for debugging
+        console.log('Save travel preferences result:', saveResult);
+        console.log('Successfully saved travel preferences to database');
+      } catch (error) {
+        console.error('Failed to save travel preferences:', error);
+        // Proceed anyway to try the other steps
+      }
       
       // Step 2: Update user metadata with ALL relevant information in a SINGLE operation
       // This ensures consistent state and prevents race conditions

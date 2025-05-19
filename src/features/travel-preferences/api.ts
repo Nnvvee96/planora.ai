@@ -1,153 +1,39 @@
 /**
  * Travel Preferences API
  * 
- * TEMPORARY MOCK VERSION - Non-functional placeholder
- * Following Planora's architectural principles with feature-first organization
+ * Public API for travel preferences functionality.
+ * Following Planora's architectural principles with feature-first organization.
  */
 
-// Export the TravelPreferencesPanel component for use by pages
-export { TravelPreferencesPanel } from './components/TravelPreferencesPanel';
+// Export all types, interfaces, and enums directly from the types module
+export * from './types/travelPreferencesTypes';
 
-// Export the travel preferences hook for use by pages
-export { useTravelPreferences } from './hooks/useTravelPreferences';
+// Instead of direct exports for UI components and hooks, use the lazy loading pattern
+// to avoid circular dependencies
+import { lazy } from 'react';
 
-/**
- * Travel Preferences interface
- * Properly typed according to Planora's architectural principles
- */
-export interface TravelPreferences {
-  destinations: string[];
-  preferredActivities: string[];
-  travelStyle: string;
-  budget?: string;
-  tripDuration?: string;
-  seasonPreference?: string;
-}
-
-/**
- * Travel Preferences Form Values
- * Used for form input of travel preferences
- */
-export interface TravelPreferencesFormValues {
-  destinations: string[];
-  preferredActivities: string[];
-  travelStyle: string;
-  budget: string;
-  tripDuration: string;
-  seasonPreference: string;
-}
-
-/**
- * Travel Duration Type Enum
- */
-export enum TravelDurationType {
-  WEEKEND = 'weekend',
-  SHORT_TRIP = 'short_trip',
-  EXTENDED_VACATION = 'extended_vacation',
-  LONG_TERM = 'long_term'
-}
-
-/**
- * Date Flexibility Type Enum
- */
-export enum DateFlexibilityType {
-  EXACT = 'exact',
-  FLEXIBLE_DAYS = 'flexible_days',
-  FLEXIBLE_WEEKS = 'flexible_weeks',
-  FLEXIBLE_MONTHS = 'flexible_months',
-  CUSTOM = 'custom'
-}
-
-/**
- * Planning Intent Enum
- */
-export enum PlanningIntent {
-  RELAXATION = 'relaxation',
-  ADVENTURE = 'adventure',
-  CULTURAL = 'cultural',
-  BUSINESS = 'business',
-  FAMILY = 'family'
-}
-
-/**
- * Accommodation Type Enum
- */
-export enum AccommodationType {
-  HOTEL = 'hotel',
-  HOSTEL = 'hostel',
-  APARTMENT = 'apartment',
-  RESORT = 'resort',
-  CAMPING = 'camping'
-}
-
-/**
- * Comfort Preference Enum
- */
-export enum ComfortPreference {
-  BUDGET = 'budget',
-  STANDARD = 'standard',
-  PREMIUM = 'premium',
-  LUXURY = 'luxury'
-}
-
-/**
- * Location Preference Enum
- */
-export enum LocationPreference {
-  CITY_CENTER = 'city_center',
-  NEAR_ATTRACTIONS = 'near_attractions',
-  QUIET_AREA = 'quiet_area',
-  BUDGET_FRIENDLY = 'budget_friendly'
-}
-
-/**
- * Flight Type Enum
- */
-export enum FlightType {
-  DIRECT_ONLY = 'direct_only',
-  ONE_STOP_MAX = 'one_stop_max',
-  NO_PREFERENCE = 'no_preference'
-}
-
-/**
- * Mock travel preferences checking function
- * Always returns that preferences exist
- */
-export const checkTravelPreferencesExist = async (_userId: string): Promise<boolean> => {
-  console.log('MOCK: Checking travel preferences');
-  return true;
+// Export factory functions that return lazy-loaded components
+export const getTravelPreferencesPanelComponent = () => {
+  return lazy(() => import('./components/TravelPreferencesPanel').then(module => ({
+    default: module.TravelPreferencesPanel
+  })));
 };
 
-/**
- * Mock get travel preferences function
- * Returns dummy data
- */
-export const getUserTravelPreferences = async (_userId: string): Promise<TravelPreferences> => {
-  console.log('MOCK: Getting travel preferences');
-  return {
-    destinations: ['Paris', 'Tokyo', 'New York'],
-    preferredActivities: ['Sightseeing', 'Food Tours', 'Museums'],
-    travelStyle: 'Explorer'
-  };
+// For hooks, we'll create a factory function that dynamically imports
+export const getTravelPreferencesHook = async () => {
+  const module = await import('./hooks/useTravelPreferences');
+  return module.useTravelPreferences;
 };
 
-/**
- * Mock save travel preferences function
- * Doesn't actually save anything
- */
-export const saveTravelPreferences = async (_userId: string, _preferences: TravelPreferences): Promise<void> => {
-  console.log('MOCK: Saving travel preferences');
-  // Just redirect to dashboard in mock mode
-  window.location.href = '/dashboard';
-};
+// Import and export the travel preferences service
+import { travelPreferencesService } from './services/travelPreferencesService';
+export { travelPreferencesService };
 
 /**
- * Mock update onboarding status function
- * Doesn't actually update anything in the database
+ * Export direct functions for convenience
+ * These are the actual service implementations, not mock versions
  */
-export const updateOnboardingStatus = async (_userId: string, _hasCompleted: boolean = true): Promise<void> => {
-  console.log('MOCK: Updating onboarding status to completed');
-  // In mock mode, we don't actually update any database
-  // Just store in localStorage for mock persistence
-  localStorage.setItem('hasCompletedOnboarding', 'true');
-};
+export const checkTravelPreferencesExist = travelPreferencesService.checkTravelPreferencesExist;
+export const getUserTravelPreferences = travelPreferencesService.getUserTravelPreferences;
+export const saveTravelPreferences = travelPreferencesService.saveTravelPreferences;
+export const updateOnboardingStatus = travelPreferencesService.updateOnboardingStatus;

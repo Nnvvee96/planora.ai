@@ -6,8 +6,14 @@
  */
 
 import React, { createContext, useContext, ReactNode } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import type { AppUser, AuthState, AuthResponse, UserRegistrationStatus } from '../api';
+// Import types directly from types directory instead of through API
+import { User } from '@supabase/supabase-js';
+import { AppUser, AuthState, AuthResponse } from '../types/authTypes';
+// Import UserRegistrationStatus as a value, not just a type
+import { UserRegistrationStatus } from '../types/authTypes';
+
+// Import services directly to avoid circular dependencies
+import { supabaseAuthService } from '../services/supabaseAuthService';
 
 // Define the auth context type for better type safety
 export interface AuthContextType {
@@ -42,11 +48,111 @@ interface AuthProviderProps {
  * Provides authentication state and methods to the application
  */
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  // Use our custom auth hook
-  const auth = useAuth();
+  // Implement auth logic directly here to avoid circular dependencies
+  const [authState, setAuthState] = React.useState<AuthState>({
+    isAuthenticated: false,
+    user: null,
+    loading: true,
+    error: null
+  });
+  
+  // Map Supabase user to AppUser format
+  const mapSupabaseUser = (user: User): AppUser => {
+    const metadata = user.user_metadata || {};
+    return {
+      id: user.id,
+      email: user.email || '',
+      username: metadata.preferred_username as string || metadata.name as string || user.email?.split('@')[0] || '',
+      firstName: metadata.first_name as string || metadata.given_name as string || '',
+      lastName: metadata.last_name as string || metadata.family_name as string || '',
+      avatarUrl: metadata.avatar_url as string || metadata.picture as string || '',
+      hasCompletedOnboarding: metadata.has_completed_onboarding as boolean || false
+    };
+  };
+  
+  // Check authentication status on component mount
+  React.useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const supabaseUser = await supabaseAuthService.getCurrentUser();
+        setAuthState({
+          isAuthenticated: !!supabaseUser,
+          user: supabaseUser ? mapSupabaseUser(supabaseUser) : null,
+          loading: false,
+          error: null
+        });
+      } catch (error) {
+        setAuthState({
+          isAuthenticated: false,
+          user: null,
+          loading: false,
+          error: 'Error checking authentication status'
+        });
+      }
+    };
+    
+    checkAuth();
+  }, []);
+  
+  // Auth methods
+  const signInWithGoogle = async () => {
+    try {
+      await supabaseAuthService.signInWithGoogle();
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+    }
+  };
+  
+  const logout = async () => {
+    try {
+      await supabaseAuthService.signOut();
+      setAuthState({
+        isAuthenticated: false,
+        user: null,
+        loading: false,
+        error: null
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+  
+  const handleAuthCallback = async (): Promise<AuthResponse> => {
+    try {
+      return await supabaseAuthService.handleAuthCallback();
+    } catch (error) {
+      console.error('Auth callback error:', error);
+      return {
+        success: false,
+        user: null,
+        error: 'Error handling authentication callback',
+        registrationStatus: UserRegistrationStatus.ERROR
+      };
+    }
+  };
+  
+  const updateOnboardingStatus = async (userId: string, hasCompleted: boolean = true): Promise<boolean> => {
+    try {
+      return await supabaseAuthService.updateOnboardingStatus(userId, hasCompleted);
+    } catch (error) {
+      console.error('Update onboarding status error:', error);
+      return false;
+    }
+  };
+  
+  const authContextValue: AuthContextType = {
+    isAuthenticated: authState.isAuthenticated,
+    user: authState.user,
+    loading: authState.loading,
+    error: authState.error,
+    signInWithGoogle,
+    logout,
+    handleAuthCallback,
+    updateOnboardingStatus
+  };
   
   return (
-    <AuthContext.Provider value={auth}>
+    <AuthContext.Provider value={authContextValue}>
       {children}
     </AuthContext.Provider>
   );

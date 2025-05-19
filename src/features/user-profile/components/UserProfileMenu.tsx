@@ -23,7 +23,8 @@ import {
 } from 'lucide-react';
 import { ProfileModal } from './modals/ProfileModal';
 import { SettingsModal } from './modals/SettingsModal';
-import { authService } from '../../auth/api';
+// Import auth service dynamically to avoid circular dependencies
+// We'll use a local function to handle logout instead
 import { userProfileService } from '@/features/user-profile/api';
 import { ProfileFormData, ProfileModalProps, SettingsModalProps } from '@/features/user-profile/types/profileTypes';
 
@@ -66,6 +67,9 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
     const fetchUserProfile = async () => {
       if (profileModalOpen) {
         try {
+          // Dynamically import auth service to avoid circular dependencies
+          const { authService } = await import('@/features/auth/api');
+          
           // Get current user through the auth service API
           const currentUser = await authService.getCurrentUser();
           
@@ -97,19 +101,20 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
   
   const handleLogout = async () => {
     try {
-      // Use authService through the proper API boundary for logout
-      await authService.logout();
-      console.log("User logged out");
-      
-      // Call the onLogout callback if provided
+      // If onLogout prop is provided, use it
       if (onLogout) {
         onLogout();
+        return;
       }
       
-      navigate('/login');
+      // Otherwise dynamically import the auth service
+      const { authService } = await import('@/features/auth/api');
+      await authService.logout();
     } catch (error) {
-      console.error("Error signing out:", error);
+      console.error('Error during logout:', error);
     }
+    
+    navigate('/login');
   };
   
   return (

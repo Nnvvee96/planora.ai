@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthContext } from './AuthProvider';
 import { Loader2 } from 'lucide-react';
 
 /**
@@ -14,9 +14,9 @@ import { Loader2 } from 'lucide-react';
  * Displays a loading state while processing the auth callback
  */
 export const AuthCallback: React.FC = () => {
-  const { handleAuthCallback } = useAuth();
+  const { handleAuthCallback } = useAuthContext();
   const [error, setError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
+  const [debugInfo, setDebugInfo] = useState<Record<string, unknown>>({});
   const [isProcessing, setIsProcessing] = useState(true);
   
   useEffect(() => {
