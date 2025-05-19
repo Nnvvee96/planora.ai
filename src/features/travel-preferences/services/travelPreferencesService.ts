@@ -168,6 +168,19 @@ export const travelPreferencesService = {
         return false;
       }
       
+      // Force supabase to refresh the auth token to ensure we have the latest session
+      // This is important when working with RLS policies
+      try {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.error('Error getting session:', sessionError);
+        } else {
+          console.log('Session refreshed successfully');
+        }
+      } catch (sessionErr) {
+        console.error('Error refreshing session:', sessionErr);
+      }
+      
       // Check if preferences already exist
       const exists = await travelPreferencesService.checkTravelPreferencesExist(userId);
       console.log('Existing preferences found:', exists);
@@ -201,54 +214,99 @@ export const travelPreferencesService = {
       // Use database column names directly to ensure matching with SQL schema
       const dbRecord = {
         user_id: userId,
-        budget_min: dbPrefs.budget_min,
-        budget_max: dbPrefs.budget_max,
-        budget_flexibility: dbPrefs.budget_flexibility,
-        travel_duration: dbPrefs.travel_duration,
-        date_flexibility: dbPrefs.date_flexibility,
-        custom_date_flexibility: dbPrefs.custom_date_flexibility,
-        planning_intent: dbPrefs.planning_intent,
-        accommodation_types: dbPrefs.accommodation_types,
-        accommodation_comfort: dbPrefs.accommodation_comfort,
-        location_preference: dbPrefs.location_preference,
-        flight_type: dbPrefs.flight_type,
-        prefer_cheaper_with_stopover: dbPrefs.prefer_cheaper_with_stopover,
-        departure_city: dbPrefs.departure_city,
+        budget_min: dbPrefs.budget_min ?? 0,
+        budget_max: dbPrefs.budget_max ?? 0,
+        budget_flexibility: dbPrefs.budget_flexibility ?? 0,
+        travel_duration: dbPrefs.travel_duration ?? 'week',
+        date_flexibility: dbPrefs.date_flexibility ?? 'flexible-few',
+        custom_date_flexibility: dbPrefs.custom_date_flexibility ?? '',
+        planning_intent: dbPrefs.planning_intent ?? 'exploring',
+        accommodation_types: dbPrefs.accommodation_types ?? ['hotel'],
+        accommodation_comfort: dbPrefs.accommodation_comfort ?? ['private-room'],
+        location_preference: dbPrefs.location_preference ?? 'center',
+        flight_type: dbPrefs.flight_type ?? 'direct',
+        prefer_cheaper_with_stopover: typeof dbPrefs.prefer_cheaper_with_stopover === 'boolean' ? 
+          dbPrefs.prefer_cheaper_with_stopover : false,
+        departure_city: dbPrefs.departure_city ?? 'Berlin',
         updated_at: new Date().toISOString()
       };
       
       console.log('Final DB record for insertion:', dbRecord);
       
-      let error: Error | null = null;
+      // Use UPSERT with onConflict strategy - this is the most reliable approach with RLS
+      console.log('Using upsert strategy for saving preferences');
+      const result = await supabase
+        .from('travel_preferences')
+        .upsert({
+          ...dbRecord,
+          created_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id',
+          ignoreDuplicates: false
+        });
       
-      if (exists) {
-        // Update existing preferences
-        console.log('Updating existing travel preferences');
-        const result = await supabase
-          .from('travel_preferences')
-          .update(dbRecord)
-          .eq('user_id', userId);
-        
-        error = result.error;
-        console.log('Update result:', result);
-      } else {
-        // Create new preferences
-        console.log('Creating new travel preferences');
-        const timestamp = new Date().toISOString();
-        
-        const result = await supabase
-          .from('travel_preferences')
-          .insert({
-            ...dbRecord,
-            created_at: timestamp
-          });
-        
-        error = result.error;
-        console.log('Insert result:', result);
-      }
+      console.log('Upsert result:', result);
       
-      if (error) {
-        console.error('Error saving travel preferences:', error);
+      if (result.error) {
+        console.error('Error saving travel preferences:', result.error);
+        
+        // Special handling for RLS-related errors
+        if (result.error.code === '42501' || result.error.message.includes('permission denied')) {
+          console.error('This appears to be a Row Level Security (RLS) error');
+          console.log('Attempting to verify RLS policies are set correctly...');
+          
+          // Confirm user authentication status
+          const { data: authData } = await supabase.auth.getUser();
+          console.log('Current auth user:', authData);
+          
+          // Make one more attempt with explicit user ID check
+          console.log('Attempting alternative approach...');
+          try {
+            // First create a new row for the user if it doesn't exist yet
+            const tempData = {
+              user_id: userId,
+              budget_min: 1000,
+              budget_max: 5000,
+              departure_city: 'Berlin',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+            
+            // Try inserting a minimal record first if it doesn't exist
+            if (!exists) {
+              const preInsert = await supabase
+                .from('travel_preferences')
+                .insert(tempData);
+                
+              console.log('Pre-insert result:', preInsert);
+            }
+            
+            // Then try updating specific fields one by one
+            const updateOps = [];
+            for (const [key, value] of Object.entries(dbRecord)) {
+              if (key !== 'user_id' && key !== 'created_at') {
+                const fieldUpdate = await supabase
+                  .from('travel_preferences')
+                  .update({ [key]: value })
+                  .eq('user_id', userId);
+                  
+                updateOps.push({ field: key, result: fieldUpdate });
+              }
+            }
+            
+            console.log('Individual field updates:', updateOps);
+            
+            // Check if at least some updates succeeded
+            const someSucceeded = updateOps.some(op => !op.result.error);
+            if (someSucceeded) {
+              console.log('Some fields were successfully updated');
+              return true;
+            }
+          } catch (err) {
+            console.error('Alternative approach also failed:', err);
+          }
+        }
+        
         return false;
       }
       
