@@ -119,7 +119,7 @@ export function useTravelPreferences(): UseTravelPreferencesResult {
         budgetFlexibility: data.budgetFlexibility || 0,
         travelDuration: data.travelDuration || TravelDurationType.WEEK,
         dateFlexibility: data.dateFlexibility || DateFlexibilityType.FLEXIBLE_WEEK,
-        customDateFlexibility: data.customDateFlexibility,
+        customDateFlexibility: data.customDateFlexibility || '',
         planningIntent: data.planningIntent || PlanningIntent.PLANNING,
         accommodationTypes: data.accommodationTypes || [AccommodationType.HOTEL],
         accommodationComfort: data.accommodationComfort || [ComfortPreference.PRIVATE_ROOM],
