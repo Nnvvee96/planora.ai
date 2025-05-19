@@ -2,7 +2,7 @@
  * Supabase Client Configuration
  * 
  * This module configures and exports the Supabase client for the application.
- * In development, it gracefully handles missing credentials to prevent crashes.
+ * Following Planora's architectural principles with proper separation of concerns.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -26,60 +26,74 @@ if ((!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_K
   );
 }
 
-// Initialize Supabase client with debug logging
 /**
  * Get the site URL for authentication redirects
- * This function returns the appropriate URL based on the current environment
+ * CRITICAL: Production URL must match exactly with what's registered in Google OAuth
  */
 const getSiteUrl = (): string => {
-  // In production environment, use the deployed URL
-  if (import.meta.env.PROD) return 'https://planora.vercel.app';
+  // In production, use the deployed URL
+  if (import.meta.env.PROD) {
+    return 'https://planora-ai-beta.vercel.app';
+  }
   
-  // In development, use the current origin or localhost
+  // In development, use the local origin
   return window.location.origin || 'http://localhost:5173';
 };
 
-// Create the Supabase client with proper typings for the auth options
+// Create Supabase client with the correct auth configuration for Google OAuth
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    // @ts-expect-error - redirectTo is supported in newer Supabase versions but TypeScript definitions aren't updated
-    redirectTo: `${getSiteUrl()}/auth/callback`,
+    detectSessionInUrl: true,
+    flowType: 'pkce',
+    storageKey: 'supabase-auth-token',
+    storage: window.localStorage,
+    // Ensure we get debug info when auth fails
+    debug: import.meta.env.DEV
   },
   global: {
-    // Add request logging to debug API calls
+    headers: {
+      'x-application-name': 'planora.ai'
+    },
+    // Log API requests in development for debugging
     fetch: (url, options) => {
-      console.log('Supabase API Request:', url);
+      if (import.meta.env.DEV) {
+        console.log('⚙️ Supabase Request:', url);
+      }
+      
       return fetch(url, options).then(response => {
-        // Clone the response so we can inspect it without consuming it
-        const clone = response.clone();
-        clone.text().then(text => {
-          try {
-            // Try to parse as JSON to see structured response
-            const data = JSON.parse(text);
-            console.log('Supabase API Response:', {
+        if (import.meta.env.DEV) {
+          // Clone the response so we can inspect it
+          const clone = response.clone();
+          
+          clone.text().then(text => {
+            try {
+              const data = JSON.parse(text);
+              console.log('📊 Supabase Response:', {
+                url: response.url,
+                status: response.status,
+                data
+              });
+            } catch (e) {
+              // Not valid JSON, just log the text
+              console.log('📄 Supabase Response:', {
+                url: response.url,
+                status: response.status,
+                text: text.length > 500 ? text.substring(0, 500) + '...' : text
+              });
+            }
+          }).catch(err => {
+            console.error('❌ Supabase Response Error:', {
               url: response.url,
               status: response.status,
-              data,
+              error: err instanceof Error ? err.message : String(err)
             });
-          } catch (e) {
-            // If not valid JSON, just log the text
-            console.log('Supabase API Response:', {
-              url: response.url,
-              status: response.status,
-              text: text.substring(0, 500) + (text.length > 500 ? '...' : ''),
-            });
-          }
-        }).catch(err => {
-          console.log('Supabase API Response Error:', {
-            url: response.url,
-            status: response.status,
-            error: err.message,
           });
-        });
+        }
+        
         return response;
       });
-    },
-  },
+    }
+  }
 });
