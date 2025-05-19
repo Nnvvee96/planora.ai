@@ -13,7 +13,8 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Logo } from '@/ui/atoms/Logo';
-import { UserProfileMenu } from '@/features/user-profile/api';
+import { Suspense, lazy } from 'react';
+import { getUserProfileMenuComponent } from '@/features/user-profile/api';
 import { cn } from "@/lib/utils";
 
 // Types for the chat interface
@@ -32,6 +33,9 @@ type Conversation = {
 };
 
 const Chat: React.FC = () => {
+  // Get the UserProfileMenu component using the factory function
+  const UserProfileMenu = getUserProfileMenuComponent();
+  
   // Sample conversations for the UI
   const [conversations, setConversations] = useState<Conversation[]>([
     {
@@ -306,7 +310,9 @@ Let me know your preferences, and I can tailor recommendations specifically for 
             <Home className="h-4 w-4" />
             Back to Dashboard
           </Link>
-          <UserProfileMenu userName="Sarah" mini={true} />
+          <Suspense fallback={<div className="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>}>
+            <UserProfileMenu userName="Sarah" mini={true} />
+          </Suspense>
         </div>
       </aside>
       
