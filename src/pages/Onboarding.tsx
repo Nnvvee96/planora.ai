@@ -41,7 +41,7 @@ import {
   FlightType
 } from '@/features/travel-preferences/api';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { authService } from '@/features/auth/api';
+import { getAuthService, AuthService } from '@/features/auth/api';
 import * as z from 'zod';
 
 // Extended User type to handle user metadata
@@ -73,8 +73,13 @@ interface OnboardingFormData {
 const Onboarding = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  // Initialize auth service using factory function
+  const [authService, setAuthService] = useState<AuthService | null>(null);
   
-  // Check if we're coming from dashboard for preferences modification
+  useEffect(() => {
+    setAuthService(getAuthService());
+  }, []);
+
   const isModifyingPreferences = location.state?.fromDashboard === true;
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -119,7 +124,7 @@ const Onboarding = () => {
     };
     
     loadUserData();
-  }, [form]); // Added form as dependency to properly handle form updates
+  }, [form, authService]); // Added form and authService as dependencies
 
   const validateCurrentStep = () => {
     // Always pass step 0 (budget range) and step 1 (budget flexibility)
@@ -220,13 +225,35 @@ const Onboarding = () => {
         // Use the correct property name from the interface (budgetFlexibility not budgetTolerance)
         budgetFlexibility: Number(formData.budgetTolerance) || 10,
         travelDuration: travelDurationData,
-        dateFlexibility: formData.dateFlexibility as DateFlexibilityType || 'flexible-few',
+        // Map the formData value to a valid DateFlexibilityType enum value
+        dateFlexibility: (formData.dateFlexibility && [
+          DateFlexibilityType.FLEXIBLE_FEW,
+          DateFlexibilityType.FLEXIBLE_WEEK,
+          DateFlexibilityType.FIXED,
+          DateFlexibilityType.VERY_FLEXIBLE
+        ].includes(formData.dateFlexibility as DateFlexibilityType))
+          ? (formData.dateFlexibility as DateFlexibilityType)
+          : DateFlexibilityType.FLEXIBLE_FEW,
         customDateFlexibility: formData.customDateFlexibility || '',
         planningIntent: formData.planningIntent as PlanningIntent,
         accommodationTypes: formData.accommodationTypes as AccommodationType[] || [],
         accommodationComfort: formData.accommodationComfort as ComfortPreference[] || [],
-        locationPreference: formData.locationPreference as LocationPreference || 'anywhere',
-        flightType: formData.flightType as FlightType || 'direct',
+        // Map the formData value to a valid LocationPreference enum value using the correct enum values
+        locationPreference: (formData.locationPreference && [
+          LocationPreference.ANYWHERE,
+          LocationPreference.CENTER,
+          LocationPreference.NEAR,
+          LocationPreference.OUTSKIRTS
+        ].includes(formData.locationPreference as LocationPreference))
+          ? (formData.locationPreference as LocationPreference)
+          : LocationPreference.ANYWHERE,
+        // Map the formData value to a valid FlightType enum value
+        flightType: (formData.flightType && [
+          FlightType.DIRECT,
+          FlightType.ANY
+        ].includes(formData.flightType as FlightType))
+          ? (formData.flightType as FlightType)
+          : FlightType.DIRECT,
         preferCheaperWithStopover: Boolean(formData.preferCheaperWithStopover),
         departureCity: formData.departureLocation || ''
       };

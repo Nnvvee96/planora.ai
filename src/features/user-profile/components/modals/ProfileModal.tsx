@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { DatePickerInput } from '@/components/ui/DatePickerInput';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { authService } from '../../../auth/api';
+import { getAuthService, AuthService } from '@/features/auth/api';
 import { userProfileService } from '@/features/user-profile/api';
 
 const profileSchema = z.object({
@@ -39,6 +39,13 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
   onProfileUpdate 
 }) => {
   const [loading, setLoading] = useState(false);
+  // Initialize auth service using factory function
+  const [authService, setAuthService] = useState<AuthService | null>(null);
+  
+  // Load auth service on component mount
+  useEffect(() => {
+    setAuthService(getAuthService());
+  }, []);
   
   // Initialize form with empty values - we'll populate them when the modal opens
   const form = useForm<ProfileFormValues>({
@@ -87,7 +94,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
     };
     
     fetchUserData();
-  }, [open, firstName, lastName, userEmail, birthdate, userName, form]);
+  }, [open, firstName, lastName, userEmail, birthdate, userName, form, authService]);
   
   const onSubmit = async (data: ProfileFormValues) => {
     try {

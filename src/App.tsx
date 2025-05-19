@@ -6,9 +6,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Provider } from 'react-redux';
 import { store } from './store/store';
+import { Suspense, lazy } from 'react';
 
-// Import our auth API components
-import { AuthProvider, ProtectedRoute, AuthCallback } from '@/features/auth/api';
+// Import our auth API components using factory functions
+import { 
+  getAuthProviderComponent,
+  getProtectedRouteComponent,
+  getAuthCallbackComponent
+} from '@/features/auth/api';
 
 // Import error boundary component
 import { ErrorBoundary } from '@/ui/organisms/ErrorBoundary';
@@ -49,13 +54,28 @@ const queryClient = new QueryClient();
  * Main App component
  * Integrates authentication and routing
  */
-const App = () => (
+const App = () => {
+  // Initialize lazy-loaded auth components
+  const AuthProvider = getAuthProviderComponent();
+  const ProtectedRoute = getProtectedRouteComponent();
+  const AuthCallback = getAuthCallbackComponent();
+  
+  return (
   <ErrorBoundary>
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <AuthProvider>
-            <TooltipProvider>
+          <Suspense fallback={<div className="flex items-center justify-center h-screen bg-planora-background-dark">
+            <div className="p-6 rounded-lg bg-planora-background-light border border-planora-accent-purple/20 shadow-lg">
+              <div className="animate-pulse flex flex-col items-center gap-4">
+                <div className="h-10 w-40 bg-planora-accent-purple/20 rounded"></div>
+                <div className="h-6 w-56 bg-planora-accent-purple/20 rounded"></div>
+                <div className="h-4 w-36 bg-planora-accent-purple/20 rounded"></div>
+              </div>
+            </div>
+          </div>}>
+            <AuthProvider>
+              <TooltipProvider>
               <Toaster />
               <Sonner />
               <DebugComponent />
@@ -64,75 +84,99 @@ const App = () => (
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route path="/auth/callback" element={<Suspense fallback={<div className="flex items-center justify-center h-screen">Processing authentication...</div>}><AuthCallback /></Suspense>} />
                 <Route path="/debug" element={<DebugScreen />} />
                 
                 {/* Protected routes that require authentication */}
                 <Route path="/onboarding" element={
-                  <ProtectedRoute>
-                    <Onboarding />
-                  </ProtectedRoute>
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading onboarding...</div>}>
+                    <ProtectedRoute>
+                      <Onboarding />
+                    </ProtectedRoute>
+                  </Suspense>
                 } />
                 <Route path="/preferences" element={
-                  <ProtectedRoute>
-                    <TravelPreferencesPage />
-                  </ProtectedRoute>
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading preferences...</div>}>
+                    <ProtectedRoute>
+                      <TravelPreferencesPage />
+                    </ProtectedRoute>
+                  </Suspense>
                 } />
                 <Route path="/dashboard" element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading dashboard...</div>}>
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  </Suspense>
                 } />
                 <Route path="/chat" element={
-                  <ProtectedRoute>
-                    <Chat />
-                  </ProtectedRoute>
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading chat...</div>}>
+                    <ProtectedRoute>
+                      <Chat />
+                    </ProtectedRoute>
+                  </Suspense>
                 } />
                 <Route path="/profile" element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading profile...</div>}>
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  </Suspense>
                 } />
                 <Route path="/saved-trips" element={
-                  <ProtectedRoute>
-                    <SavedTrips />
-                  </ProtectedRoute>
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading saved trips...</div>}>
+                    <ProtectedRoute>
+                      <SavedTrips />
+                    </ProtectedRoute>
+                  </Suspense>
                 } />
                 <Route path="/billing" element={
-                  <ProtectedRoute>
-                    <Billing />
-                  </ProtectedRoute>
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading billing...</div>}>
+                    <ProtectedRoute>
+                      <Billing />
+                    </ProtectedRoute>
+                  </Suspense>
                 } />
                 <Route path="/settings" element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading settings...</div>}>
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  </Suspense>
                 } />
                 <Route path="/settings/notifications" element={
-                  <ProtectedRoute>
-                    <Notifications />
-                  </ProtectedRoute>
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading notifications settings...</div>}>
+                    <ProtectedRoute>
+                      <Notifications />
+                    </ProtectedRoute>
+                  </Suspense>
                 } />
                 <Route path="/settings/privacy" element={
-                  <ProtectedRoute>
-                    <PrivacySecurity />
-                  </ProtectedRoute>
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading privacy settings...</div>}>
+                    <ProtectedRoute>
+                      <PrivacySecurity />
+                    </ProtectedRoute>
+                  </Suspense>
                 } />
                 <Route path="/support" element={
-                  <ProtectedRoute>
-                    <Support />
-                  </ProtectedRoute>
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading support...</div>}>
+                    <ProtectedRoute>
+                      <Support />
+                    </ProtectedRoute>
+                  </Suspense>
                 } />
                 
                 {/* Catch-all route */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </TooltipProvider>
-          </AuthProvider>
+            </AuthProvider>
+          </Suspense>
         </BrowserRouter>
       </QueryClientProvider>
     </Provider>
   </ErrorBoundary>
-);
+  );
+};
 
 export { App };

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/ui/atoms/Button';
 import { Input } from '@/ui/atoms/Input';
@@ -15,7 +15,10 @@ import { Apple } from 'lucide-react';
 import { DatePickerInput } from "@/components/ui/DatePickerInput";
 import { Footer } from '@/ui/organisms/Footer';
 import { useToast } from "@/components/ui/use-toast";
-import { authService, RegisterData } from "@/features/auth/api";
+// Import types directly from types directory
+import { RegisterData } from "@/features/auth/types/authTypes";
+// Import factory function for auth service
+import { getAuthService, AuthService } from "@/features/auth/api";
 
 // List of countries for the dropdown
 const countries = [
@@ -54,9 +57,16 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const Register = () => {
+function Register() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  // Initialize auth service using factory function
+  const [authService, setAuthService] = useState<AuthService | null>(null);
+  
+  // Load auth service on component mount
+  useEffect(() => {
+    setAuthService(getAuthService());
+  }, []);
   const [formStep, setFormStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

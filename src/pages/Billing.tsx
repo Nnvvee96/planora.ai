@@ -1,14 +1,21 @@
 
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
-import { authService } from '@/features/auth/api';
+import { getAuthService, AuthService } from '@/features/auth/api';
 
 const Billing: React.FC = () => {
   const navigate = useNavigate();
+  // Initialize auth service using factory function
+  const [authService, setAuthService] = useState<AuthService | null>(null);
+  
+  // Load auth service on component mount
+  useEffect(() => {
+    setAuthService(getAuthService());
+  }, [authService]);
   
   // Redirect logic for new Google sign-ins
   useEffect(() => {
@@ -26,15 +33,15 @@ const Billing: React.FC = () => {
         
         // The user object from authService already has the mapped hasCompletedOnboarding from Supabase metadata
         const hasCompletedOnboarding = user.hasCompletedOnboarding === true;
-        const hasSuabaseMetadataOnboarding = user.user_metadata?.has_completed_onboarding === true;
+        // Note: user_metadata is not directly available in AppUser type, it's already mapped to hasCompletedOnboarding
+        const hasSuabaseMetadataOnboarding = hasCompletedOnboarding;
         
         console.log('Billing page user check:', { 
           email: user.email,
           id: user.id,
           hasCompletedInitialFlow,
           hasCompletedOnboarding,
-          hasSuabaseMetadataOnboarding,
-          user_metadata: user.user_metadata || {} 
+          hasSuabaseMetadataOnboarding
         });
         
         // For Google sign-ins, we prioritize Supabase metadata over localStorage
@@ -63,7 +70,7 @@ const Billing: React.FC = () => {
     };
     
     checkUserAndRedirect();
-  }, [navigate]);
+  }, [navigate, authService]);
   
   // Sample subscription data
   const currentPlan = "Professional";

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { getAuthService } from '@/features/auth/api';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -67,8 +68,8 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
     const fetchUserProfile = async () => {
       if (profileModalOpen) {
         try {
-          // Dynamically import auth service to avoid circular dependencies
-          const { authService } = await import('@/features/auth/api');
+          // Get auth service using factory function
+          const authService = getAuthService();
           
           // Get current user through the auth service API
           const currentUser = await authService.getCurrentUser();
@@ -107,8 +108,8 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
         return;
       }
       
-      // Otherwise dynamically import the auth service
-      const { authService } = await import('@/features/auth/api');
+      // Otherwise get auth service using factory function
+      const authService = getAuthService();
       await authService.logout();
     } catch (error) {
       console.error('Error during logout:', error);

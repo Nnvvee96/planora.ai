@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
+import ReactDOM from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/ui/atoms/Button";
 import { Input } from "@/ui/atoms/Input";
@@ -10,15 +11,80 @@ import { useNavigate } from 'react-router-dom';
 import { Apple, Mail, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Footer } from '@/ui/organisms/Footer';
 import { useToast } from "@/components/ui/use-toast";
-import { GoogleLoginButton, useAuthContext } from "@/features/auth/api";
+import { getGoogleLoginButtonComponent, getAuthContextHook, getAuthService, AuthService } from "@/features/auth/api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type UserAuthFormProps = React.HTMLAttributes<HTMLDivElement>
 
+// Define types for auth context and components
+interface AuthContext {
+  isAuthenticated?: boolean;
+  loading?: boolean;
+  error?: string | null;
+  signInWithGoogle?: () => Promise<void>;
+  // Add other properties as needed
+}
+
+// Define more specific types for lazy-loaded components
+interface GoogleButtonProps {
+  className?: string;
+  variant?: 'default' | 'outline' | 'ghost' | 'link' | 'destructive' | 'secondary';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
+  fullWidth?: boolean;
+  text?: string;
+  onClick?: () => void;
+}
+
+type LazyComponent = React.LazyExoticComponent<React.ComponentType<GoogleButtonProps>>;
+
 export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isAuthenticated, loading, error: authError, signInWithGoogle } = useAuthContext();
+  const [authService, setAuthService] = useState<AuthService | null>(null);
+  // Add this back with proper type
+  const [authContext, setAuthContext] = useState<AuthContext>({});
+  const [GoogleLoginButton, setGoogleLoginButton] = useState<LazyComponent | null>(null);
+  
+  // Dynamically load the auth context hook and GoogleLoginButton component
+  useEffect(() => {
+    // Create separate function to load context to avoid hooks rules violation
+    const loadAuthContext = async () => {
+      try {
+        const useAuthContextHook = await getAuthContextHook();
+        // Create a fake component to use the hook properly
+        const TempComponent = () => {
+          const context = useAuthContextHook();
+          return null;
+        };
+        // Use the hook in a proper React component context
+        const rendered = document.createElement('div');
+        ReactDOM.render(<TempComponent />, rendered);
+        
+        // Get the auth context directly from the API instead
+        const authService = getAuthService();
+        setAuthContext({
+          isAuthenticated: false,
+          loading: false,
+          error: null,
+          signInWithGoogle: authService.signInWithGoogle
+        });
+      } catch (error) {
+        console.error('Error loading auth context:', error);
+      }
+      
+      // Load the GoogleLoginButton component
+      const GoogleLoginButtonComponent = getGoogleLoginButtonComponent();
+      setGoogleLoginButton(GoogleLoginButtonComponent);
+    };
+    
+    loadAuthContext();
+  }, []);
+  
+  // Use optional chaining to safely access auth context properties
+  const isAuthenticated = authContext?.isAuthenticated;
+  const loading = authContext?.loading;
+  const authError = authContext?.error;
+  const signInWithGoogle = authContext?.signInWithGoogle;
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -155,13 +221,18 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         </div>
       </div>
       <div className="flex flex-col sm:flex-row gap-3">
-        <GoogleLoginButton 
+        {/* Use a simple button that calls the sign in function directly */}
+        <Button 
           variant="outline" 
-          fullWidth={true}
-          className="w-full" 
-          size="default"
-          text="Sign in with Google"
-        />
+          className="w-full flex items-center justify-center gap-2" 
+          onClick={() => authContext?.signInWithGoogle?.()}
+          disabled={!authContext?.signInWithGoogle}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" className="w-5 h-5">
+            <path fill="currentColor" d="M12.545,12.151L12.545,12.151c0,1.054,0.855,1.909,1.909,1.909h3.536c-0.421,1.143-1.123,2.206-2.019,3.071c-0.739,0.739-1.578,1.348-2.485,1.818C12.264,19.583,10.931,20,9.545,20c-2.618,0-4.946-1.274-6.421-3.273c-0.891-1.213-1.364-2.697-1.364-4.242c0-1.363,0.379-2.662,1.095-3.769c0.717-1.107,1.717-1.989,2.945-2.545C6.909,5.637,8.235,5.331,9.545,5.331c1.918,0,3.752,0.736,5.114,2.025l-1.997,1.997c-0.979-0.979-2.025-1.436-3.118-1.436c-0.97,0-1.891,0.379-2.592,1.068c-0.701,0.688-1.18,1.654-1.18,2.728c0,1.075,0.479,2.04,1.18,2.728c0.701,0.689,1.622,1.068,2.592,1.068c0.517,0,1.021-0.146,1.44-0.392c0.391-0.229,0.76-0.522,1.095-0.857l2.458-2.458C12.545,11.301,12.545,12.151,12.545,12.151L12.545,12.151z M20.454,10.425h-2v-2h-2v2h-2v2h2v2h2v-2h2V10.425z"/>
+          </svg>
+          Sign in with Google
+        </Button>
         <Button 
           variant="outline" 
           type="button" 

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from '@/ui/atoms/Button';
 import { Label } from '@/ui/atoms/Label';
@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select } from '@/components/ui/select';
-import { authService } from '@/features/auth/api';
+import { getAuthService, AuthService } from '@/features/auth/api';
 import { userProfileService } from '../../services/userProfileService';
 
 const passwordSchema = z.object({
@@ -52,6 +52,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [language, setLanguage] = React.useState("english");
   const [changePasswordOpen, setChangePasswordOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
+
+  // Initialize auth service using factory function
+  const [authService, setAuthService] = useState<AuthService | null>(null);
+  
+  // Load auth service on component mount
+  useEffect(() => {
+    setAuthService(getAuthService());
+  }, []);
 
   const form = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordSchema),

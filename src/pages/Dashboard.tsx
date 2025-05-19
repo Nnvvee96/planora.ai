@@ -23,12 +23,19 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Progress } from '@/components/ui/progress';
 import { useNavigate, Link } from 'react-router-dom';
 import { Footer } from '@/ui/organisms/Footer';
-import { authService } from '@/features/auth/api';
+import { getAuthService, AuthService } from '@/features/auth/api';
 import { AppUser } from '@/features/auth/types/authTypes';
 import { userProfileService, UserProfile } from '@/features/user-profile/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  // Initialize auth service using factory function
+  const [authService, setAuthService] = useState<AuthService | null>(null);
+  
+  // Load auth service on component mount
+  useEffect(() => {
+    setAuthService(getAuthService());
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,7 +73,7 @@ const Dashboard = () => {
     };
     
     loadUserData();
-  }, []);
+  }, [authService]);
   
   // Get user's name from various sources in priority order
   const userFirstName = user?.firstName || userProfile?.firstName || '';

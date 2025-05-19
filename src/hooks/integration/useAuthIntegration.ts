@@ -7,8 +7,12 @@
  */
 
 // Import only from the feature's public API
-import { authService, User } from '@/features/auth/api';
+import { getAuthService, AuthService } from '@/features/auth/api';
+import { AppUser } from '@/features/auth/types/authTypes';
 import { useState, useEffect } from 'react';
+
+// For backward compatibility
+type User = AppUser;
 
 /**
  * Mock useAuthIntegration hook
@@ -20,18 +24,33 @@ export function useAuthIntegration() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  // Simulate fetching user on mount
+  // Initialize auth service
+  const [authService, setAuthService] = useState<AuthService | null>(null);
+  
+  // Load auth service on component mount
   useEffect(() => {
+    setAuthService(getAuthService());
+  }, []);
+
+  // Fetch user after auth service is initialized
+  useEffect(() => {
+    if (!authService) return;
+    
     const fetchUser = async () => {
       setLoading(true);
-      const userData = await authService.getCurrentUser();
-      setUser(userData);
-      setIsAuthenticated(!!userData);
-      setLoading(false);
+      try {
+        const userData = await authService.getCurrentUser();
+        setUser(userData);
+        setIsAuthenticated(!!userData);
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+      } finally {
+        setLoading(false);
+      }
     };
     
     fetchUser();
-  }, []);
+  }, [authService]);
   
   // Mock logout function
   const logout = async () => {

@@ -10,7 +10,8 @@ import { supabase } from '@/lib/supabase';
 import { 
   AuthResponse, 
   UserRegistrationStatus, 
-  GoogleAuthCredentials 
+  GoogleAuthCredentials,
+  RegisterData
 } from '../types/authTypes';
 
 /**
@@ -287,25 +288,10 @@ export const supabaseAuthService = {
     try {
       console.log(`Updating onboarding status for user ${userId} to ${hasCompleted}`);
       
-      // First, update the Supabase Auth metadata
-      try {
-        const { error: metadataError } = await supabase.auth.updateUser({
-          data: { 
-            has_completed_onboarding: hasCompleted,
-            onboarding_completed_at: hasCompleted ? new Date().toISOString() : null
-          }
-        });
-        
-        if (metadataError) {
-          console.warn('Could not update auth metadata, but will still try to update profile:', metadataError);
-        } else {
-          console.log('Successfully updated auth metadata with onboarding status');
-        }
-      } catch (metaErr) {
-        console.warn('Failed to update auth metadata, continuing with profile update:', metaErr);
-      }
+      // First, update user metadata in auth.users
+      await supabaseAuthService.updateUserMetadata({ hasCompletedOnboarding: hasCompleted });
       
-      // Then update the profile record
+      // Then, update the profile record
       const { error } = await supabase
         .from('profiles')
         .update({ 
@@ -324,6 +310,79 @@ export const supabaseAuthService = {
     } catch (err) {
       console.error('Error updating onboarding status:', err);
       return false;
+    }
+  },
+
+  /**
+   * Register a new user with email and password
+   * @param data Registration data including email, password, and profile information
+   */
+  register: async (data: RegisterData): Promise<void> => {
+    try {
+      const { email, password, firstName, lastName } = data;
+      
+      // Create the user with email and password
+      const { error, data: authData } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            firstName,
+            lastName,
+            hasCompletedOnboarding: false
+          }
+        }
+      });
+      
+      if (error) {
+        console.error('Error registering user:', error);
+        throw error;
+      }
+      
+      if (!authData.user) {
+        throw new Error('User registration failed');
+      }
+      
+      // Additional profile creation will happen via Supabase triggers
+      console.log('User registered successfully');
+    } catch (err) {
+      console.error('Failed to register user:', err);
+      throw err;
+    }
+  },
+
+  /**
+   * Update user password
+   * @param currentPassword The current password for verification
+   * @param newPassword The new password to set
+   */
+  updatePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    try {
+      // First verify the current password by attempting a sign-in
+      const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
+        email: (await supabaseAuthService.getCurrentUser())?.email || '',
+        password: currentPassword
+      });
+      
+      if (signInError || !user) {
+        console.error('Error verifying current password:', signInError);
+        throw new Error('Current password is incorrect');
+      }
+      
+      // If current password is verified, update to the new password
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      
+      if (error) {
+        console.error('Error updating password:', error);
+        throw error;
+      }
+      
+      console.log('Password updated successfully');
+    } catch (err) {
+      console.error('Failed to update password:', err);
+      throw err;
     }
   }
 };

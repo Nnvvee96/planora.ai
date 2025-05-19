@@ -69,3 +69,21 @@ export interface SessionInfo {
   expiresAt: number | null;
   user: User | null;
 }
+
+/**
+ * Registration data interface
+ * Used for user registration process
+ */
+export interface RegisterData {
+  email: string;
+  password: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  metadata?: {
+    city?: string;
+    country?: string;
+    birthdate?: string;
+    [key: string]: unknown;
+  };
+}
