@@ -61,26 +61,39 @@ const extractNameFromGoogleData = (user: { id: string; email?: string; user_meta
     const nameParts = (user_metadata.name as string).split(' ');
     firstName = nameParts[0] || '';
     lastName = nameParts.slice(1).join(' ') || '';
+  } else if (typeof user_metadata?.full_name === 'string') {
+    // Name provided as a single string under full_name, try to split it
+    const nameParts = (user_metadata.full_name as string).split(' ');
+    firstName = nameParts[0] || '';
+    lastName = nameParts.slice(1).join(' ') || '';
   } else {
-    // Try different field variations
-    firstName = (user_metadata?.given_name as string) || (user_metadata?.first_name as string) || '';
-    lastName = (user_metadata?.family_name as string) || (user_metadata?.last_name as string) || '';
+    // Try to extract from specific name fields
+    firstName = (user_metadata?.given_name as string) || 
+                (user_metadata?.first_name as string) || 
+                (user_metadata?.display_name as string) || '';
+                
+    lastName = (user_metadata?.family_name as string) || 
+               (user_metadata?.last_name as string) || '';
   }
   
-  // If still empty and we have email, extract username part as fallback
-  if (!firstName && user.email) {
+  // Fall back to email if name is still empty
+  if (!firstName && !lastName && user.email) {
+    // Extract username part from email and format it
     const emailParts = user.email.split('@');
-    // Fix the escape character issue by using a proper regex
-    const nameParts = emailParts[0].split(/[.|_|-]/);
-    if (nameParts.length > 1) {
-      firstName = nameParts[0] || '';
-      lastName = nameParts.slice(1).join(' ') || '';
+    const username = emailParts[0];
+    // Format username: replace symbols with spaces and capitalize each part
+    const formattedParts = username.split(/[._-]/).map(part => 
+      part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+    );
+    
+    if (formattedParts.length > 1) {
+      firstName = formattedParts[0];
+      lastName = formattedParts.slice(1).join(' ');
     } else {
-      firstName = emailParts[0] || '';
+      firstName = formattedParts[0] || '';
     }
   }
   
-  console.log('Extracted name info:', { firstName, lastName });
   return { firstName, lastName };
 };
 
@@ -89,34 +102,39 @@ const extractNameFromGoogleData = (user: { id: string; email?: string; user_meta
  */
 export const userProfileService = {
   /**
-   * Update profile with Google user data
-   * @param user Supabase user object
+   * Update a user's profile with Google authentication data
+   * @param user Supabase user with metadata
    * @returns True if update was successful
    */
   updateProfileWithGoogleData: async (user: { id: string; email?: string; user_metadata?: Record<string, unknown> }): Promise<boolean> => {
     try {
       if (!user || !user.id) {
-        console.error('Cannot update profile: Invalid user object');
+        console.error('Cannot update profile with Google data: Invalid user');
         return false;
       }
       
-      console.log('Updating profile with Google data for user:', user.id);
+      const { user_metadata } = user;
       
-      // Extract name from Google data
+      // Extract name information
       const { firstName, lastName } = extractNameFromGoogleData(user);
       
-      // Check if profile exists
+      // Current timestamp for created/updated
+      const timestamp = new Date().toISOString();
+      
+      // Check if user already has a profile
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       
-      const timestamp = new Date().toISOString();
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error checking for existing profile:', error);
+      }
       
-      if (!data || error) {
-        // Profile doesn't exist, create it
-        console.log('Profile not found, creating new profile with Google data');
+      if (!data) {
+        // No profile exists, create one
+        console.log('Creating new profile for user:', user.id);
         
         const { error: insertError } = await supabase
           .from('profiles')
@@ -125,50 +143,57 @@ export const userProfileService = {
             first_name: firstName,
             last_name: lastName,
             email: user.email,
-            avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || '',
+            avatar_url: (user_metadata?.avatar_url as string) || (user_metadata?.picture as string) || '',
             has_completed_onboarding: false,
             created_at: timestamp,
             updated_at: timestamp
           });
           
         if (insertError) {
-          console.error('Error creating profile with Google data:', insertError);
+          console.error('Error creating profile:', insertError);
           return false;
         }
+        
+        return true;
       } else {
-        // Profile exists, update it if first/last name are empty
-        console.log('Existing profile found, updating with Google data if needed');
-        
-        // Only update if current values are empty
-        const updates: Record<string, unknown> = {
-          updated_at: timestamp
-        };
-        
-        if (!data.first_name && firstName) {
-          updates.first_name = firstName;
-        }
-        
-        if (!data.last_name && lastName) {
-          updates.last_name = lastName;
-        }
-        
-        if (Object.keys(updates).length > 1) { // If we have more than just updated_at
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update(updates)
-            .eq('id', user.id);
-            
-          if (updateError) {
-            console.error('Error updating profile with Google data:', updateError);
-            return false;
+        // Profile exists, update if name fields are empty
+        if (!data.first_name || !data.last_name) {
+          console.log('Updating existing profile with Google data for user:', user.id);
+          
+          const updates: Record<string, unknown> = {
+            updated_at: timestamp
+          };
+          
+          if (!data.first_name && firstName) {
+            updates.first_name = firstName;
+          }
+          
+          if (!data.last_name && lastName) {
+            updates.last_name = lastName;
+          }
+          
+          if (!data.avatar_url) {
+            updates.avatar_url = (user_metadata?.avatar_url as string) || 
+                                 (user_metadata?.picture as string) || '';
+          }
+          
+          if (Object.keys(updates).length > 1) {
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update(updates)
+              .eq('id', user.id);
+              
+            if (updateError) {
+              console.error('Error updating profile with Google data:', updateError);
+              return false;
+            }
           }
         }
+        
+        return true;
       }
-      
-      console.log('Successfully updated profile with Google data');
-      return true;
-    } catch (err) {
-      console.error('Error updating profile with Google data:', err);
+    } catch (error) {
+      console.error('Error updating profile with Google data:', error);
       return false;
     }
   },
@@ -180,13 +205,15 @@ export const userProfileService = {
    */
   checkProfileExists: async (userId: string): Promise<boolean> => {
     try {
+      if (!userId) return false;
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('id')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
         console.error('Error checking profile existence:', error);
         return false;
       }
@@ -202,85 +229,170 @@ export const userProfileService = {
    * Ensure a profile exists for a user
    * Creates a profile if one doesn't exist
    * @param userId The user ID to check/create profile for
-   * @returns True if profile exists or was created
+   * @returns True if the profile exists or was created successfully
    */
   ensureProfileExists: async (userId: string): Promise<boolean> => {
-    // First check if profile exists
-    const exists = await userProfileService.checkProfileExists(userId);
-    if (exists) return true;
-    
-    // Get user data from auth
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      console.error('Error fetching user data:', userError);
+    try {
+      if (!userId) return false;
+      
+      // Check if profile exists
+      const exists = await userProfileService.checkProfileExists(userId);
+      
+      if (exists) {
+        return true;
+      }
+      
+      // Get user data from auth
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user || user.id !== userId) {
+        console.error('Error getting user for profile creation:', userError);
+        return false;
+      }
+      
+      // Create profile using Google data if available
+      return await userProfileService.updateProfileWithGoogleData(user);
+    } catch (error) {
+      console.error('Error ensuring profile exists:', error);
       return false;
     }
-    
-    // Create new profile with user data
-    const { user_metadata } = user;
-    
-    const { error } = await supabase
-      .from('profiles')
-      .insert({
-        id: userId,
-        first_name: user_metadata?.given_name || '',
-        last_name: user_metadata?.family_name || '',
-        email: user.email,
-        avatar_url: user_metadata?.avatar_url || user_metadata?.picture || '',
-        has_completed_onboarding: false
-      });
-    
-    if (error) {
-      console.error('Error creating user profile:', error);
-      return false;
-    }
-    
-    return true;
   },
   
   /**
-   * Get a user's profile
-   * @param userId The user ID to get profile for
-   * @returns The user profile or null if not found
+   * Get user profile by ID
+   * @param userId User ID to get profile for
    */
   getUserProfile: async (userId: string): Promise<UserProfile | null> => {
     try {
+      console.log('Getting user profile for user ID:', userId);
+      
+      // First attempt - try to get the profile using maybeSingle to avoid 406 errors
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        return null;
+      if (data) {
+        // We have profile data, return it
+        return mapDbProfileToUserProfile(data as DbUserProfile);
       }
       
-      return mapDbProfileToUserProfile(data as DbUserProfile);
+      if (error) {
+        console.error('Error fetching user profile from profiles table:', error);
+        // Continue to fallback methods
+      }
+      
+      // First fallback - try to get user from auth metadata
+      console.log('Profile not found in database, trying auth metadata fallback');
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user && user.id === userId) {
+        // Create a synthetic profile from auth data
+        console.log('Creating synthetic profile from auth metadata');
+        const { user_metadata } = user;
+        
+        // Extract name information with proper fallbacks
+        const nameInfo = extractNameFromGoogleData(user);
+        
+        // Create a profile object
+        const syntheticProfile: UserProfile = {
+          id: user.id,
+          firstName: nameInfo.firstName || '',
+          lastName: nameInfo.lastName || '',
+          email: user.email || '',
+          avatarUrl: (user_metadata?.avatar_url as string) || 
+                    (user_metadata?.picture as string) || '',
+          hasCompletedOnboarding: (user_metadata?.has_completed_onboarding as boolean) || false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        
+        // Try to save this profile to the database for future use
+        try {
+          await userProfileService.createUserProfile(syntheticProfile);
+        } catch (saveError) {
+          console.warn('Non-fatal error saving synthetic profile:', saveError);
+        }
+        
+        return syntheticProfile;
+      }
+      
+      console.warn('No profile found for user ID after all fallbacks:', userId);
+      return null;
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Error getting user profile:', error);
       return null;
     }
   },
   
   /**
-   * Update a user's profile
-   * @param userId The user ID to update profile for
-   * @param profileData The profile data to update
-   * @returns True if update was successful
+   * Create a new user profile in Supabase
+   * @param profileData Complete profile data to create
+   */
+  createUserProfile: async (profileData: UserProfile): Promise<boolean> => {
+    try {
+      console.log('Creating new user profile for ID:', profileData.id);
+      
+      if (!profileData.id) {
+        console.error('Cannot create user profile: Missing user ID');
+        return false;
+      }
+      
+      // First check if profile already exists
+      const { data } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', profileData.id)
+        .maybeSingle();
+        
+      if (data) {
+        console.log('Profile already exists, using update instead');
+        return userProfileService.updateUserProfile(profileData.id, profileData);
+      }
+      
+      // Create new profile
+      const { error } = await supabase
+        .from('profiles')
+        .insert({
+          ...mapUserProfileToDbProfile(profileData),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      
+      if (error) {
+        console.error('Error creating user profile:', error);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error creating user profile:', error);
+      return false;
+    }
+  },
+  
+  /**
+   * Update user profile in Supabase
+   * @param userId User ID to update profile for
+   * @param profileData Profile data to update
    */
   updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Promise<boolean> => {
     try {
-      // Convert profile data to database format
-      const dbProfileData = mapUserProfileToDbProfile(profileData);
+      console.log('Updating user profile for ID:', userId);
+      console.log('Profile data:', profileData);
       
-      // Add updated timestamp
-      dbProfileData.updated_at = new Date().toISOString();
+      if (!userId) {
+        console.error('Cannot update user profile: Missing user ID');
+        return false;
+      }
       
       const { error } = await supabase
         .from('profiles')
-        .update(dbProfileData)
+        .update({
+          ...mapUserProfileToDbProfile(profileData),
+          updated_at: new Date().toISOString()
+        })
         .eq('id', userId);
       
       if (error) {
@@ -292,6 +404,25 @@ export const userProfileService = {
     } catch (error) {
       console.error('Error updating user profile:', error);
       return false;
+    }
+  },
+  
+  /**
+   * Get the current user and their profile
+   */
+  getCurrentUser: async (): Promise<UserProfile | null> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.warn('No authenticated user found');
+        return null;
+      }
+      
+      return userProfileService.getUserProfile(user.id);
+    } catch (error) {
+      console.error('Error getting current user profile:', error);
+      return null;
     }
   }
 };
