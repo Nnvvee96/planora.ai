@@ -165,15 +165,39 @@ export const supabaseAuthService = {
             lastName = (user_metadata.family_name as string) || (user_metadata.last_name as string) || '';
           }
           
-          // If still empty and we have email, extract username part as fallback
-          if (!firstName && user.email) {
+          // If still empty and we have email, use full email or properly format email parts
+          if ((!firstName || !lastName) && user.email) {
+            // First try to capitalize parts of the email username to make it look like a name
             const emailParts = user.email.split('@');
             const nameParts = emailParts[0].split(/[.|_|-]/);
+            
             if (nameParts.length > 1) {
-              firstName = nameParts[0] || '';
-              lastName = nameParts.slice(1).join(' ') || '';
-            } else {
-              firstName = emailParts[0] || '';
+              // Format each part with capitalization
+              const formattedNameParts = nameParts.map(part => 
+                part.charAt(0).toUpperCase() + part.slice(1)
+              );
+              
+              if (!firstName) {
+                firstName = formattedNameParts[0] || '';
+              }
+              
+              if (!lastName) {
+                lastName = formattedNameParts.slice(1).join(' ') || '';
+              }
+            } else if (!firstName) {
+              // Just capitalize the email name part
+              const emailName = emailParts[0];
+              firstName = emailName.charAt(0).toUpperCase() + emailName.slice(1) || '';
+            }
+            
+            // Store the full email in user metadata for reference
+            if (user.email) {
+              await supabase.auth.updateUser({
+                data: { 
+                  full_email: user.email,
+                  display_name: `${firstName} ${lastName}`.trim()
+                }
+              });
             }
           }
           
