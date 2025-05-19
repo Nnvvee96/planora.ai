@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getAuthService } from '@/features/auth/api';
+// Direct imports to avoid circular dependencies 
+import { supabase } from '@/lib/supabase';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -22,12 +23,19 @@ import {
   HelpCircle,
   BookMarked
 } from 'lucide-react';
-import { ProfileModal } from './modals/ProfileModal';
-import { SettingsModal } from './modals/SettingsModal';
-// Import auth service dynamically to avoid circular dependencies
-// We'll use a local function to handle logout instead
+
+// Lazy load modals to avoid bundle issues
+const ProfileModal = React.lazy(() => import('./modals/ProfileModal').then(module => ({
+  default: module.ProfileModal
+})));
+
+const SettingsModal = React.lazy(() => import('./modals/SettingsModal').then(module => ({
+  default: module.SettingsModal
+})));
+
+// Import user profile service only
 import { userProfileService } from '@/features/user-profile/api';
-import { ProfileFormData, ProfileModalProps, SettingsModalProps } from '@/features/user-profile/types/profileTypes';
+import { ProfileFormData } from '@/features/user-profile/types/profileTypes';
 
 /**
  * UserProfileMenu - A component that displays the user profile menu with dropdown options
@@ -68,11 +76,16 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
     const fetchUserProfile = async () => {
       if (profileModalOpen) {
         try {
-          // Get auth service using factory function
-          const authService = getAuthService();
+          // Use supabase directly to avoid circular dependencies
+          const { data: { user } } = await supabase.auth.getUser();
           
-          // Get current user through the auth service API
-          const currentUser = await authService.getCurrentUser();
+          // Get current user data
+          const currentUser = user ? {
+            id: user.id,
+            email: user.email || '',
+            firstName: user.user_metadata?.first_name || '',
+            lastName: user.user_metadata?.last_name || ''
+          } : null;
           
           if (currentUser) {
             // Get detailed profile through the user profile service
@@ -108,13 +121,16 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
         return;
       }
       
-      // Otherwise get auth service using factory function
-      const authService = getAuthService();
-      await authService.logout();
+      // Use supabase directly to avoid circular dependencies
+      await supabase.auth.signOut();
+      // Clear local storage
+      localStorage.removeItem('hasCompletedInitialFlow');
+      localStorage.removeItem('userTravelPreferences');
     } catch (error) {
       console.error('Error during logout:', error);
     }
     
+    // Navigate to login page
     navigate('/login');
   };
   
@@ -187,22 +203,30 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Profile Modal */}
-      <ProfileModal 
-        open={profileModalOpen} 
-        onOpenChange={setProfileModalOpen} 
-        userName={userName}
-        userEmail={profileData.email}
-        firstName={profileData.firstName}
-        lastName={profileData.lastName}
-        birthdate={profileData.birthdate}
-      />
+      {/* Profile Modal with Suspense fallback */}
+      <Suspense fallback={<div className="fixed inset-0 bg-background/80 flex items-center justify-center">Loading profile...</div>}>
+        {profileModalOpen && (
+          <ProfileModal 
+            open={profileModalOpen} 
+            onOpenChange={setProfileModalOpen} 
+            userName={userName}
+            userEmail={profileData.email}
+            firstName={profileData.firstName}
+            lastName={profileData.lastName}
+            birthdate={profileData.birthdate}
+          />
+        )}
+      </Suspense>
 
-      {/* Settings Modal */}
-      <SettingsModal 
-        open={settingsModalOpen} 
-        onOpenChange={setSettingsModalOpen}
-      />
+      {/* Settings Modal with Suspense fallback */}
+      <Suspense fallback={<div className="fixed inset-0 bg-background/80 flex items-center justify-center">Loading settings...</div>}>
+        {settingsModalOpen && (
+          <SettingsModal 
+            open={settingsModalOpen} 
+            onOpenChange={setSettingsModalOpen}
+          />
+        )}
+      </Suspense>
     </>
   );
 };
