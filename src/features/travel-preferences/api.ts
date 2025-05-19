@@ -32,3 +32,8 @@ export {
   saveTravelPreferences,
   updateOnboardingStatus
 } from './services/travelPreferencesService';
+
+// Export utility functions
+export {
+  checkTravelPreferencesExist
+} from './services/travelPreferencesUtils';

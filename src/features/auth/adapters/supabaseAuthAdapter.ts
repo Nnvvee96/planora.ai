@@ -278,37 +278,49 @@ export const supabaseAuthAdapter = {
 
   /**
    * Sign in with Google OAuth
+   * Enhanced implementation to ensure clean state and proper redirects
    */
   signInWithGoogle: async (): Promise<void> => {
     try {
-      // Clear localStorage flags before Google sign-in to prevent stale state
+      // Clear all authentication-related localStorage flags to prevent stale state
       localStorage.removeItem('hasCompletedInitialFlow');
+      localStorage.removeItem('authRedirectPath');
+      localStorage.removeItem('supabase.auth.token');
       
       // Use explicit callback URL based on environment
       const baseUrl = getSiteUrl();
       const redirectTo = `${baseUrl}/auth/callback`;
       
-      console.log('Google sign-in using callback URL:', redirectTo);
+      console.log('Google sign-in initiated with callback URL:', redirectTo);
       
-      console.log(`Initiating Google sign-in with redirect to: ${redirectTo}`);
+      // Store timestamp to detect stale auth sessions
+      localStorage.setItem('googleAuthStarted', Date.now().toString());
       
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo,
           queryParams: {
-            // Request specific OAuth scopes to get profile information
+            // Force account selection to avoid wrong account issues
             access_type: 'offline',
             prompt: 'consent select_account',
-            // Request profile information from Google
-            scope: 'email profile'
+            // Request all profile information needed for onboarding
+            scope: 'email profile openid'
           }
         }
       });
       
-      if (error) throw new Error(error.message);
+      // Check for error
+      if (error) {
+        console.error('Failed to initiate Google OAuth flow:', error.message);
+        throw new Error(error.message);
+      }
+      
+      console.log('Google sign-in flow initiated successfully', data);
     } catch (error) {
       console.error('Google sign-in error:', error);
+      // Clear auth timestamp on error
+      localStorage.removeItem('googleAuthStarted');
       throw error;
     }
   },
