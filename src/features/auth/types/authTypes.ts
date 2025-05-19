@@ -8,11 +8,25 @@
 import { User } from '@supabase/supabase-js';
 
 /**
+ * Application User interface
+ * Maps the Supabase User to our application's expectations
+ */
+export interface AppUser {
+  id: string;
+  email: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl?: string;
+  hasCompletedOnboarding?: boolean;
+}
+
+/**
  * Auth state interface for state management
  */
 export interface AuthState {
   isAuthenticated: boolean;
-  user: User | null;
+  user: AppUser | null;
   loading: boolean;
   error: string | null;
 }

@@ -17,7 +17,7 @@ import type {
   SessionInfo
 } from './types/authTypes';
 
-// Import the auth service
+// Import the auth service directly to prevent circular dependencies
 import { supabaseAuthService } from './services/supabaseAuthService';
 
 /**
@@ -89,7 +89,7 @@ export const authService = {
    * Update user metadata
    * Updates the user's metadata in Supabase
    */
-  updateUserMetadata: async (metadata: Record<string, any>): Promise<void> => {
+  updateUserMetadata: async (metadata: Record<string, unknown>): Promise<void> => {
     return supabaseAuthService.updateUserMetadata(metadata);
   },
   

@@ -22,7 +22,7 @@ export const supabaseAuthService = {
    * Update user metadata
    * @param metadata The metadata to update
    */
-  updateUserMetadata: async (metadata: Record<string, any>): Promise<void> => {
+  updateUserMetadata: async (metadata: Record<string, unknown>): Promise<void> => {
     try {
       const { error } = await supabase.auth.updateUser({
         data: metadata
@@ -139,6 +139,100 @@ export const supabaseAuthService = {
       }
       
       const user = session.user;
+      console.log('User authenticated successfully:', user.id);
+      
+      // Instead of importing from user-profile, we'll directly handle the profile update here
+      // This breaks the circular dependency
+      try {
+        // Extract profile data from Google authentication
+        const { user_metadata } = user;
+        
+        // Check if we have user metadata
+        if (user_metadata) {
+          const timestamp = new Date().toISOString();
+          
+          // Extract name from metadata (similar logic to what was in extractNameFromGoogleData)
+          let firstName = '';
+          let lastName = '';
+          
+          if (typeof user_metadata.name === 'string') {
+            const nameParts = (user_metadata.name as string).split(' ');
+            firstName = nameParts[0] || '';
+            lastName = nameParts.slice(1).join(' ') || '';
+          } else {
+            firstName = (user_metadata.given_name as string) || (user_metadata.first_name as string) || '';
+            lastName = (user_metadata.family_name as string) || (user_metadata.last_name as string) || '';
+          }
+          
+          // If still empty and we have email, extract username part as fallback
+          if (!firstName && user.email) {
+            const emailParts = user.email.split('@');
+            const nameParts = emailParts[0].split(/[.|_|-]/);
+            if (nameParts.length > 1) {
+              firstName = nameParts[0] || '';
+              lastName = nameParts.slice(1).join(' ') || '';
+            } else {
+              firstName = emailParts[0] || '';
+            }
+          }
+          
+          console.log('Extracted name info:', { firstName, lastName });
+          
+          // Check if profile exists
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name')
+            .eq('id', user.id)
+            .single();
+          
+          if (!data || error) {
+            // Profile doesn't exist, create it
+            const { error: insertError } = await supabase
+              .from('profiles')
+              .insert({
+                id: user.id,
+                first_name: firstName,
+                last_name: lastName,
+                email: user.email,
+                avatar_url: user_metadata.avatar_url as string || user_metadata.picture as string || '',
+                has_completed_onboarding: false,
+                created_at: timestamp,
+                updated_at: timestamp
+              });
+              
+            if (insertError) {
+              console.error('Error creating profile:', insertError);
+            }
+          } else if (!data.first_name || !data.last_name) {
+            // Profile exists but name fields are empty, update them
+            const updates: Record<string, unknown> = {
+              updated_at: timestamp
+            };
+            
+            if (!data.first_name && firstName) {
+              updates.first_name = firstName;
+            }
+            
+            if (!data.last_name && lastName) {
+              updates.last_name = lastName;
+            }
+            
+            if (Object.keys(updates).length > 1) {
+              const { error: updateError } = await supabase
+                .from('profiles')
+                .update(updates)
+                .eq('id', user.id);
+                
+              if (updateError) {
+                console.error('Error updating profile with Google data:', updateError);
+              }
+            }
+          }
+        }
+      } catch (profileErr) {
+        // Log but continue - we don't want profile errors to block auth
+        console.warn('Non-fatal error updating profile with Google data:', profileErr);
+      }
       
       // Check if this is a new or existing user
       const { data: profile, error: profileError } = await supabase
@@ -147,64 +241,8 @@ export const supabaseAuthService = {
         .eq('id', user.id)
         .single();
       
-      // If no profile exists, create one with Google user data
       if (!profile || profileError) {
-        // New user, create profile from Google data
-        const { user_metadata } = user;
-        
-        // Log the user metadata to see its structure
-        console.log('Google user metadata:', user_metadata);
-        
-        // Extract first and last name from various possible Google metadata formats
-        let firstName = '';
-        let lastName = '';
-        
-        // Try different paths where Google might provide name info
-        if (user_metadata?.name) {
-          // Name provided as a single string, try to split it
-          const nameParts = user_metadata.name.split(' ');
-          firstName = nameParts[0] || '';
-          lastName = nameParts.slice(1).join(' ') || '';
-        } else {
-          // Try different field variations
-          firstName = user_metadata?.given_name || user_metadata?.first_name || '';
-          lastName = user_metadata?.family_name || user_metadata?.last_name || '';
-        }
-        
-        // If still empty and we have email, extract username part as fallback
-        if (!firstName && user.email) {
-          const emailParts = user.email.split('@');
-          const nameParts = emailParts[0].split(/\.|_|\-/);
-          if (nameParts.length > 1) {
-            firstName = nameParts[0] || '';
-            lastName = nameParts.slice(1).join(' ') || '';
-          } else {
-            firstName = emailParts[0] || '';
-          }
-        }
-        
-        console.log('Extracted name info:', { firstName, lastName });
-        
-        // Insert profile record
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            first_name: firstName,
-            last_name: lastName,
-            email: user.email,
-            avatar_url: user_metadata?.avatar_url || user_metadata?.picture || '',
-            has_completed_onboarding: false
-          });
-        
-        if (insertError) {
-          console.error('Error creating user profile:', insertError);
-          return { 
-            success: false, 
-            user, 
-            error: 'Failed to create user profile' 
-          };
-        }
+        console.warn('Profile not found after auth callback, treating as new user');
         
         // New user should go to onboarding
         return {
@@ -216,6 +254,7 @@ export const supabaseAuthService = {
       
       // Existing user, check if onboarding is completed
       if (!profile.has_completed_onboarding) {
+        console.log('User has not completed onboarding');
         return {
           success: true,
           user,
@@ -223,7 +262,8 @@ export const supabaseAuthService = {
         };
       }
       
-      // Existing user with completed onboarding, go to dashboard
+      // Existing user with completed onboarding
+      console.log('Returning user with completed onboarding');
       return {
         success: true,
         user,
@@ -234,7 +274,8 @@ export const supabaseAuthService = {
       return { 
         success: false, 
         user: null, 
-        error: err instanceof Error ? err.message : 'Unknown error'
+        error: err instanceof Error ? err.message : 'Unknown error',
+        registrationStatus: UserRegistrationStatus.ERROR
       };
     }
   },

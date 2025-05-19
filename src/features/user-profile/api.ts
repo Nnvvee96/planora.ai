@@ -5,10 +5,14 @@
  * Following Planora's architectural principles with feature-first organization.
  */
 
-// Re-export the UserProfileMenu component for pages to use through the API boundary
-// We need to fully export this for the page API boundary pattern
-export { UserProfileMenu } from './components/UserProfileMenu';
-export type { UserProfileMenuProps } from './components/UserProfileMenu';
+// Instead of directly re-exporting the UserProfileMenu, we'll create a factory function
+// This breaks the circular dependency
+import type { FC } from 'react';
+
+// Type for the UserProfileMenu props - redefined here to avoid circular import
+export interface UserProfileMenuProps {
+  className?: string;
+}
 
 // Import types
 import type { UserProfile, DbUserProfile } from './types/profileTypes';
@@ -18,12 +22,30 @@ export type { UserProfile, DbUserProfile };
 
 // Import the user profile service
 import { userProfileService as userProfileServiceImpl } from './services/userProfileService';
+import { lazy } from 'react';
+
+// Create a lazy-loaded UserProfileMenu component
+// This avoids circular dependencies by dynamically importing the component only when needed
+export const getUserProfileMenuComponent = () => {
+  return lazy(() => import('./components/UserProfileMenu').then(module => ({ 
+    default: module.UserProfileMenu 
+  })));
+};
 
 /**
  * User profile service
  * Public API for user profile functionality
  */
 export const userProfileService = {
+  /**
+   * Update profile with Google user data
+   * @param user Supabase user object
+   * @returns True if update was successful
+   */
+  updateProfileWithGoogleData: async (user: { id: string; email?: string; user_metadata?: Record<string, unknown> }): Promise<boolean> => {
+    return userProfileServiceImpl.updateProfileWithGoogleData(user);
+  },
+  
   /**
    * Check if a profile exists for a user
    * @param userId The user ID to check
