@@ -32,6 +32,78 @@ export interface TravelPreferencesFormValues {
 }
 
 /**
+ * Travel Duration Type Enum
+ */
+export enum TravelDurationType {
+  WEEKEND = 'weekend',
+  SHORT_TRIP = 'short_trip',
+  EXTENDED_VACATION = 'extended_vacation',
+  LONG_TERM = 'long_term'
+}
+
+/**
+ * Date Flexibility Type Enum
+ */
+export enum DateFlexibilityType {
+  EXACT = 'exact',
+  FLEXIBLE_DAYS = 'flexible_days',
+  FLEXIBLE_WEEKS = 'flexible_weeks',
+  FLEXIBLE_MONTHS = 'flexible_months',
+  CUSTOM = 'custom'
+}
+
+/**
+ * Planning Intent Enum
+ */
+export enum PlanningIntent {
+  RELAXATION = 'relaxation',
+  ADVENTURE = 'adventure',
+  CULTURAL = 'cultural',
+  BUSINESS = 'business',
+  FAMILY = 'family'
+}
+
+/**
+ * Accommodation Type Enum
+ */
+export enum AccommodationType {
+  HOTEL = 'hotel',
+  HOSTEL = 'hostel',
+  APARTMENT = 'apartment',
+  RESORT = 'resort',
+  CAMPING = 'camping'
+}
+
+/**
+ * Comfort Preference Enum
+ */
+export enum ComfortPreference {
+  BUDGET = 'budget',
+  STANDARD = 'standard',
+  PREMIUM = 'premium',
+  LUXURY = 'luxury'
+}
+
+/**
+ * Location Preference Enum
+ */
+export enum LocationPreference {
+  CITY_CENTER = 'city_center',
+  NEAR_ATTRACTIONS = 'near_attractions',
+  QUIET_AREA = 'quiet_area',
+  BUDGET_FRIENDLY = 'budget_friendly'
+}
+
+/**
+ * Flight Type Enum
+ */
+export enum FlightType {
+  DIRECT_ONLY = 'direct_only',
+  ONE_STOP_MAX = 'one_stop_max',
+  NO_PREFERENCE = 'no_preference'
+}
+
+/**
  * Mock travel preferences checking function
  * Always returns that preferences exist
  */
@@ -61,4 +133,15 @@ export const saveTravelPreferences = async (_userId: string, _preferences: Trave
   console.log('MOCK: Saving travel preferences');
   // Just redirect to dashboard in mock mode
   window.location.href = '/dashboard';
+};
+
+/**
+ * Mock update onboarding status function
+ * Doesn't actually update anything in the database
+ */
+export const updateOnboardingStatus = async (_userId: string, _hasCompleted: boolean = true): Promise<void> => {
+  console.log('MOCK: Updating onboarding status to completed');
+  // In mock mode, we don't actually update any database
+  // Just store in localStorage for mock persistence
+  localStorage.setItem('hasCompletedOnboarding', 'true');
 };

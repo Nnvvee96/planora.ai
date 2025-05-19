@@ -5,6 +5,11 @@
  * Following Planora's architectural principles with feature-first organization
  */
 
+// Re-export the UserProfileMenu component for pages to use through the API boundary
+// We need to fully export this for the page API boundary pattern
+export { UserProfileMenu } from './components/UserProfileMenu';
+export type { UserProfileMenuProps } from './components/UserProfileMenu';
+
 /**
  * User Profile interface
  * Properly typed according to Planora's architectural principles
