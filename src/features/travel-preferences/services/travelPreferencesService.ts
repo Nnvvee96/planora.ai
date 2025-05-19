@@ -302,6 +302,8 @@ export const travelPreferencesService = {
       console.log('Mapped DB preferences for insertion:', dbPrefs);
       
       // Use database column names directly to ensure matching with SQL schema
+      // IMPORTANT: Only include fields that actually exist in the database
+      // The database schema doesn't have custom_date_flexibility column
       const dbRecord = {
         user_id: userId,
         budget_min: dbPrefs.budget_min ?? 0,
@@ -309,7 +311,7 @@ export const travelPreferencesService = {
         budget_flexibility: dbPrefs.budget_flexibility ?? 0,
         travel_duration: dbPrefs.travel_duration ?? 'week',
         date_flexibility: dbPrefs.date_flexibility ?? 'flexible-few',
-        custom_date_flexibility: dbPrefs.custom_date_flexibility ?? '',
+        // Omit custom_date_flexibility as it's not in the database schema
         planning_intent: dbPrefs.planning_intent ?? 'exploring',
         accommodation_types: dbPrefs.accommodation_types ?? ['hotel'],
         accommodation_comfort: dbPrefs.accommodation_comfort ?? ['private-room'],
