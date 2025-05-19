@@ -23,6 +23,21 @@ import {
  * Maps database snake_case to application camelCase
  */
 const mapDbToTravelPreferences = (dbData: Record<string, unknown>): TravelPreferences => {
+  // Set default values that match our enums exactly
+  const defaultTravelDuration = TravelDurationType.WEEK;
+  const defaultDateFlexibility = DateFlexibilityType.FLEXIBLE_FEW;
+  const defaultPlanningIntent = PlanningIntent.EXPLORING;
+  const defaultLocationPreference = LocationPreference.CENTER;
+  const defaultFlightType = FlightType.DIRECT;
+  
+  // Helper to safely cast string to enum or use default
+  const safeEnumCast = <T extends string>(value: unknown, enumObj: Record<string, T>, defaultValue: T): T => {
+    if (typeof value === 'string' && Object.values(enumObj).includes(value as T)) {
+      return value as T;
+    }
+    return defaultValue;
+  };
+  
   return {
     id: String(dbData.id || ''),
     userId: String(dbData.user_id || ''),
@@ -31,14 +46,18 @@ const mapDbToTravelPreferences = (dbData: Record<string, unknown>): TravelPrefer
       max: Number(dbData.budget_max || 0)
     },
     budgetFlexibility: Number(dbData.budget_flexibility || 0),
-    travelDuration: (dbData.travel_duration as TravelDurationType) || 'week',
-    dateFlexibility: (dbData.date_flexibility as DateFlexibilityType) || 'flexible-few',
+    travelDuration: safeEnumCast(dbData.travel_duration, TravelDurationType, defaultTravelDuration),
+    dateFlexibility: safeEnumCast(dbData.date_flexibility, DateFlexibilityType, defaultDateFlexibility),
     customDateFlexibility: dbData.custom_date_flexibility ? String(dbData.custom_date_flexibility) : undefined,
-    planningIntent: (dbData.planning_intent as PlanningIntent) || 'exploring',
-    accommodationTypes: Array.isArray(dbData.accommodation_types) ? dbData.accommodation_types as AccommodationType[] : [],
-    accommodationComfort: Array.isArray(dbData.accommodation_comfort) ? dbData.accommodation_comfort as ComfortPreference[] : [],
-    locationPreference: (dbData.location_preference as LocationPreference) || 'center',
-    flightType: (dbData.flight_type as FlightType) || 'direct',
+    planningIntent: safeEnumCast(dbData.planning_intent, PlanningIntent, defaultPlanningIntent),
+    accommodationTypes: Array.isArray(dbData.accommodation_types) ? 
+      dbData.accommodation_types.filter((type): type is AccommodationType => 
+        typeof type === 'string' && Object.values(AccommodationType).includes(type as AccommodationType)) : [],
+    accommodationComfort: Array.isArray(dbData.accommodation_comfort) ? 
+      dbData.accommodation_comfort.filter((type): type is ComfortPreference => 
+        typeof type === 'string' && Object.values(ComfortPreference).includes(type as ComfortPreference)) : [],
+    locationPreference: safeEnumCast(dbData.location_preference, LocationPreference, defaultLocationPreference),
+    flightType: safeEnumCast(dbData.flight_type, FlightType, defaultFlightType),
     preferCheaperWithStopover: Boolean(dbData.prefer_cheaper_with_stopover),
     departureCity: String(dbData.departure_city || ''),
     createdAt: dbData.created_at ? String(dbData.created_at) : undefined,
@@ -153,24 +172,52 @@ export const travelPreferencesService = {
       const exists = await travelPreferencesService.checkTravelPreferencesExist(userId);
       console.log('Existing preferences found:', exists);
       
-      // Convert to database format with explicit type handling
-      const prefsWithUserId = {
-        ...preferences,
-        userId
+      // Create a properly formatted preferences object with userId
+      const prefsWithUserId: Partial<TravelPreferences> = {
+        userId,
+        // Explicitly handle each field to ensure proper typing
+        budgetRange: preferences.budgetRange ? {
+          min: Number(preferences.budgetRange.min || 0),
+          max: Number(preferences.budgetRange.max || 0)
+        } : undefined,
+        budgetFlexibility: preferences.budgetFlexibility !== undefined ? 
+          Number(preferences.budgetFlexibility) : undefined,
+        travelDuration: preferences.travelDuration,
+        dateFlexibility: preferences.dateFlexibility,
+        customDateFlexibility: preferences.customDateFlexibility,
+        planningIntent: preferences.planningIntent,
+        accommodationTypes: preferences.accommodationTypes,
+        accommodationComfort: preferences.accommodationComfort,
+        locationPreference: preferences.locationPreference,
+        flightType: preferences.flightType,
+        preferCheaperWithStopover: preferences.preferCheaperWithStopover,
+        departureCity: preferences.departureCity
       };
       
-      // Ensure budget values are properly converted to numbers
-      if (preferences.budgetRange) {
-        preferences.budgetRange.min = Number(preferences.budgetRange.min);
-        preferences.budgetRange.max = Number(preferences.budgetRange.max);
-      }
-      
-      if (preferences.budgetFlexibility) {
-        preferences.budgetFlexibility = Number(preferences.budgetFlexibility);
-      }
-      
+      // Map to database format with snake_case fields
       const dbPrefs = mapToDbTravelPreferences(prefsWithUserId);
-      console.log('Mapped DB preferences:', dbPrefs);
+      console.log('Mapped DB preferences for insertion:', dbPrefs);
+      
+      // Use database column names directly to ensure matching with SQL schema
+      const dbRecord = {
+        user_id: userId,
+        budget_min: dbPrefs.budget_min,
+        budget_max: dbPrefs.budget_max,
+        budget_flexibility: dbPrefs.budget_flexibility,
+        travel_duration: dbPrefs.travel_duration,
+        date_flexibility: dbPrefs.date_flexibility,
+        custom_date_flexibility: dbPrefs.custom_date_flexibility,
+        planning_intent: dbPrefs.planning_intent,
+        accommodation_types: dbPrefs.accommodation_types,
+        accommodation_comfort: dbPrefs.accommodation_comfort,
+        location_preference: dbPrefs.location_preference,
+        flight_type: dbPrefs.flight_type,
+        prefer_cheaper_with_stopover: dbPrefs.prefer_cheaper_with_stopover,
+        departure_city: dbPrefs.departure_city,
+        updated_at: new Date().toISOString()
+      };
+      
+      console.log('Final DB record for insertion:', dbRecord);
       
       let error: Error | null = null;
       
@@ -179,13 +226,11 @@ export const travelPreferencesService = {
         console.log('Updating existing travel preferences');
         const result = await supabase
           .from('travel_preferences')
-          .update({
-            ...dbPrefs,
-            updated_at: new Date().toISOString()
-          })
+          .update(dbRecord)
           .eq('user_id', userId);
         
         error = result.error;
+        console.log('Update result:', result);
       } else {
         // Create new preferences
         console.log('Creating new travel preferences');
@@ -194,13 +239,12 @@ export const travelPreferencesService = {
         const result = await supabase
           .from('travel_preferences')
           .insert({
-            ...dbPrefs,
-            user_id: userId,
-            created_at: timestamp,
-            updated_at: timestamp
+            ...dbRecord,
+            created_at: timestamp
           });
         
         error = result.error;
+        console.log('Insert result:', result);
       }
       
       if (error) {
