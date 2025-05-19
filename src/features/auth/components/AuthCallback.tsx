@@ -7,7 +7,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuthContext } from './AuthProvider';
+import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { UserRegistrationStatus } from '../types/authTypes';
 
 /**
  * Component that handles OAuth callback
@@ -15,9 +17,11 @@ import { Loader2 } from 'lucide-react';
  */
 export const AuthCallback: React.FC = () => {
   const { handleAuthCallback } = useAuthContext();
+  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<Record<string, unknown>>({});
   const [isProcessing, setIsProcessing] = useState(true);
+  const [redirectPath, setRedirectPath] = useState<string | null>(null);
   
   useEffect(() => {
     const processCallback = async () => {
@@ -39,7 +43,25 @@ export const AuthCallback: React.FC = () => {
         setDebugInfo(envInfo);
         console.log('Auth env debug:', envInfo);
         
-        await handleAuthCallback();
+        // Process the authentication callback
+        const authResponse = await handleAuthCallback();
+        console.log('Auth callback response:', authResponse);
+        
+        if (authResponse.success) {
+          // Determine where to redirect based on registration status
+          if (authResponse.registrationStatus === UserRegistrationStatus.NEW_USER ||
+              authResponse.registrationStatus === UserRegistrationStatus.INCOMPLETE_ONBOARDING) {
+            console.log('Redirecting to onboarding...');
+            setRedirectPath('/onboarding');
+          } else {
+            console.log('Redirecting to dashboard...');
+            setRedirectPath('/dashboard');
+          }
+        } else if (authResponse.error) {
+          console.error('Auth callback returned error:', authResponse.error);
+          setError(authResponse.error);
+        }
+        
         setIsProcessing(false);
       } catch (err) {
         console.error('Error processing auth callback:', err);
@@ -49,7 +71,19 @@ export const AuthCallback: React.FC = () => {
     };
     
     processCallback();
-  }, [handleAuthCallback]);
+  }, [handleAuthCallback, navigate]);
+  
+  // Handle redirection after processing is complete
+  useEffect(() => {
+    if (!isProcessing && redirectPath && !error) {
+      const redirectTimer = setTimeout(() => {
+        console.log(`Redirecting to ${redirectPath}`);
+        navigate(redirectPath, { replace: true });
+      }, 1000); // Short delay for stability
+      
+      return () => clearTimeout(redirectTimer);
+    }
+  }, [isProcessing, redirectPath, error, navigate]);
   
   if (error) {
     return (
@@ -82,6 +116,17 @@ export const AuthCallback: React.FC = () => {
         <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
         <p className="mt-4 text-lg font-medium">{isProcessing ? 'Processing authentication...' : 'Redirecting...'}</p>
         <p className="text-sm text-gray-500 mt-2">You will be redirected automatically.</p>
+        {redirectPath && (
+          <p className="text-xs text-blue-600 mt-3">Redirecting to: {redirectPath}</p>
+        )}
+        {debugInfo && import.meta.env.DEV && (
+          <div className="mt-4 p-3 bg-gray-50 rounded text-left">
+            <details>
+              <summary className="text-xs text-gray-700 cursor-pointer">Debug Info</summary>
+              <pre className="text-xs overflow-auto mt-2">{JSON.stringify(debugInfo, null, 2)}</pre>
+            </details>
+          </div>
+        )}
       </div>
     </div>
   );
