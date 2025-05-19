@@ -18,6 +18,96 @@ import {
   LocationPreference,
   FlightType
 } from '../types/travelPreferencesTypes';
+import { AppUser } from "@/features/auth/types/authTypes";
+
+/**
+ * Initializes the module and sets up auto-migration of travel preferences
+ * This ensures any user who completed onboarding has preferences in the database
+ */
+const initializePreferencesModule = async () => {
+  try {
+    // Check if user is logged in
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    
+    // Check if user has completed onboarding
+    const user = session.user;
+    const hasCompleted = 
+      user.user_metadata?.has_completed_onboarding === true || 
+      localStorage.getItem('hasCompletedInitialFlow') === 'true';
+      
+    if (!hasCompleted) return;
+    
+    // Check if travel preferences exist in the database
+    const { data: existingPrefs } = await supabase
+      .from('travel_preferences')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+      
+    // If preferences already exist, no need to migrate
+    if (existingPrefs) return;
+    
+    // No preferences in database but user completed onboarding
+    // Try to migrate from user metadata or localStorage
+    console.log('⚠️ User completed onboarding but has no travel preferences - attempting migration');
+    
+    // Check metadata first
+    const metadataPrefs = user.user_metadata?.travel_preferences;
+    
+    // Check localStorage as fallback
+    const localPrefs = localStorage.getItem('userTravelPreferences');
+    const parsedLocalPrefs = localPrefs ? JSON.parse(localPrefs) : null;
+    
+    // Prepare data for insertion
+    const prefsToSave = metadataPrefs || parsedLocalPrefs || {
+      // Default values if nothing found
+      accommodation_types: ['hotel'],
+      accommodation_comfort: ['private-room'],
+      budget_range: { min: 500, max: 2000 },
+      budget_tolerance: 10,
+      travel_duration: 'week',
+      date_flexibility: 'flexible-few',
+      planning_intent: 'exploring',
+      location_preference: 'center',
+      flight_type: 'direct',
+      prefer_cheaper_with_stopover: false,
+      departure_city: 'Berlin'
+    };
+    
+    // Insert the preferences
+    const insertResult = await supabase
+      .from('travel_preferences')
+      .insert({
+        user_id: user.id,
+        budget_min: prefsToSave.budget_range?.min || 500,
+        budget_max: prefsToSave.budget_range?.max || 2000,
+        budget_flexibility: prefsToSave.budget_tolerance || 10,
+        travel_duration: prefsToSave.travel_duration || 'week',
+        date_flexibility: prefsToSave.date_flexibility || 'flexible-few',
+        planning_intent: prefsToSave.planning_intent || 'exploring',
+        accommodation_types: prefsToSave.accommodation_types || ['hotel'],
+        accommodation_comfort: prefsToSave.accommodation_comfort || ['private-room'],
+        location_preference: prefsToSave.location_preference || 'center',
+        flight_type: prefsToSave.flight_type || 'direct',
+        prefer_cheaper_with_stopover: Boolean(prefsToSave.prefer_cheaper_with_stopover),
+        departure_city: prefsToSave.departure_city || prefsToSave.departure_location || 'Berlin',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+      
+    if (insertResult.error) {
+      console.error('Failed to migrate travel preferences:', insertResult.error);
+    } else {
+      console.log('✅ Successfully migrated travel preferences for user', user.id);
+    }
+  } catch (error) {
+    console.error('Error in travel preferences auto-migration:', error);
+  }
+};
+
+// Run the initialization when the module loads
+initializePreferencesModule();
 
 /**
  * Maps database snake_case to application camelCase
