@@ -5,7 +5,31 @@
  * Following Planora's architectural principles with feature-first organization
  */
 
-// Common profile data interface shared between components
+// Database user profile interface - matching Supabase schema
+export interface UserProfile {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatarUrl?: string;
+  hasCompletedOnboarding: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Database representation uses snake_case
+export interface DbUserProfile {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  avatar_url?: string;
+  has_completed_onboarding: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Common profile data interface for form inputs
 export interface ProfileFormData {
   firstName?: string;
   lastName?: string;

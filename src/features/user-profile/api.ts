@@ -1,8 +1,8 @@
 /**
  * User Profile API
  * 
- * TEMPORARY MOCK VERSION - Non-functional placeholder
- * Following Planora's architectural principles with feature-first organization
+ * Public API for user profile functionality.
+ * Following Planora's architectural principles with feature-first organization.
  */
 
 // Re-export the UserProfileMenu component for pages to use through the API boundary
@@ -10,66 +10,60 @@
 export { UserProfileMenu } from './components/UserProfileMenu';
 export type { UserProfileMenuProps } from './components/UserProfileMenu';
 
-/**
- * User Profile interface
- * Properly typed according to Planora's architectural principles
- */
-export interface UserProfile {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  avatarUrl?: string;
-  username?: string;
-  bio?: string;
-  phoneNumber?: string;
-  location?: string;
-  hasCompletedOnboarding?: boolean;
-}
+// Import types
+import type { UserProfile, DbUserProfile } from './types/profileTypes';
+
+// Re-export types
+export type { UserProfile, DbUserProfile };
+
+// Import the user profile service
+import { userProfileService as userProfileServiceImpl } from './services/userProfileService';
 
 /**
- * Mock user profile service
- * Provides dummy implementations for profile-related functionality
+ * User profile service
+ * Public API for user profile functionality
  */
 export const userProfileService = {
   /**
    * Check if a profile exists for a user
-   * Always returns true in mock mode
+   * @param userId The user ID to check
    */
-  checkProfileExists: async (_userId: string): Promise<boolean> => {
-    console.log('MOCK: Checking if profile exists');
-    return true;
+  checkProfileExists: async (userId: string): Promise<boolean> => {
+    return userProfileServiceImpl.checkProfileExists(userId);
   },
 
   /**
    * Ensure a profile exists for a user
-   * Does nothing in mock mode
+   * Creates a profile if one doesn't exist
+   * @param userId The user ID to check/create profile for
    */
-  ensureProfileExists: async (_userId: string): Promise<boolean> => {
-    console.log('MOCK: Ensuring profile exists');
-    return true;
+  ensureProfileExists: async (userId: string): Promise<boolean> => {
+    return userProfileServiceImpl.ensureProfileExists(userId);
   },
 
   /**
    * Get a user's profile
-   * Returns dummy data in mock mode
+   * @param userId The user ID to get profile for
    */
-  getUserProfile: async (_userId: string): Promise<UserProfile> => {
-    console.log('MOCK: Getting user profile');
-    return {
-      id: 'mock-user-id',
-      firstName: 'Mock',
-      lastName: 'User',
-      email: 'mockuser@example.com'
-    };
+  getUserProfile: async (userId: string): Promise<UserProfile | null> => {
+    return userProfileServiceImpl.getUserProfile(userId);
   },
 
   /**
    * Update a user's profile
-   * Does nothing in mock mode
+   * @param userId The user ID to update profile for
+   * @param profileData The profile data to update
    */
-  updateUserProfile: async (_userId: string, _profileData: Partial<UserProfile>): Promise<boolean> => {
-    console.log('MOCK: Updating user profile');
-    return true;
+  updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Promise<boolean> => {
+    return userProfileServiceImpl.updateUserProfile(userId, profileData);
+  },
+  
+  /**
+   * Update onboarding status
+   * @param userId The user ID to update
+   * @param hasCompleted Whether onboarding is completed
+   */
+  updateOnboardingStatus: async (userId: string, hasCompleted: boolean = true): Promise<boolean> => {
+    return userProfileServiceImpl.updateUserProfile(userId, { hasCompletedOnboarding: hasCompleted });
   }
 };
