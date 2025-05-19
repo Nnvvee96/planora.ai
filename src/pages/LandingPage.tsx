@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Navigation } from '@/ui/organisms/Navigation';
-import { TravelCards } from '@/features/travel-planning/api';
+import { getTravelCardsComponent } from '@/features/travel-planning/api';
 import { FeatureCard } from '@/ui/molecules/FeatureCard';
 import { GradientButton } from '@/ui/atoms/GradientButton';
 import { Logo } from '@/ui/atoms/Logo';
@@ -28,6 +28,9 @@ import { Input } from '@/ui/atoms/Input';
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  
+  // Get the TravelCards component using the factory function
+  const TravelCards = getTravelCardsComponent();
   
   const handleChatWithPlanora = () => {
     navigate('/register');
@@ -309,7 +312,9 @@ const LandingPage = () => {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <TravelCards limit={2} />
+                  <Suspense fallback={<div className="p-6 bg-white/5 border border-white/10 rounded-xl animate-pulse">Loading travel options...</div>}>
+                    <TravelCards limit={2} />
+                  </Suspense>
                 </div>
               </div>
               

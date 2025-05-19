@@ -23,8 +23,19 @@ export type {
   Transportation 
 };
 
-// Export components that should be accessible outside this feature
-export { TravelCards } from './components/TravelCards';
+// Import lazy for component lazy loading
+import { lazy } from 'react';
 
-// When we add hooks, they would be exported here
-// export { useTravelPlanning } from './hooks/useTravelPlanning';
+// Export a factory function for the TravelCards component
+// This follows Planora's architectural principles and avoids circular dependencies
+export const getTravelCardsComponent = () => {
+  return lazy(() => import('./components/TravelCards').then(module => ({
+    default: module.TravelCards
+  })));
+};
+
+// When we add hooks, they would be exported as factory functions too
+// export const getTravelPlanningHook = async () => {
+//   const module = await import('./hooks/useTravelPlanning');
+//   return module.useTravelPlanning;
+// };
