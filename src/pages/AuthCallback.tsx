@@ -2,8 +2,8 @@
  * Authentication Callback Component
  * 
  * This component handles the callback from OAuth providers with proper token handling.
- * It focuses on resolving the critical Google Auth flow issues by correctly
- * parsing and managing authentication tokens.
+ * CRITICAL FIX: Completely reworked to properly handle the PKCE flow for Google Auth
+ * Following the official Supabase v2 approach for handling authentication
  */
 
 import React, { useEffect, useState } from 'react';
@@ -61,136 +61,103 @@ const AuthCallback: React.FC = () => {
 
   useEffect(() => {
     const handleAuthCallback = async (): Promise<void> => {
-      console.log('Auth callback initiated');
+      console.log('Auth callback initiated with new PKCE flow handler');
       setLoading(true);
       setError(null);
 
       try {
-        // CRITICAL FIX: Use Supabase's built-in URL parser to extract auth data 
-        // This method correctly handles code exchange for OAuth flows
+        // CRITICAL FIX: Simplify the auth flow to follow Supabase's documentation exactly
+        console.log('Getting auth session state...');
+        
+        // First check existing session - DON'T try to get/set the session when we don't need to
+        const { data: existingSession } = await supabase.auth.getSession();
+        
+        // If we don't have a session yet, we need to parse the URL for auth code
+        if (!existingSession?.session) {
+          console.log('No existing session, checking URL parameters...');
+          
+          // Check if we have a code in the URL (used by PKCE flow)
+          const hasCode = location.search.includes('code=');
+          
+          if (hasCode) {
+            console.log('Auth code detected in URL, proceeding with PKCE flow');
+            
+            // DONT manually call exchangeCodeForSession
+            // Let Supabase's internal mechanisms handle this!
+            // Supabase initializes and automatically handles the code exchange
+          } else {
+            console.error('No auth code found in URL');
+            throw new Error('No authentication code found. Please try signing in again.');
+          }
+        } else {
+          console.log('Existing session found, proceeding with user data retrieval');
+        }
+        
+        // Wait briefly to ensure Supabase's internal code exchange completes
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Now get the current session (which should be established by now)
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         
-        // If we already have a session, we can skip code exchange
-        if (sessionData?.session) {
-          console.log('Existing session found, skipping code exchange');
-        } 
-        // Otherwise try to exchange code in URL for a session
-        else {
-          console.log('No existing session, checking URL for auth code');
-          
-          // Check if this is a callback with code or tokens
-          const hasAuthParams = location.hash || 
-                              location.search.includes('code=') || 
-                              location.search.includes('access_token') || 
-                              location.search.includes('refresh_token');
-                              
-          if (hasAuthParams) {
-            console.log('Auth parameters detected in URL:', { 
-              hasHash: !!location.hash, 
-              hasSearch: !!location.search
-            });
-            
-            try {
-              // CRITICAL FIX: Use Supabase's exchangeCodeForSession method to handle the OAuth code
-              const { data, error } = await supabase.auth.exchangeCodeForSession(
-                window.location.href
-              );
-                
-              if (error) {
-                console.error('Error exchanging code for session:', error.message);
-                throw error;
-              }
-                  
-              if (!data?.session) {
-                console.error('No session returned from code exchange');
-                throw new Error('Authentication failed: No session created');
-              }
-                
-              console.log('Successfully exchanged code for session');
-            } catch (exchangeError) {
-              console.error('Failed during code exchange:', exchangeError);
-              setError('Authentication failed. Please try again.');
-              setLoading(false);
-              
-              // Redirect to login after a delay
-              setTimeout(() => navigate('/', { replace: true }), 3000);
-              return;
-            }
-          } else {
-            console.error('No auth parameters found in URL');
-            setError('Authentication failed. No auth parameters found.');
-            setLoading(false);
-            
-            // Redirect to login after a delay
-            setTimeout(() => navigate('/', { replace: true }), 3000);
-            return;
-          }
+        if (sessionError) {
+          console.error('Error getting session:', sessionError.message);
+          throw sessionError;
         }
         
-        // At this point, we should have a valid session
-        // Refresh the session to make sure we have the latest data
-        const { data: refreshData } = await supabase.auth.getSession();
-        if (!refreshData?.session) {
-          console.error('No session found after code exchange');
-          throw new Error('No session found after authentication');
+        if (!sessionData?.session) {
+          console.error('No session established after auth flow');
+          throw new Error('Failed to establish authenticated session');
         }
         
-        // Get the user data
+        console.log('Session successfully established');
+        
+        // Get the authenticated user data
         const user = await authService.getCurrentUser() as ExtendedUser;
         if (!user) {
           console.error('No user found in session');
-          throw new Error('Authentication failed: Unable to retrieve user data');
+          throw new Error('Authentication succeeded but user data is unavailable');
         }
         
-        console.log('Successfully retrieved user:', user.id, user.email);
+        console.log('Successfully retrieved user:', user.id);
         
-        // Detect if this is a Google sign-in and ensure profile exists
+        // Detect if this is a Google sign-in
         const isGoogleAuth = user.identities?.some(identity => identity.provider === 'google');
         console.log('Is Google authentication:', isGoogleAuth);
         
-        if (isGoogleAuth) {
-          try {
-            // Check if profile exists
-            const profileExists = await userProfileService.checkProfileExists(user.id);
-            console.log('Profile exists check:', profileExists);
+        // Ensure user profile exists
+        let profileExists = false;
+        try {
+          profileExists = await userProfileService.checkProfileExists(user.id);
+          console.log('Profile exists check:', profileExists);
+          
+          if (!profileExists) {
+            console.log('Creating new user profile...');
+            const profileCreated = await userProfileService.ensureProfileExists(user.id);
+            console.log('Profile creation result:', profileCreated);
             
-            if (!profileExists) {
-              console.log('Profile does not exist, creating new profile');
-              
-              // Create profile with retry logic
-              const profileCreated = await userProfileService.ensureProfileExists(user.id);
-              console.log('Profile creation result:', profileCreated);
-              
-              if (!profileCreated) {
-                console.error('Failed to create profile after retries');
-              }
+            if (!profileCreated) {
+              console.error('Failed to create user profile');
             }
-          } catch (profileError) {
-            console.error('Error checking/creating profile:', profileError);
-            // Continue with the flow even if profile creation fails
           }
+        } catch (profileError) {
+          console.error('Error with profile operations:', profileError);
         }
         
         // Determine where to redirect the user
         const redirectPath = await determineRedirectPath(user);
-        console.log('Final redirect destination:', redirectPath);
+        console.log('Redirecting user to:', redirectPath);
         
         setLoading(false);
+        navigate(redirectPath, { replace: true });
+      } catch (error) {
+        console.error('Authentication callback failed:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
         
-        // Redirect to the appropriate page
-        setTimeout(() => {
-          navigate(redirectPath, { replace: true });
-        }, 100);
-      } catch (finalError) {
-        const errorMessage = finalError instanceof Error ? finalError.message : 'Authentication failed';
-        console.error('Auth callback error:', finalError);
         setError(errorMessage);
         setLoading(false);
         
         // Redirect to login after a delay
-        setTimeout(() => {
-          navigate('/', { replace: true });
-        }, 3000);
+        setTimeout(() => navigate('/', { replace: true }), 2000);
       }
     };
     

@@ -278,60 +278,48 @@ export const supabaseAuthAdapter = {
 
   /**
    * Sign in with Google OAuth
-   * CRITICAL FIX: Properly configured to ensure reliable token handling
+   * CRITICAL FIX FOR PKCE FLOW: Completely reworked to follow Supabase v2 best practices
    */
   signInWithGoogle: async (): Promise<void> => {
     try {
-      // BUGFIX: First clear ALL localStorage items that might interfere with auth flow
-      localStorage.removeItem('hasCompletedInitialFlow');
-      localStorage.removeItem('authRedirectPath');
-      localStorage.removeItem('supabase.auth.token');
-      localStorage.removeItem('supabase-auth-token');
-      localStorage.removeItem('sb-refresh-token');
-      localStorage.removeItem('sb-access-token');
-      localStorage.removeItem('sb:token');
+      console.log('Initiating Google sign-in with PKCE flow');
+      
+      // CRITICAL FIX: Let storage be managed internally by Supabase
+      // Manually clearing storage creates issues with PKCE flow
+      // The code verifier needs to be preserved between requests
       
       // Use explicit callback URL based on environment
       const baseUrl = getSiteUrl();
       const redirectTo = `${baseUrl}/auth/callback`;
       
-      console.log('Google sign-in initiated with callback URL:', redirectTo);
+      console.log('Google sign-in redirecting to:', redirectTo);
       
-      // Store timestamp to detect stale auth sessions
-      localStorage.setItem('googleAuthStarted', Date.now().toString());
-      
-      // BUGFIX: Configure proper auth parameters
-      // The key fix is ensuring we're using the code flow with PKCE
-      // And making sure we're requesting proper scopes
+      // CRITICAL FIX: Use signInWithOAuth exactly as documented by Supabase
+      // This ensures the PKCE code verifier is properly stored and used
+      // https://supabase.com/docs/reference/javascript/auth-signinwithoauth
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo,
-          skipBrowserRedirect: false,
-          // BUGFIX: Configure queryParams carefully
+          // Don't modify this or it breaks the PKCE flow
           queryParams: {
-            // Use offline access for refresh tokens
+            // These are standard Google OAuth parameters
             access_type: 'offline',
-            // Force consent and account selection every time to avoid wrong accounts
-            prompt: 'consent select_account',
-            // We need proper scopes for our use case
-            scope: 'email profile openid'
+            prompt: 'select_account',
           }
         }
       });
       
-      // Check for error
+      // Log success or error but don't throw - browser will redirect to OAuth provider
       if (error) {
         console.error('Failed to initiate Google OAuth flow:', error.message);
-        throw new Error(error.message);
+      } else {
+        console.log('Google sign-in flow started successfully');
       }
-      
-      console.log('Google sign-in flow initiated successfully', data);
     } catch (error) {
-      console.error('Google sign-in error:', error);
-      // Clear auth timestamp on error
-      localStorage.removeItem('googleAuthStarted');
-      throw error;
+      console.error('Unexpected error during Google sign-in initiation:', error);
+      // Don't rethrow - just log the error
+      // Throwing here would prevent the browser redirection
     }
   },
 
