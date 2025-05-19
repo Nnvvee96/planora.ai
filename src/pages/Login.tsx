@@ -148,6 +148,8 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           onClick={async () => {
             try {
               setIsLoading(true);
+              // Clear localStorage before Google auth to ensure clean state for new signups
+              localStorage.removeItem('hasCompletedInitialFlow');
               await authService.signInWithGoogle();
               // The page will be redirected by Supabase, no need to navigate
             } catch (err) {
@@ -196,6 +198,16 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           <Apple className="mr-2 h-4 w-4" />
           Apple
         </Button>
+      </div>
+      
+      {/* Sign up link moved here, directly below the social login buttons */}
+      <div className="text-center text-sm text-muted-foreground">
+        <Link
+          to="/register"
+          className="hover:text-white underline underline-offset-4"
+        >
+          Don&apos;t have an account? Sign Up
+        </Link>
       </div>
     </div>
   );
@@ -303,15 +315,9 @@ export function Login() {
             </div>
           )}
           
-          <p className="px-8 text-center text-sm text-muted-foreground">
-            {!verificationNeeded ? (
-              <Link
-                to="/register"
-                className="hover:text-white underline underline-offset-4"
-              >
-                Don&apos;t have an account? Sign Up
-              </Link>
-            ) : (
+          {/* Only showing email verification option here now, "Sign Up" link moved into the form */}
+          {verificationNeeded && (
+            <p className="px-8 text-center text-sm text-muted-foreground">
               <span className="text-white/60">
                 Didn't receive the email? Check your spam folder or <Button 
                   variant="link" 
@@ -321,8 +327,8 @@ export function Login() {
                   try again
                 </Button>
               </span>
-            )}
-          </p>
+            </p>
+          )}
         </div>
       </div>
       

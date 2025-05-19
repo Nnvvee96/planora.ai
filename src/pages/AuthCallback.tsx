@@ -86,12 +86,81 @@ const AuthCallback = () => {
           }
         }
         
-        // Get the current user
-        const user = await authService.getCurrentUser() as ExtendedUser;
+        // Declare user variable at this scope so it's available throughout the function
+        let user: ExtendedUser | null = null;
         
-        if (!user) {
-          console.log('No authenticated user found');
-          throw new Error('Authentication failed or no user found');
+        // Try to get the current user
+        try {
+          user = await authService.getCurrentUser() as ExtendedUser;
+          
+          if (!user) {
+            console.log('No authenticated user found. Redirecting to login page');
+            navigate('/');
+            return;
+          }
+          
+          console.log('Authentication successful, user found:', user);
+        } catch (authError) {
+          console.error('Error retrieving authenticated user:', authError);
+          
+          // Special handling for case where user was deleted from Supabase but still exists in Google
+          // This happens when the user deletes their account and tries to sign up again
+          if (hasAuthParams) {
+            console.log('Auth parameters detected but user retrieval failed - likely a deleted user trying to sign up again');
+            
+            try {
+              // Extract tokens from hash params
+              const hashParams = new URLSearchParams(window.location.hash.substring(1));
+              const accessToken = hashParams.get('access_token');
+              const refreshToken = hashParams.get('refresh_token');
+              
+              if (accessToken && refreshToken) {
+                console.log('Attempting to recreate session with OAuth tokens');
+                
+                // Try to use the tokens to sign in again, which should recreate the user in Supabase
+                const { data, error } = await supabase.auth.setSession({
+                  access_token: accessToken,
+                  refresh_token: refreshToken,
+                });
+                
+                if (error) {
+                  console.error('Failed to recreate session:', error);
+                  navigate('/');
+                  return;
+                }
+                
+                if (data?.user) {
+                  console.log('Successfully recreated user session from OAuth tokens');
+                  // Continue with the normal flow
+                  const user = await authService.getCurrentUser() as ExtendedUser;
+                  if (user) {
+                    console.log('User successfully recreated:', user);
+                  } else {
+                    console.error('Failed to get user after recreating session');
+                    navigate('/');
+                    return;
+                  }
+                } else {
+                  console.error('No user data after recreating session');
+                  navigate('/');
+                  return;
+                }
+              } else {
+                console.error('Missing tokens in auth parameters');
+                navigate('/');
+                return;
+              }
+            } catch (sessionError) {
+              console.error('Failed to handle deleted user case:', sessionError);
+              navigate('/');
+              return;
+            }
+          } else {
+            // No auth parameters, nothing we can do
+            console.error('No auth parameters available to recreate session');
+            navigate('/');
+            return;
+          }
         }
 
         console.log('Authentication successful, user:', user);
