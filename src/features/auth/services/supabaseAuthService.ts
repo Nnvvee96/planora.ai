@@ -235,15 +235,35 @@ export const supabaseAuthService = {
         console.warn('Non-fatal error updating profile with Google data:', profileErr);
       }
       
-      // Check if this is a new or existing user
+      // First look in auth.users metadata for onboarding status
+      // This is more reliable since it's part of the primary auth system
+      let hasCompletedOnboarding = false;
+      if (user && user.user_metadata && user.user_metadata.has_completed_onboarding === true) {
+        console.log('User has completed onboarding according to auth metadata');
+        hasCompletedOnboarding = true;
+      }
+
+      // Check profiles table as secondary source of truth
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
       
+      // Log the profile data for debugging
+      console.log('Profile data from database:', profile);
+
       if (!profile || profileError) {
         console.warn('Profile not found after auth callback, treating as new user');
+        
+        if (hasCompletedOnboarding) {
+          // Profile missing but metadata says onboarding is complete - trust the metadata
+          return {
+            success: true,
+            user,
+            registrationStatus: UserRegistrationStatus.RETURNING_USER
+          };
+        }
         
         // New user should go to onboarding
         return {
@@ -253,8 +273,14 @@ export const supabaseAuthService = {
         };
       } 
       
-      // Existing user, check if onboarding is completed
-      if (!profile.has_completed_onboarding) {
+      // Check the has_completed_onboarding flag in the profile
+      const profileOnboardingComplete = profile.has_completed_onboarding === true;
+      console.log('Profile onboarding complete:', profileOnboardingComplete);
+      
+      // Use either source - if either one indicates completion, consider onboarding complete
+      const isOnboardingComplete = hasCompletedOnboarding || profileOnboardingComplete;
+      
+      if (!isOnboardingComplete) {
         console.log('User has not completed onboarding');
         return {
           success: true,

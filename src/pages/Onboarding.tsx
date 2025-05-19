@@ -43,6 +43,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { getAuthService, AuthService } from '@/features/auth/api';
 import * as z from 'zod';
+import { supabase } from '@/lib/supabase';
 
 // Extended User type to handle user metadata
 interface ExtendedUser {
@@ -208,124 +209,167 @@ const Onboarding = () => {
       
       // Get form data and ensure correct types
       const formData = form.getValues();
+      console.log('Raw form data:', formData);
       
       // Check if budgetRange is properly formatted as an object
       const budgetRangeData = typeof formData.budgetRange === 'object' ? 
-        { min: Number(formData.budgetRange.min), max: Number(formData.budgetRange.max) } : 
+        { min: Number(formData.budgetRange.min || 500), max: Number(formData.budgetRange.max || 2000) } : 
         { min: 500, max: 2000 };
       
-      // Convert travel duration to the correct TravelDurationType enum value
-      // This ensures alignment with the type definition in TravelPreferencesTypes.ts
-      const travelDurationData = formData.travelDuration as TravelDurationType;
-        
-      // Format data for travel preferences service - ensuring we match the exact TravelPreferencesFormValues interface
-      const travelPreferencesData = {
-        // Properly match the interface property names
-        budgetRange: budgetRangeData,
-        // Use the correct property name from the interface (budgetFlexibility not budgetTolerance)
-        budgetFlexibility: Number(formData.budgetTolerance) || 10,
-        travelDuration: travelDurationData,
-        // Map the formData value to a valid DateFlexibilityType enum value
-        dateFlexibility: (formData.dateFlexibility && [
-          DateFlexibilityType.FLEXIBLE_FEW,
-          DateFlexibilityType.FLEXIBLE_WEEK,
-          DateFlexibilityType.FIXED,
-          DateFlexibilityType.VERY_FLEXIBLE
-        ].includes(formData.dateFlexibility as DateFlexibilityType))
-          ? (formData.dateFlexibility as DateFlexibilityType)
-          : DateFlexibilityType.FLEXIBLE_FEW,
-        customDateFlexibility: formData.customDateFlexibility || '',
-        planningIntent: formData.planningIntent as PlanningIntent,
-        accommodationTypes: formData.accommodationTypes as AccommodationType[] || [],
-        accommodationComfort: formData.accommodationComfort as ComfortPreference[] || [],
-        // Map the formData value to a valid LocationPreference enum value using the correct enum values
-        locationPreference: (formData.locationPreference && [
-          LocationPreference.ANYWHERE,
-          LocationPreference.CENTER,
-          LocationPreference.NEAR,
-          LocationPreference.OUTSKIRTS
-        ].includes(formData.locationPreference as LocationPreference))
-          ? (formData.locationPreference as LocationPreference)
-          : LocationPreference.ANYWHERE,
-        // Map the formData value to a valid FlightType enum value
-        flightType: (formData.flightType && [
-          FlightType.DIRECT,
-          FlightType.ANY
-        ].includes(formData.flightType as FlightType))
-          ? (formData.flightType as FlightType)
-          : FlightType.DIRECT,
-        preferCheaperWithStopover: Boolean(formData.preferCheaperWithStopover),
-        departureCity: formData.departureLocation || ''
-      };
-      
-      console.log('Saving travel preferences:', travelPreferencesData);
-      
-      // CRITICAL FIX FOR GOOGLE SIGN-IN LOOP:
-      // The problem was that we were making multiple separate API calls to update onboarding status,
-      // leading to race conditions and inconsistent state across different systems
-      
-      console.log('🚀 Completing onboarding with comprehensive cross-system synchronization');
-      
-      // Step 1: Save travel preferences to the database
-      console.log('Step 1: Saving travel preferences');
-      console.log('User ID:', currentUser.id);
-      
-      // Save travel preferences using the correct structure as defined in TravelPreferencesFormValues
+      // CRITICAL: Force direct database interaction using Supabase
+      // This bypasses any issues with the travel preferences service
       try {
-        // Use the actual travelPreferencesData which is already correctly structured
-        // The error was because we were trying to provide data that doesn't match our interface
-        const saveResult = await saveTravelPreferences(currentUser.id, travelPreferencesData);
+        console.log('🚀 DIRECT DB PATH: Saving travel preferences directly to database');
+        console.log('User ID:', currentUser.id);
         
-        // Log the result for debugging
-        console.log('Save travel preferences result:', saveResult);
-        console.log('Successfully saved travel preferences to database');
-      } catch (error) {
-        console.error('Failed to save travel preferences:', error);
-        // Proceed anyway to try the other steps
+        // Ensure we have the latest session before proceeding
+        const { data: sessionData } = await supabase.auth.getSession();
+        console.log('Current session:', sessionData?.session ? 'Active' : 'None');
+        
+        // 1. First try to upsert travel preferences with explicit user_id
+        const prefData = {
+          user_id: currentUser.id,
+          budget_min: budgetRangeData.min,
+          budget_max: budgetRangeData.max,
+          budget_flexibility: Number(formData.budgetTolerance || 10),
+          travel_duration: formData.travelDuration || 'week',
+          date_flexibility: formData.dateFlexibility || 'flexible-few',
+          custom_date_flexibility: formData.customDateFlexibility || '',
+          planning_intent: formData.planningIntent || 'exploring',
+          accommodation_types: formData.accommodationTypes || ['hotel'],
+          accommodation_comfort: formData.accommodationComfort || ['private-room'],
+          location_preference: formData.locationPreference || 'center',
+          flight_type: formData.flightType || 'direct',
+          prefer_cheaper_with_stopover: Boolean(formData.preferCheaperWithStopover),
+          departure_city: formData.departureLocation || 'Berlin',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        console.log('Travel preferences data for insertion:', prefData);
+        
+        // First check if preferences already exist
+        const { data: existingPrefs } = await supabase
+          .from('travel_preferences')
+          .select('id')
+          .eq('user_id', currentUser.id);
+          
+        console.log('Existing preferences check:', existingPrefs);
+        
+        let dbResult;
+        if (existingPrefs && existingPrefs.length > 0) {
+          // Update existing record
+          console.log('Updating existing travel preferences');
+          dbResult = await supabase
+            .from('travel_preferences')
+            .update(prefData)
+            .eq('user_id', currentUser.id);
+        } else {
+          // Insert new record
+          console.log('Inserting new travel preferences');
+          dbResult = await supabase
+            .from('travel_preferences')
+            .insert(prefData);
+        }
+        
+        console.log('Direct DB operation result:', dbResult);
+        
+        if (dbResult.error) {
+          console.error('Error in direct DB operation:', dbResult.error);
+          
+          // Fallback: try upsert
+          console.log('Attempting upsert as fallback...');
+          const upsertResult = await supabase
+            .from('travel_preferences')
+            .upsert(prefData, { onConflict: 'user_id' });
+            
+          console.log('Upsert fallback result:', upsertResult);
+        }
+      } catch (dbError) {
+        console.error('Direct DB operation failed:', dbError);
       }
       
-      // Step 2: Update user metadata with ALL relevant information in a SINGLE operation
-      // This ensures consistent state and prevents race conditions
-      console.log('Step 2: Updating ALL user metadata in a single operation');
+      // Also continue with original method as a backup approach
+      console.log('Continuing with original method as backup...');
+      
+      // Format data for travel preferences service
+      const travelPreferencesData = {
+        budgetRange: budgetRangeData,
+        budgetFlexibility: Number(formData.budgetTolerance || 10),
+        travelDuration: (formData.travelDuration || 'week') as TravelDurationType,
+        dateFlexibility: (formData.dateFlexibility || 'flexible-few') as DateFlexibilityType,
+        customDateFlexibility: formData.customDateFlexibility || '',
+        planningIntent: (formData.planningIntent || 'exploring') as PlanningIntent,
+        accommodationTypes: (formData.accommodationTypes || ['hotel']) as AccommodationType[],
+        accommodationComfort: (formData.accommodationComfort || ['private-room']) as ComfortPreference[],
+        locationPreference: (formData.locationPreference || 'center') as LocationPreference,
+        flightType: (formData.flightType || 'direct') as FlightType,
+        preferCheaperWithStopover: Boolean(formData.preferCheaperWithStopover),
+        departureCity: formData.departureLocation || 'Berlin'
+      };
+      
+      console.log('Regular travel preferences data:', travelPreferencesData);
+      
+      // CRITICAL: Multi-pronged approach to ensure data is saved successfully
+      
+      // Approach 1: Save via saveTravelPreferences function
       try {
-        // Use a single call to updateUserMetadata with all information
+        const saveResult = await saveTravelPreferences(currentUser.id, travelPreferencesData);
+        console.log('Save travel preferences result:', saveResult);
+      } catch (error) {
+        console.error('Failed to save travel preferences via service:', error);
+      }
+      
+      // Approach 2: Update profiles table directly
+      try {
+        console.log('Updating profiles table directly...');
+        const profileUpdate = await supabase
+          .from('profiles')
+          .update({
+            has_completed_onboarding: true,
+            first_name: currentUser.firstName || '',
+            last_name: currentUser.lastName || '',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', currentUser.id);
+          
+        console.log('Profile update result:', profileUpdate);
+      } catch (profileError) {
+        console.error('Failed to update profile directly:', profileError);
+      }
+      
+      // Approach 3: Update user metadata
+      try {
+        console.log('Updating user metadata...');
         await authService.updateUserMetadata({
-          // Critical onboarding flags
           has_completed_onboarding: true,
           onboarding_complete_date: new Date().toISOString(),
-          // Travel profile information
-          city: formData.departureLocation,
+          city: formData.departureLocation || 'Berlin',
           travel_preferences: {
-            accommodation_types: formData.accommodationTypes,
-            accommodation_comfort: formData.accommodationComfort,
-            budget_range: formData.budgetRange,
-            budget_tolerance: formData.budgetTolerance,
-            travel_duration: formData.travelDuration,
-            date_flexibility: formData.dateFlexibility,
-            planning_intent: formData.planningIntent,
-            location_preference: formData.locationPreference,
-            flight_type: formData.flightType,
-            prefer_cheaper_with_stopover: formData.preferCheaperWithStopover,
-            departure_location: formData.departureLocation
+            accommodation_types: formData.accommodationTypes || ['hotel'],
+            accommodation_comfort: formData.accommodationComfort || ['private-room'],
+            budget_range: budgetRangeData,
+            budget_tolerance: formData.budgetTolerance || 10,
+            travel_duration: formData.travelDuration || 'week',
+            date_flexibility: formData.dateFlexibility || 'flexible-few',
+            planning_intent: formData.planningIntent || 'exploring',
+            location_preference: formData.locationPreference || 'center',
+            flight_type: formData.flightType || 'direct',
+            prefer_cheaper_with_stopover: Boolean(formData.preferCheaperWithStopover),
+            departure_location: formData.departureLocation || 'Berlin'
           }
         });
-      
-        // Step 3: Set localStorage flag to ensure consistent state
-        console.log('Step 3: Synchronizing localStorage state');
+        
+        // Local storage as backup mechanism
         localStorage.setItem('hasCompletedInitialFlow', 'true');
-        
-        // Step 4: Use our enhanced updateOnboardingStatus to ensure profile DB is also updated
-        // This is critical to ensure the profile table has the correct flag
-        console.log('Step 4: Ensuring profile database is synchronized');
+        localStorage.setItem('userTravelPreferences', JSON.stringify(travelPreferencesData));
+
+        // Update onboarding status via the official function
         await updateOnboardingStatus(currentUser.id, true);
-        
-        console.log('✅ All systems synchronized! Onboarding successfully completed.');
       } catch (metadataError) {
         console.error('Failed to update user metadata:', metadataError);
-        // Even if this update fails, still try to update the profile and localStorage
-        // as a fallback to help break the onboarding loop
+        // Essential fallback
         localStorage.setItem('hasCompletedInitialFlow', 'true');
-        await updateOnboardingStatus(currentUser.id, true);
       }
       
       // Show success message
