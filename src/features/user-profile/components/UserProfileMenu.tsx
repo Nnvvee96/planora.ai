@@ -76,15 +76,18 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
     const fetchUserProfile = async () => {
       if (profileModalOpen) {
         try {
-          // Use supabase directly to avoid circular dependencies
-          const { data: { user } } = await supabase.auth.getUser();
+          // Use supabase directly to avoid circular dependencies with proper null checking
+          const { data } = await supabase.auth.getUser();
+          const user = data?.user ?? null;
           
-          // Get current user data
+          // Get current user data with comprehensive null checking
           const currentUser = user ? {
             id: user.id,
             email: user.email || '',
-            firstName: user.user_metadata?.first_name || '',
-            lastName: user.user_metadata?.last_name || ''
+            firstName: (user.user_metadata && typeof user.user_metadata === 'object') ? 
+              (user.user_metadata.first_name as string || user.user_metadata.given_name as string || '') : '',
+            lastName: (user.user_metadata && typeof user.user_metadata === 'object') ? 
+              (user.user_metadata.last_name as string || user.user_metadata.family_name as string || '') : ''
           } : null;
           
           if (currentUser) {

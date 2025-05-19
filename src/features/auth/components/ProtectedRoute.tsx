@@ -16,6 +16,8 @@ import { supabase } from '@/lib/supabase';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireOnboarding?: boolean;
+  requireAuth?: boolean;
+  redirectToIfAuthenticated?: string;
 }
 
 /**
@@ -24,7 +26,9 @@ interface ProtectedRouteProps {
  */
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
-  requireOnboarding = false 
+  requireOnboarding = false,
+  requireAuth = true,
+  redirectToIfAuthenticated
 }) => {
   const { isAuthenticated, user, loading } = useAuthContext();
   const location = useLocation();
@@ -83,16 +87,21 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // Show loading state while checking authentication or verifying status
   if (loading || isVerifying) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-        <p className="mt-4 text-lg">{loading ? 'Checking authentication...' : 'Verifying user status...'}</p>
+      <div className="flex items-center justify-center h-screen bg-planora-background">
+        <Loader2 className="h-8 w-8 animate-spin text-planora-accent-purple" />
       </div>
     );
   }
 
-  // Redirect to login if user is not authenticated
-  if (!isAuthenticated) {
-    return <Navigate to="/" state={{ from: location }} replace />;
+  // Handle authenticated user trying to access public pages
+  if (isAuthenticated && redirectToIfAuthenticated) {
+    return <Navigate to={redirectToIfAuthenticated} replace />;
+  }
+
+  // Check if the user is authenticated (only if authentication is required)
+  if (requireAuth && !isAuthenticated) {
+    // Redirect to login page, saving the attempted location
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   // If onboarding is required and not completed
