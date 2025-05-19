@@ -23,7 +23,18 @@ export const supabaseAuthService = {
    * Initiates Google OAuth flow
    */
   signInWithGoogle: async (): Promise<void> => {
-    const redirectUrl = window.location.origin + '/auth/callback';
+    // Use environment-specific redirect URL
+    let redirectUrl;
+    
+    if (import.meta.env.DEV) {
+      // Local development
+      redirectUrl = 'http://localhost:3000/auth/callback';
+    } else {
+      // Production environment - hardcode the main domain
+      redirectUrl = 'https://planora-ai-plum.vercel.app/auth/callback';
+    }
+    
+    console.log('Using redirect URL:', redirectUrl);
     
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -86,14 +97,24 @@ export const supabaseAuthService = {
    */
   handleAuthCallback: async (): Promise<AuthResponse> => {
     try {
+      console.log('Auth callback initiated');
+      
       // Get session
       const { data: { session }, error } = await supabase.auth.getSession();
       
+      console.log('Auth session check result:', { 
+        hasSession: !!session, 
+        hasError: !!error,
+        errorMessage: error?.message
+      });
+      
       if (error || !session) {
+        console.error('Auth callback error - no valid session:', error);
         return { 
           success: false, 
           user: null, 
-          error: error?.message || 'No session found' 
+          error: error?.message || 'No session found',
+          registrationStatus: UserRegistrationStatus.ERROR
         };
       }
       

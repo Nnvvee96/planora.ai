@@ -23,7 +23,8 @@ export interface AuthState {
 export enum UserRegistrationStatus {
   NEW_USER = 'new_user',         // First time sign-in, needs onboarding
   RETURNING_USER = 'returning_user',  // Existing user, go to dashboard
-  INCOMPLETE_ONBOARDING = 'incomplete_onboarding' // Started but not completed onboarding
+  INCOMPLETE_ONBOARDING = 'incomplete_onboarding', // Started but not completed onboarding
+  ERROR = 'error'                // Authentication error occurred
 }
 
 /**
