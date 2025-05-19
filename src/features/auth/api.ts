@@ -86,6 +86,14 @@ export const authService = {
   },
   
   /**
+   * Update user metadata
+   * Updates the user's metadata in Supabase
+   */
+  updateUserMetadata: async (metadata: Record<string, any>): Promise<void> => {
+    return supabaseAuthService.updateUserMetadata(metadata);
+  },
+  
+  /**
    * Get current user
    */
   getCurrentUser: async (): Promise<AppUser | null> => {
