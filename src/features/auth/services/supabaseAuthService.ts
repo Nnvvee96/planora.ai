@@ -120,13 +120,14 @@ export const supabaseAuthService = {
     try {
       console.log('Auth callback initiated');
       
-      // Get session
+      // Get session and check if this is a new user
       const { data: { session }, error } = await supabase.auth.getSession();
       
       console.log('Auth session check result:', { 
         hasSession: !!session, 
         hasError: !!error,
-        errorMessage: error?.message
+        errorMessage: error?.message,
+        isNewUser: session?.user?.identities?.[0]?.created_at === session?.user?.created_at
       });
       
       if (error || !session) {
@@ -138,6 +139,10 @@ export const supabaseAuthService = {
           registrationStatus: UserRegistrationStatus.ERROR
         };
       }
+      
+      // Check if this is a new user (just signed up)
+      const isNewUser = session.user.identities?.[0]?.created_at === session.user.created_at;
+      console.log('Is new user from identity provider?', isNewUser);
       
       const user = session.user;
       console.log('User authenticated successfully:', user.id);
@@ -396,7 +401,15 @@ export const supabaseAuthService = {
         };
       }
       
-      // If we reach here, no source indicated onboarding completion
+      // If this is a new user (just signed up via Google), always send to onboarding
+      if (isNewUser) {
+        console.log('New user detected from identity provider, requiring onboarding');
+        return {
+          success: true,
+          user,
+          registrationStatus: UserRegistrationStatus.NEW_USER
+        };
+      }
       
       // Handle case where profile doesn't exist
       if (!profile || profileError) {
@@ -408,12 +421,26 @@ export const supabaseAuthService = {
         };
       }
       
-      // Existing user with completed onboarding
-      console.log('Returning user with completed onboarding');
+      // If we reach here, no source indicated onboarding completion
+      // But since this isn't a new user, we'll treat them as returning
+      console.log('Returning user, checking if onboarding is needed');
+      
+      // If any source indicates onboarding is complete, trust it
+      if (localStorageOnboardingComplete || metadataOnboardingComplete || profile.has_completed_onboarding) {
+        console.log('Returning user with completed onboarding');
+        return {
+          success: true,
+          user,
+          registrationStatus: UserRegistrationStatus.RETURNING_USER
+        };
+      }
+      
+      // Otherwise, require onboarding
+      console.log('Returning user who needs to complete onboarding');
       return {
         success: true,
         user,
-        registrationStatus: UserRegistrationStatus.RETURNING_USER
+        registrationStatus: UserRegistrationStatus.INCOMPLETE_ONBOARDING
       };
     } catch (err) {
       console.error('Error in auth callback:', err);
