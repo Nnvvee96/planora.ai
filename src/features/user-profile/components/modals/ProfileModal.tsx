@@ -108,10 +108,19 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
         throw new Error('User not authenticated');
       }
       
-      console.log('Updating profile with data:', {
-        userId: currentUser.id,
-        ...data
-      });
+      // Debug log the form data
+      console.log('Form data being submitted:', JSON.stringify(data, null, 2));
+      console.log('Birthdate value type:', typeof data.birthdate, 'Value:', data.birthdate);
+      
+      // Log the data being sent to updateUserProfile
+      const updateData = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        birthdate: data.birthdate || undefined,
+      };
+      
+      console.log('Data being sent to updateUserProfile:', JSON.stringify(updateData, null, 2));
       
       // Update the user profile through the user profile service
       const updated = await userProfileService.updateUserProfile(currentUser.id, {
