@@ -49,12 +49,14 @@ export const AuthCallback: React.FC = () => {
         
         if (authResponse.success) {
           // Determine where to redirect based on registration status
-          if (authResponse.registrationStatus === UserRegistrationStatus.NEW_USER ||
-              authResponse.registrationStatus === UserRegistrationStatus.INCOMPLETE_ONBOARDING) {
-            console.log('Redirecting to onboarding...');
+          if (authResponse.registrationStatus === UserRegistrationStatus.NEW_USER) {
+            console.log('New user detected, redirecting to onboarding...');
             setRedirectPath('/onboarding');
+          } else if (authResponse.registrationStatus === UserRegistrationStatus.INCOMPLETE_ONBOARDING) {
+            console.log('Returning user with incomplete onboarding, redirecting to onboarding...');
+            setRedirectPath('/onboarding?returning=true');
           } else {
-            console.log('Redirecting to dashboard...');
+            console.log('Returning user with completed onboarding, redirecting to dashboard...');
             setRedirectPath('/dashboard');
           }
         } else if (authResponse.error) {
