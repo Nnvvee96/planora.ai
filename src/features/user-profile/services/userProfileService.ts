@@ -18,6 +18,7 @@ const mapDbProfileToUserProfile = (dbProfile: DbUserProfile): UserProfile => {
     lastName: dbProfile.last_name,
     email: dbProfile.email,
     avatarUrl: dbProfile.avatar_url,
+    birthdate: dbProfile.birthdate,
     hasCompletedOnboarding: dbProfile.has_completed_onboarding,
     createdAt: dbProfile.created_at,
     updatedAt: dbProfile.updated_at
@@ -35,6 +36,7 @@ const mapUserProfileToDbProfile = (profile: Partial<UserProfile>): Partial<DbUse
   if (profile.lastName !== undefined) dbProfile.last_name = profile.lastName;
   if (profile.email !== undefined) dbProfile.email = profile.email;
   if (profile.avatarUrl !== undefined) dbProfile.avatar_url = profile.avatarUrl;
+  if (profile.birthdate !== undefined) dbProfile.birthdate = profile.birthdate;
   if (profile.hasCompletedOnboarding !== undefined) dbProfile.has_completed_onboarding = profile.hasCompletedOnboarding;
   
   return dbProfile;
