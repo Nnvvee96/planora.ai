@@ -12,6 +12,7 @@ export interface UserProfile {
   lastName: string;
   email: string;
   avatarUrl?: string;
+  birthdate?: string;
   hasCompletedOnboarding: boolean;
   createdAt?: string;
   updatedAt?: string;

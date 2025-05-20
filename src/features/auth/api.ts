@@ -76,6 +76,7 @@ export interface AuthService {
   handleAuthCallback(): Promise<AuthResponse>;
   register(data: RegisterData): Promise<void>;
   updatePassword(currentPassword: string, newPassword: string): Promise<void>;
+  updateEmail(newEmail: string): Promise<void>;
   checkOnboardingStatus(userId: string): Promise<boolean>;
   updateOnboardingStatus(userId: string, hasCompleted?: boolean): Promise<boolean>;
 }
@@ -205,5 +206,13 @@ const authService = {
    */
   updatePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
     return supabaseAuthService.updatePassword(currentPassword, newPassword);
+  },
+  
+  /**
+   * Update user email
+   * @param newEmail The new email address
+   */
+  updateEmail: async (newEmail: string): Promise<void> => {
+    return supabaseAuthService.updateEmail(newEmail);
   }
 };

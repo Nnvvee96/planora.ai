@@ -11,6 +11,7 @@ import { DatePickerInput } from '@/components/ui/DatePickerInput';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { getAuthService, AuthService } from '@/features/auth/api';
 import { userProfileService } from '@/features/user-profile/api';
+import { useToast } from '@/components/ui/use-toast';
 
 const profileSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required" }),
@@ -38,6 +39,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
   birthdate,
   onProfileUpdate 
 }) => {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   // Initialize auth service using factory function
   const [authService, setAuthService] = useState<AuthService | null>(null);
@@ -106,22 +108,35 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
         throw new Error('User not authenticated');
       }
       
+      console.log('Updating profile with data:', {
+        userId: currentUser.id,
+        ...data
+      });
+      
       // Update the user profile through the user profile service
-      const profileData = {
-        id: currentUser.id,
-        first_name: data.firstName,
-        last_name: data.lastName,
+      const updated = await userProfileService.updateUserProfile(currentUser.id, {
+        firstName: data.firstName,
+        lastName: data.lastName,
         email: data.email,
-        birthdate: data.birthdate,
-        updated_at: new Date().toISOString()
-      };
+        birthdate: data.birthdate || undefined,
+      });
       
-      // Use the user profile service to update the profile
-      const updatedProfile = await userProfileService.updateUserProfile(currentUser.id, profileData);
-      
-      if (!updatedProfile) {
+      if (!updated) {
         throw new Error('Failed to update profile');
       }
+      
+      // Also update the email in the auth user if it's different
+      if (data.email && data.email !== currentUser.email) {
+        console.log('Updating auth email to:', data.email);
+        await authService.updateEmail(data.email);
+      }
+      
+      // Update the user metadata with the new name
+      await authService.updateUserMetadata({
+        full_name: `${data.firstName} ${data.lastName}`.trim(),
+        first_name: data.firstName,
+        last_name: data.lastName,
+      });
       
       // Call the onProfileUpdate callback if provided
       if (onProfileUpdate) {
@@ -129,12 +144,24 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
       }
       
       // Show success message
-      alert('Profile updated successfully!');
-      onOpenChange(false);
+      toast({
+        title: 'Success',
+        description: 'Your profile has been updated successfully.',
+        variant: 'default',
+      });
+      
+      // Close the modal after a short delay
+      setTimeout(() => {
+        onOpenChange(false);
+      }, 1000);
       
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Failed to update profile. Please try again.');
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to update profile. Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }

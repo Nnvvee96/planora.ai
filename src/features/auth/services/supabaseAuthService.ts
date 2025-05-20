@@ -523,31 +523,60 @@ export const supabaseAuthService = {
    */
   updatePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
     try {
-      // First verify the current password by attempting a sign-in
-      const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
-        email: (await supabaseAuthService.getCurrentUser())?.email || '',
-        password: currentPassword
+      // First, we need to reauthenticate the user
+      const { data: reauthData, error: reauthError } = await supabase.auth.signInWithPassword({
+        email: (await supabase.auth.getUser()).data.user?.email || '',
+        password: currentPassword,
       });
-      
-      if (signInError || !user) {
-        console.error('Error verifying current password:', signInError);
+
+      if (reauthError) {
+        console.error('Reauthentication error:', reauthError);
         throw new Error('Current password is incorrect');
       }
-      
-      // If current password is verified, update to the new password
+
+      // Then update the password
       const { error } = await supabase.auth.updateUser({
-        password: newPassword
+        password: newPassword,
       });
-      
+
       if (error) {
         console.error('Error updating password:', error);
         throw error;
       }
-      
-      console.log('Password updated successfully');
     } catch (err) {
       console.error('Failed to update password:', err);
       throw err;
     }
-  }
+  },
+  
+  /**
+   * Update user email
+   * @param newEmail The new email address
+   */
+  updateEmail: async (newEmail: string): Promise<void> => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        email: newEmail,
+      });
+
+      if (error) {
+        console.error('Error updating email:', error);
+        throw error;
+      }
+      
+      // Also update the email in the public.profiles table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ email: newEmail })
+        .eq('id', (await supabase.auth.getUser()).data.user?.id);
+        
+      if (profileError) {
+        console.error('Error updating email in profiles table:', profileError);
+        // Don't throw here as the auth email was updated successfully
+      }
+    } catch (err) {
+      console.error('Failed to update email:', err);
+      throw err;
+    }
+  },
 };
