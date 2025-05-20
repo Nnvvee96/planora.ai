@@ -25,6 +25,7 @@ export interface DbUserProfile {
   last_name: string;
   email: string;
   avatar_url?: string;
+  birthdate?: string;
   has_completed_onboarding: boolean;
   created_at?: string;
   updated_at?: string;
