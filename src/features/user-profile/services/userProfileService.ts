@@ -382,19 +382,27 @@ export const userProfileService = {
   updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Promise<boolean> => {
     try {
       console.log('Updating user profile for ID:', userId);
-      console.log('Profile data:', profileData);
+      console.log('Raw profile data received:', JSON.stringify(profileData, null, 2));
       
       if (!userId) {
         console.error('Cannot update user profile: Missing user ID');
         return false;
       }
       
+      // Log the mapped database profile data
+      const dbProfile = mapUserProfileToDbProfile(profileData);
+      console.log('Mapped database profile data:', JSON.stringify(dbProfile, null, 2));
+      
+      const updateData = {
+        ...dbProfile,
+        updated_at: new Date().toISOString()
+      };
+      
+      console.log('Final data being sent to Supabase:', JSON.stringify(updateData, null, 2));
+      
       const { error } = await supabase
         .from('profiles')
-        .update({
-          ...mapUserProfileToDbProfile(profileData),
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', userId);
       
       if (error) {
