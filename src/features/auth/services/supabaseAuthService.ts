@@ -209,45 +209,56 @@ export const supabaseAuthService = {
           console.log('Extracted name info:', { firstName, lastName });
           
           // Check if profile exists
-          const { data, error } = await supabase
+          const { data: profileData, error: profileFetchError } = await supabase
             .from('profiles')
-            .select('id, first_name, last_name')
+            .select('id, first_name, last_name, has_completed_onboarding')
             .eq('id', user.id)
             .single();
           
-          if (!data || error) {
-            // Profile doesn't exist, create it
+          // Prepare profile data with proper names
+          const profileUpdates = {
+            id: user.id,
+            email: user.email,
+            first_name: firstName || user_metadata.given_name || user_metadata.name?.split(' ')[0] || '',
+            last_name: lastName || user_metadata.family_name || user_metadata.name?.split(' ').slice(1).join(' ') || '',
+            avatar_url: user_metadata.avatar_url || user_metadata.picture || '',
+            updated_at: timestamp
+          };
+
+          if (!profileData || profileFetchError) {
+            // Profile doesn't exist, create it with all available data
             const { error: insertError } = await supabase
               .from('profiles')
               .insert({
-                id: user.id,
-                first_name: firstName,
-                last_name: lastName,
-                email: user.email,
-                avatar_url: user_metadata.avatar_url as string || user_metadata.picture as string || '',
+                ...profileUpdates,
                 has_completed_onboarding: false,
-                created_at: timestamp,
-                updated_at: timestamp
+                created_at: timestamp
               });
               
             if (insertError) {
               console.error('Error creating profile:', insertError);
+            } else {
+              console.log('Successfully created profile with Google data');
             }
-          } else if (!data.first_name || !data.last_name) {
-            // Profile exists but name fields are empty, update them
-            const updates: Record<string, unknown> = {
-              updated_at: timestamp
-            };
+          } else {
+            // Profile exists, update it with latest data
+            const updates: Record<string, unknown> = { ...profileUpdates };
             
-            if (!data.first_name && firstName) {
-              updates.first_name = firstName;
+            // Only update name fields if they're empty or if we have better data
+            if ((!profileData.first_name || (firstName && firstName !== profileData.first_name)) && profileUpdates.first_name) {
+              updates.first_name = profileUpdates.first_name;
+            } else {
+              delete updates.first_name;
             }
             
-            if (!data.last_name && lastName) {
-              updates.last_name = lastName;
+            if ((!profileData.last_name || (lastName && lastName !== profileData.last_name)) && profileUpdates.last_name) {
+              updates.last_name = profileUpdates.last_name;
+            } else {
+              delete updates.last_name;
             }
             
-            if (Object.keys(updates).length > 1) {
+            // Only update if we have changes
+            if (Object.keys(updates).length > 1) { // More than just id and updated_at
               const { error: updateError } = await supabase
                 .from('profiles')
                 .update(updates)
@@ -255,6 +266,8 @@ export const supabaseAuthService = {
                 
               if (updateError) {
                 console.error('Error updating profile with Google data:', updateError);
+              } else {
+                console.log('Successfully updated profile with Google data');
               }
             }
           }
@@ -271,77 +284,49 @@ export const supabaseAuthService = {
         metadata: user.user_metadata 
       });
       
-      // SECTION 1: Check localStorage first (most reliable client-side indicator)
+      // SECTION 1: Initialize profile data and onboarding status
+      let profileData = null;
+      let profileError = null;
+      
+      try {
+        // Try to fetch profile data
+        const result = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+          
+        profileData = result.data;
+        profileError = result.error;
+        
+        if (profileError && profileError.code !== 'PGRST116') { // Ignore 'not found' errors
+          console.error('Error fetching profile:', profileError);
+        }
+      } catch (err) {
+        console.error('Error in profile retrieval:', err);
+        profileError = err;
+      }
+      
+      // Check localStorage for onboarding status (client-side indicator)
       const localStorageOnboardingComplete = localStorage.getItem('hasCompletedInitialFlow') === 'true';
       console.log('🔍 Source 1 - localStorage hasCompletedInitialFlow:', localStorageOnboardingComplete);
       
-      // SECTION 2: Check auth.users metadata (server-side, tied to auth system)
+      // Check auth.users metadata (server-side, tied to auth system)
       const metadataOnboardingComplete = 
         user?.user_metadata?.has_completed_onboarding === true;
       console.log('🔍 Source 2 - Auth metadata has_completed_onboarding:', metadataOnboardingComplete);
 
-      // SECTION 3: Check profiles table (database record)
-      // Force using primary RLS permissions with explicit auth refresh
-      await supabase.auth.refreshSession();
-      
-      // First try to get the profile
-      let profile;
-      let profileError;
-      
-      try {
-        const profileResult = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle(); // Use maybeSingle to avoid errors if no profile found
-          
-        profile = profileResult.data;
-        profileError = profileResult.error;
-        
-        // If no profile found, try to create one
-        if (!profile && !profileError) {
-          console.log('🔨 No profile found - attempting to create one automatically');
-          
-          // Create a new profile with user data
-          const createResult = await supabase
-            .from('profiles')
-            .insert([
-              {
-                id: user.id,
-                email: user.email,
-                first_name: user.user_metadata?.first_name || '',
-                last_name: user.user_metadata?.last_name || '',
-                avatar_url: user.user_metadata?.avatar_url || '',
-                has_completed_onboarding: user.user_metadata?.has_completed_onboarding || false,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              }
-            ])
-            .select()
-            .single();
-            
-          if (createResult.data) {
-            console.log('✅ Successfully created profile for user', user.id);
-            profile = createResult.data;
-          } else if (createResult.error) {
-            console.error('Failed to create profile:', createResult.error);
-          }
-        }
-      } catch (err) {
-        console.error('Error in profile retrieval/creation:', err);
-      }
-      
-      // Detailed profile data logging
-      if (profile) {
-        console.log('🔍 Source 3 - Profile data retrieved or created:', { 
-          id: profile.id,
-          email: profile.email,
-          hasCompletedOnboarding: profile.has_completed_onboarding,
-          firstName: profile.first_name,
-          lastName: profile.last_name
+      // Log profile data if available
+      if (profileData) {
+        console.log('🔍 Source 3 - Profile data retrieved:', { 
+          id: profileData.id,
+          email: profileData.email,
+          hasCompletedOnboarding: profileData.has_completed_onboarding,
+          firstName: profileData.first_name,
+          lastName: profileData.last_name
         });
       } else {
-        console.warn('❌ No profile found in database and creation failed');
+        console.warn('❌ No profile found in database');
         if (profileError) {
           console.error('Profile retrieval error:', profileError);
         }
@@ -356,12 +341,11 @@ export const supabaseAuthService = {
       const hasTravelPreferences = travelPrefs && travelPrefs.length > 0;
       console.log('🔍 Source 4 - Has travel preferences:', hasTravelPreferences);
       
-      // PRIORITY DECISION: If ANY reliable source indicates completion, trust it
-      // This breaks the redirect loop for users who completed onboarding
+      // Check if onboarding is complete from any source
       const onboardingCompleteFromAnySource = 
         localStorageOnboardingComplete || 
         metadataOnboardingComplete || 
-        (profile && profile.has_completed_onboarding === true) ||
+        (profileData?.has_completed_onboarding === true) ||
         hasTravelPreferences;
         
       console.log('🚨 FINAL DECISION - Onboarding complete from ANY source:', onboardingCompleteFromAnySource);
@@ -383,11 +367,20 @@ export const supabaseAuthService = {
           }
           
           // Update profile if it exists and flag not set
-          if (profile && profile.has_completed_onboarding !== true) {
-            await supabase
+          if (profileData?.has_completed_onboarding !== true) {
+            const { error: updateError } = await supabase
               .from('profiles')
-              .update({ has_completed_onboarding: true })
+              .update({ 
+                has_completed_onboarding: true,
+                updated_at: new Date().toISOString()
+              })
               .eq('id', user.id);
+              
+            if (updateError) {
+              console.error('Error updating profile onboarding status:', updateError);
+            } else {
+              console.log('Successfully updated profile onboarding status');
+            }
           }
         } catch (syncError) {
           console.error('Non-fatal error synchronizing onboarding status:', syncError);
@@ -412,7 +405,7 @@ export const supabaseAuthService = {
       }
       
       // Handle case where profile doesn't exist
-      if (!profile || profileError) {
+      if (!profileData || profileError) {
         console.warn('No profile found, treating as new user requiring onboarding');
         return {
           success: true,
@@ -426,7 +419,7 @@ export const supabaseAuthService = {
       console.log('Returning user, checking if onboarding is needed');
       
       // If any source indicates onboarding is complete, trust it
-      if (localStorageOnboardingComplete || metadataOnboardingComplete || profile.has_completed_onboarding) {
+      if (localStorageOnboardingComplete || metadataOnboardingComplete || profileData?.has_completed_onboarding) {
         console.log('Returning user with completed onboarding');
         return {
           success: true,
