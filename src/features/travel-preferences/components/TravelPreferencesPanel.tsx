@@ -143,7 +143,7 @@ const TravelPreferencesPanel: React.FC<TravelPreferencesPanelProps> = ({
   isDialog = false 
 }) => {
   const navigate = useNavigate();
-  const { preferences, isLoading, savePreferences } = useTravelPreferences();
+  const { preferences, loading: isLoading, savePreferences } = useTravelPreferences();
   const [editing, setEditing] = useState(false);
 
   // Initialize form with default values exactly matching onboarding
@@ -169,6 +169,16 @@ const TravelPreferencesPanel: React.FC<TravelPreferencesPanelProps> = ({
   // Formatting helpers
   const formatCurrency = (value: number) => `€${value.toLocaleString()}`;
   const formatBudgetTolerance = (value: number) => `±${value}%`;
+
+  // Clear customDateFlexibility when a standard travel duration is selected
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'travelDuration' && value.travelDuration !== 'longer') {
+        form.setValue('customDateFlexibility', '', { shouldValidate: true });
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   // Load saved preferences
   useEffect(() => {
@@ -208,73 +218,57 @@ const TravelPreferencesPanel: React.FC<TravelPreferencesPanelProps> = ({
   }, [preferences, isLoading, form]);
 
   // Submit handler
-  const onSubmit = async (data: TravelPreferencesFormValues) => {
-    console.log('Submitting travel preferences:', data);
+  const onSubmit = async (formData: TravelPreferencesFormValues) => {
+    console.log('Submitting travel preferences:', formData);
     
     try {
+      // Clear customDateFlexibility if not needed
+      const shouldClearCustomDateFlexibility = formData.travelDuration !== 'longer';
+      
       // Create a complete object with all required fields to match TravelPreferencesFormValues
       // This ensures no fields are missing, which would cause TypeScript errors
-      const completeFormValues: TravelPreferencesFormValues = {
+      const completeFormValues = {
         budgetRange: {
-          min: Number(data.budgetRange && data.budgetRange.min ? data.budgetRange.min : 500),
-          max: Number(data.budgetRange && data.budgetRange.max ? data.budgetRange.max : 2000)
+          min: Number(formData.budgetRange?.min ?? 500),
+          max: Number(formData.budgetRange?.max ?? 2000)
         },
-        budgetFlexibility: Number(data.budgetFlexibility || 10),
-        travelDuration: data.travelDuration || 'week',
-        dateFlexibility: data.dateFlexibility || 'flexible-few',
-        customDateFlexibility: data.customDateFlexibility || '',
-        planningIntent: data.planningIntent || 'exploring',
-        accommodationTypes: Array.isArray(data.accommodationTypes) 
-          ? data.accommodationTypes.filter(type => ['hotel', 'apartment', 'hostel', 'resort'].includes(type as string)) as AccommodationType[]
-          : ['hotel'],
-        accommodationComfort: Array.isArray(data.accommodationComfort) 
-          ? data.accommodationComfort.filter(pref => ['private-room', 'shared-room', 'private-bathroom', 'shared-bathroom', 'luxury'].includes(pref as string)) as ComfortPreference[]
-          : ['private-room'],
-        locationPreference: data.locationPreference || 'anywhere',
-        departureCity: data.departureCity || '',
-        flightType: data.flightType || 'direct',
-        preferCheaperWithStopover: data.preferCheaperWithStopover === undefined ? true : data.preferCheaperWithStopover
+        budgetFlexibility: Number(formData.budgetFlexibility ?? 10),
+        travelDuration: formData.travelDuration as TravelDurationType,
+        dateFlexibility: formData.dateFlexibility as DateFlexibilityType,
+        // Clear customDateFlexibility if not needed
+        customDateFlexibility: shouldClearCustomDateFlexibility ? '' : (formData.customDateFlexibility ?? ''),
+        planningIntent: formData.planningIntent as PlanningIntent,
+        accommodationTypes: Array.isArray(formData.accommodationTypes) 
+          ? formData.accommodationTypes.filter(type => 
+              Object.values(AccommodationType).includes(type as AccommodationType)
+            ) as AccommodationType[]
+          : [AccommodationType.HOTEL],
+        accommodationComfort: Array.isArray(formData.accommodationComfort) 
+          ? formData.accommodationComfort.filter(pref => 
+              Object.values(ComfortPreference).includes(pref as ComfortPreference)
+            ) as ComfortPreference[]
+          : [ComfortPreference.PRIVATE_ROOM],
+        locationPreference: formData.locationPreference as LocationPreference,
+        departureCity: formData.departureCity || '',
+        flightType: formData.flightType as FlightType,
+        preferCheaperWithStopover: formData.preferCheaperWithStopover !== false
       };
 
+      console.log('Saving travel preferences with values:', completeFormValues);
+      
       // Save and get the updated preferences
-      // We need to explicitly convert data to the correct type to satisfy TypeScript
-      const savedPreferences = await savePreferences({
-        ...completeFormValues,
-        // Ensure budgetRange matches BudgetRange type with required properties
-        budgetRange: {
-          min: Number(completeFormValues.budgetRange.min),
-          max: Number(completeFormValues.budgetRange.max)
-        }
+      // Save the preferences - the hook will handle updating the UI
+      await savePreferences(completeFormValues);
+      
+      // Show success message
+      toast({
+        title: "Success",
+        description: "Your travel preferences have been updated successfully.",
+        variant: "default"
       });
       
-      // Force a refresh by updating the form with new saved data
-      if (savedPreferences) {
-        // Format the saved preferences to match the form's expected structure
-        const savedFormValues: TravelPreferencesFormValues = {
-          budgetRange: {
-            min: Number(savedPreferences.budgetRange?.min || 500),
-            max: Number(savedPreferences.budgetRange?.max || 2000)
-          },
-          budgetFlexibility: Number(savedPreferences.budgetFlexibility || 10),
-          travelDuration: savedPreferences.travelDuration as TravelDurationType || 'week',
-          dateFlexibility: savedPreferences.dateFlexibility as DateFlexibilityType || 'flexible-few',
-          customDateFlexibility: savedPreferences.customDateFlexibility || '',
-          planningIntent: savedPreferences.planningIntent as PlanningIntent || 'exploring',
-          accommodationTypes: Array.isArray(savedPreferences.accommodationTypes) 
-            ? savedPreferences.accommodationTypes.filter(type => ['hotel', 'apartment', 'hostel', 'resort'].includes(type as string)) as AccommodationType[]
-            : ['hotel'],
-          accommodationComfort: Array.isArray(savedPreferences.accommodationComfort) 
-            ? savedPreferences.accommodationComfort.filter(pref => ['private-room', 'shared-room', 'private-bathroom', 'shared-bathroom', 'luxury'].includes(pref as string)) as ComfortPreference[]
-            : ['private-room'],
-          locationPreference: savedPreferences.locationPreference as LocationPreference || 'anywhere',
-          departureCity: savedPreferences.departureCity || '',
-          flightType: savedPreferences.flightType as FlightType || 'direct',
-          preferCheaperWithStopover: savedPreferences.preferCheaperWithStopover === undefined ? true : savedPreferences.preferCheaperWithStopover
-        };
-        
-        // Reset form with properly formatted values
-        form.reset(savedFormValues);
-      }
+      // Exit edit mode
+      setEditing(false);
       
       toast({
         title: "Success",
