@@ -51,7 +51,7 @@ const extractNameFromGoogleData = (user: { id: string; email?: string; user_meta
   const { user_metadata } = user;
   
   // Log the user metadata to see its structure
-  console.log('Extracting name from Google metadata:', user_metadata);
+  console.log('Extracting name from Google metadata:', JSON.stringify(user_metadata, null, 2));
   
   // Extract first and last name from various possible Google metadata formats
   let firstName = '';
@@ -381,38 +381,68 @@ export const userProfileService = {
    */
   updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Promise<boolean> => {
     try {
-      console.log('Updating user profile for ID:', userId);
-      console.log('Raw profile data received:', JSON.stringify(profileData, null, 2));
-      
       if (!userId) {
-        console.error('Cannot update user profile: Missing user ID');
+        console.error('User ID is required to update profile');
         return false;
       }
       
-      // Log the mapped database profile data
-      const dbProfile = mapUserProfileToDbProfile(profileData);
-      console.log('Mapped database profile data:', JSON.stringify(dbProfile, null, 2));
+      // Create a copy of profileData to avoid mutating the original
+      const profileUpdate = { ...profileData };
       
-      const updateData = {
-        ...dbProfile,
-        updated_at: new Date().toISOString()
-      };
+      // Format birthdate if it exists
+      if (profileUpdate.birthdate) {
+        try {
+          // Ensure birthdate is in YYYY-MM-DD format
+          const date = new Date(profileUpdate.birthdate);
+          if (!isNaN(date.getTime())) {
+            profileUpdate.birthdate = date.toISOString().split('T')[0];
+          } else {
+            console.warn('Invalid birthdate format, removing from update:', profileUpdate.birthdate);
+            delete profileUpdate.birthdate;
+          }
+        } catch (e) {
+          console.error('Error formatting birthdate:', e);
+          delete profileUpdate.birthdate;
+        }
+      }
       
-      console.log('Final data being sent to Supabase:', JSON.stringify(updateData, null, 2));
+      // Convert profile data to database format
+      const dbProfile = mapUserProfileToDbProfile(profileUpdate);
       
-      const { error } = await supabase
+      console.log('Updating profile in database:', { userId, dbProfile });
+      
+      // Update the profile in the database
+      const { data, error } = await supabase
         .from('profiles')
-        .update(updateData)
-        .eq('id', userId);
+        .update({
+          ...dbProfile,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId)
+        .select();
       
       if (error) {
-        console.error('Error updating user profile:', error);
+        console.error('Error updating profile in database:', error);
+        // If the profile doesn't exist, try creating it
+        if (error.code === 'PGRST116' || error.message?.includes('not found')) {
+          console.log('Profile does not exist, attempting to create it');
+          return userProfileService.createUserProfile({
+            id: userId,
+            firstName: profileUpdate.firstName || '',
+            lastName: profileUpdate.lastName || '',
+            email: profileUpdate.email || '',
+            birthdate: profileUpdate.birthdate as string | undefined,
+            hasCompletedOnboarding: false,
+          });
+        }
         return false;
       }
       
+      console.log('Successfully updated profile:', data);
       return true;
+      
     } catch (error) {
-      console.error('Error updating user profile:', error);
+      console.error('Unexpected error updating profile:', error);
       return false;
     }
   },
