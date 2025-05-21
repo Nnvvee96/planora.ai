@@ -44,6 +44,18 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
   // Initialize auth service using factory function
   const [authService, setAuthService] = useState<AuthService | null>(null);
   
+  // Helper function to format date to YYYY-MM-DD string
+  const formatDateString = (date: Date | string | undefined | null): string => {
+    if (!date) return '';
+    try {
+      const d = new Date(date);
+      return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
+    } catch (e) {
+      console.error('Error formatting date:', e);
+      return '';
+    }
+  };
+  
   // Load auth service on component mount
   useEffect(() => {
     setAuthService(getAuthService());
@@ -62,41 +74,66 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
   
   // Fetch user data when the modal opens to ensure we have fresh data
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchUserData = async () => {
-      if (open) {
+      if (open && authService) {
         setLoading(true);
         try {
           // Get current user through the auth service API
           const currentUser = await authService.getCurrentUser();
           
-          if (currentUser) {
+          if (currentUser && isMounted) {
+            console.log('Current user from auth:', currentUser);
+            
             // Get profile data through the user profile service
             const profileData = await userProfileService.getUserProfile(currentUser.id);
+            console.log('Profile data from service:', profileData);
+            
+            // Format birthdate if it exists from any source
+            const birthdateFromProfile = profileData?.birthdate || birthdate;
+            const formattedBirthdate = formatDateString(birthdateFromProfile);
             
             // Combine all sources with priority: provided props > profile data > current user data
-            const combinedFirstName = firstName || profileData?.firstName || currentUser.firstName || userName.split(' ')[0] || '';
-            const combinedLastName = lastName || profileData?.lastName || currentUser.lastName || userName.split(' ')[1] || '';
-            const combinedEmail = userEmail || profileData?.email || currentUser.email || '';
-            const combinedBirthdate = birthdate || '';
+            const combinedData = {
+              firstName: firstName || profileData?.firstName || currentUser.firstName || 
+                        (userName ? userName.split(' ')[0] : '') || '',
+              lastName: lastName || profileData?.lastName || currentUser.lastName || 
+                       (userName ? userName.split(' ').slice(1).join(' ') : '') || '',
+              email: userEmail || profileData?.email || currentUser.email || '',
+              birthdate: formattedBirthdate
+            };
+            
+            console.log('Setting form data:', combinedData);
             
             // Reset form with combined data
-            form.reset({
-              firstName: combinedFirstName,
-              lastName: combinedLastName,
-              email: combinedEmail,
-              birthdate: combinedBirthdate,
-            });
+            if (isMounted) {
+              form.reset(combinedData);
+            }
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
+          if (isMounted) {
+            toast({
+              title: 'Error',
+              description: 'Failed to load profile data. Please try again.',
+              variant: 'destructive',
+            });
+          }
         } finally {
-          setLoading(false);
+          if (isMounted) {
+            setLoading(false);
+          }
         }
       }
     };
     
     fetchUserData();
-  }, [open, firstName, lastName, userEmail, birthdate, userName, form, authService]);
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [open, firstName, lastName, userEmail, birthdate, userName, form, authService, toast]);
   
   const onSubmit = async (data: ProfileFormValues) => {
     try {
@@ -131,44 +168,47 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
       });
       
       if (!updated) {
-        throw new Error('Failed to update profile');
+        throw new Error('Failed to update profile in the database');
       }
       
-      // Also update the email in the auth user if it's different
+      // Update auth user metadata if email changed
       if (data.email && data.email !== currentUser.email) {
-        console.log('Updating auth email to:', data.email);
-        await authService.updateEmail(data.email);
+        try {
+          await authService.updateUserMetadata({
+            email: data.email,
+            first_name: data.firstName,
+            last_name: data.lastName
+          });
+        } catch (authError) {
+          console.warn('Failed to update auth user metadata:', authError);
+          // Non-critical error, continue
+        }
       }
-      
-      // Update the user metadata with the new name
-      await authService.updateUserMetadata({
-        full_name: `${data.firstName} ${data.lastName}`.trim(),
-        first_name: data.firstName,
-        last_name: data.lastName,
-      });
       
       // Call the onProfileUpdate callback if provided
       if (onProfileUpdate) {
-        onProfileUpdate(data);
+        onProfileUpdate({
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          birthdate: data.birthdate
+        });
       }
       
       // Show success message
       toast({
         title: 'Success',
-        description: 'Your profile has been updated successfully.',
-        variant: 'default',
+        description: 'Your profile has been updated.',
       });
       
-      // Close the modal after a short delay
-      setTimeout(() => {
-        onOpenChange(false);
-      }, 1000);
+      // Close the modal
+      onOpenChange(false);
       
     } catch (error) {
       console.error('Error updating profile:', error);
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update profile. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to update profile',
         variant: 'destructive',
       });
     } finally {
