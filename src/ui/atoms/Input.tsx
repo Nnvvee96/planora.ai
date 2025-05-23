@@ -1,22 +1,18 @@
 import * as React from "react"
-
+import { Input as ShadcnInput } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
-const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, ...props }, ref) => {
+// Extend the default input with any custom variants
+export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
+  ({ className, ...props }, ref) => {
     return (
-      <input
-        type={type}
-        className={cn(
-          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-          className
-        )}
+      <ShadcnInput
         ref={ref}
+        className={cn("focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2", className)}
         {...props}
       />
     )
   }
 )
-Input.displayName = "Input"
 
-export { Input }
+Input.displayName = "Input"

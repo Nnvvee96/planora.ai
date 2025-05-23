@@ -89,14 +89,93 @@ This ensures type safety and consistency throughout the application while mainta
 
 ## UI Component Architecture
 
-We follow atomic design principles for UI components:
+### Component Structure
 
+We use a hybrid approach for UI components:
+
+1. **shadcn/ui Components** (`src/components/ui/`):
+   - Standard UI components from shadcn/ui
+   - Follow shadcn's conventions (kebab-case file names)
+   - Used as the base UI layer
+   - Example: `button.tsx`, `card.tsx`, `input.tsx`
+
+2. **Custom Atomic Components** (`src/ui/`):
+   - Custom components following atomic design
+   - Use PascalCase file names
+   - Build on top of shadcn/ui components when possible
+   - Structure:
+     ```
+     ui/
+     ├── atoms/       # Fundamental building blocks
+     │   ├── GradientButton.tsx  # Custom button variant
+     │   └── Logo.tsx           # Application logo
+     ├── molecules/   # Combinations of atoms
+     │   ├── FeatureCard.tsx    # Feature showcase card
+     │   └── OrbAnimation.tsx   # Animated background
+     └── organisms/   # Complex UI sections
+         ├── Footer.tsx         # Page footer
+         ├── Navigation.tsx     # Main navigation
+         └── ErrorBoundary.tsx  # Error boundary component
+     ```
+
+### When to Use Which
+
+
+### Naming Conventions
+
+- **shadcn/ui components**: kebab-case (e.g., `button.tsx`)
+- **Custom components**: PascalCase (e.g., `Button.tsx`)
+- **Component files**: Match the component name exactly
+
+### When to Use Each
+
+**Use shadcn components directly when:**
+- You need a base component that will be wrapped in a custom component
+- You're working within a custom component implementation
+
+**Use custom components when:**
+- Building application UI
+- You need consistent styling and behavior
+- You want to ensure design system compliance
+
+### Importing Components
+
+```typescript
+// Import shadcn/ui base components (for custom component implementation)
+import { Button as ShadcnButton } from '@/components/ui/button';
+
+// Import custom components (for application use)
+import { Button } from '@/ui/atoms/Button';
+import { GradientButton } from '@/ui/atoms/GradientButton';
+import { Input } from '@/ui/atoms/Input';
 ```
-ui/
-├── atoms/       # Fundamental building blocks
-├── molecules/   # Combinations of atoms
-├── organisms/   # Complex UI sections
-└── templates/   # Page layouts
+
+### Creating New Custom Components
+
+When creating a new custom component that wraps a shadcn component:
+
+1. Create the component in the appropriate `src/ui/` directory
+2. Use PascalCase for the filename
+3. Re-export any necessary types/variants from the base component
+4. Add consistent styling and behavior
+5. Document any additional props or behavior
+
+Example (`src/ui/atoms/Button.tsx`):
+```typescript
+import { Button as ShadcnButton, type ButtonProps } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+
+export const Button = ({
+  className,
+  ...props
+}: ButtonProps) => (
+  <ShadcnButton
+    className={cn("gap-2", className)}
+    {...props}
+  />
+)
+
+export { buttonVariants } from "@/components/ui/button"
 ```
 
 ## Environment Configuration

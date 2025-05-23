@@ -1,33 +1,81 @@
-# Planora.ai Documentation
+# Planora.ai - Intelligent Travel Planning Platform
 
-This directory contains comprehensive documentation for the Planora.ai project, organized by topic to make information easily accessible.
+![Planora.ai Logo](https://placehold.co/600x200/1c2331/ffffff?text=Planora.ai)
 
-## Documentation Structure
+Planora is an intelligent travel planning platform that helps users discover, plan, and organize their ideal trips based on personal preferences, budget constraints, and travel goals.
 
-### Architecture
-- [Architecture Principles](../ARCHITECTURE.md) - Core architecture principles and patterns
-- [Architecture Decisions](architecture/decisions.md) - Records of architectural decisions (ADRs)
-- [Architecture Tools](architecture/tools.md) - Tools used to enforce architectural boundaries
-- [Refactoring Plan](architecture/refactoring-plan.md) - Plan for architectural improvements
-- [Architecture Diagram](architecture/diagram.md) - Visual representation of the architecture
+## Project Overview
 
-### Setup Guides
-- [Supabase Setup](setup/supabase-setup.md) - Setting up Supabase for Planora
-- [Email Verification](setup/email-verification.md) - Configuring Supabase email verification
-- [Deployment Guide](setup/deployment-guide.md) - Guide for deploying Planora to Vercel
+Planora combines powerful AI with a clean, user-friendly interface to create personalized travel experiences. The application follows a strict clean architecture approach focused on maintainability, extensibility, and code quality.
 
-### Developer Resources
-- [Developer Guide](developer/guide.md) - Comprehensive guide for Planora developers
-- [Style Guide](developer/styleguide.md) - Code style and formatting guidelines
+## Key Features
 
-## Architectural Principles
+- **Personalized Travel Recommendations**: AI-driven travel recommendations based on user preferences
+- **Budget Optimization**: Intelligent travel planning within user budget constraints
+- **User Profile Management**: Comprehensive user profile and preference management
+- **Supabase Integration**: Secure authentication and data storage with Supabase
 
-Planora.ai follows strict architectural principles:
+## Technology Stack
 
-1. **Feature-First Organization**: Code is organized by feature domain, not by technical role
-2. **Separation of Concerns**: Business logic is separated from UI components
-3. **Modular Design**: Components are isolated and reusable
-4. **Clear Boundaries**: Features only communicate through well-defined API boundaries
-5. **Type Safety**: Strong TypeScript typing throughout the application
+- **Frontend**: React, TypeScript, Vite
+- **UI Components**: ShadCN UI, Tailwind CSS
+- **State Management**: Redux Toolkit
+- **Authentication**: Supabase Auth
+- **Database**: Supabase PostgreSQL
+- **Deployment**: Vercel
 
-For detailed information on our architecture, refer to the [Architecture Documentation](../ARCHITECTURE.md).
+## Getting Started
+
+### Prerequisites
+
+- Node.js 16+ and npm
+- Supabase account for backend services
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/Nnvvee96/planora.ai.git
+cd planora.ai
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your Supabase credentials
+
+# Start the development server
+npm run dev
+```
+
+## Architecture
+
+Planora.ai follows a strict clean architecture approach with the following principles:
+
+- **Feature-First Organization**: Code organized by feature domain
+- **Separation of Concerns**: Clear boundaries between UI, business logic, and data layers
+- **Modular Design**: Reusable components built using atomic design principles
+- **Type Safety**: Comprehensive TypeScript types throughout the codebase
+
+Read our [Architecture Documentation](ARCHITECTURE.md) for detailed information.
+
+## Documentation
+
+Comprehensive documentation is available in the [docs](./docs) directory:
+
+- [Architecture Guides](./docs/architecture)
+- [Setup Instructions](./docs/setup)
+- [Developer Guidelines](./docs/developer)
+
+## Contributing
+
+We welcome contributions to Planora.ai! Please review our [Style Guide](./docs/developer/styleguide.md) before submitting changes.
+
+## License
+
+This project is proprietary and is not open for redistribution or use without explicit permission.
+
+## Contact
+
+For questions or support, please contact the repository maintainers.
