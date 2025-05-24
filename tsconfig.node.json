@@ -1,3 +1,12 @@
+/**
+ * Node.js TypeScript Configuration
+ * 
+ * This configuration is specifically for Node.js scripts and Vite configuration.
+ * It includes settings optimized for server-side and build tools:
+ * - More recent ES target (ES2022)
+ * - Stricter type checking than the app config
+ * - Focused only on the Vite configuration file
+ */
 {
   "compilerOptions": {
     "target": "ES2022",

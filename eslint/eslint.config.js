@@ -4,6 +4,9 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
+// Import custom plugins
+import planoraPlugin from "./index.js";
+
 export default tseslint.config(
   { ignores: ["dist"] },
   {
@@ -12,10 +15,17 @@ export default tseslint.config(
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+      parserOptions: {
+        sourceType: "module",
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
     },
     plugins: {
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+      "planora": planoraPlugin,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -24,6 +34,8 @@ export default tseslint.config(
         { allowConstantExport: true },
       ],
       "@typescript-eslint/no-unused-vars": "off",
+      // Enable our custom architectural rules
+      "planora/enforce-architecture": "error",
     },
   }
 );

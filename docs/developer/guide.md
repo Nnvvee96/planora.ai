@@ -321,6 +321,8 @@ npm run scaffold:component
 
 ## Validation Tools
 
+> **Note:** The dependency visualization files (`dependency-graph.svg` and `dependency-violations.html`) are intentionally excluded from version control. Run the commands below to generate them locally.
+
 We enforce our architecture through several automated tools:
 
 1. **Dependency Cruiser**: Validates architectural boundaries

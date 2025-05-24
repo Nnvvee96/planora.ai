@@ -1,13 +1,52 @@
-import React from 'react';
+/**
+ * {{name}} component
+ * 
+ * @description
+ * [Insert component description here]
+ */
 
-interface {{name}}Props {
-  // Define props here
+import { cn } from '@/lib/utils';
+
+/**
+ * Props for the {{name}} component
+ */
+export interface {{name}}Props {
+  /** Optional CSS class name to apply custom styles */
+  className?: string;
+  /** Children elements to render inside the component */
+  children?: React.ReactNode;
+  // Add additional props as needed
 }
 
-export function {{name}}({ ...props }: {{name}}Props) {
+/**
+ * {{name}} component
+ * 
+ * @example
+ * ```tsx
+ * <{{name}} className="custom-class">
+ *   Content goes here
+ * </{{name}}>
+ * ```
+ */
+export function {{name}}({
+  className,
+  children,
+  ...props
+}: {{name}}Props) {
   return (
-    <div>
-      {/* Component implementation */}
+    <div 
+      className={cn(
+        // Base styles
+        '',
+        // Custom classes
+        className
+      )}
+      {...props}
+    >
+      {children}
     </div>
   );
 }
+
+// Export types
+export type { {{name}}Props };
