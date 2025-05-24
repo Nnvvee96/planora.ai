@@ -1,13 +1,6 @@
 #!/usr/bin/env sh
 
-# Run lint-staged to check staged files
+# Run lint-staged to check staged files (faster checks only)
 npx lint-staged
 
-# Run architecture validation
-npm run validate-arch
-
-# We'll validate architecture using our custom script instead of direct ESLint rule
-# This ensures consistency with the validate-arch script that works properly
-# The script already runs ESLint checks along with other architecture validations
-
-echo "✅ Architecture validation passed! Your changes follow the clean architecture pattern."
+echo "✅ Pre-commit checks passed! Your code follows style guidelines."

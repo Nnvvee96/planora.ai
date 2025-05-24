@@ -28,3 +28,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Generated files
+dependency-graph.svg
+dependency-violations.html

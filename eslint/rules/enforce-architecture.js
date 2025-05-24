@@ -9,7 +9,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = {
+export default {
   meta: {
     type: "suggestion",
     docs: {
@@ -30,6 +30,18 @@ module.exports = {
 
   create: function(context) {
     return {
+      // Check for index.ts files
+      Program(node) {
+        const filename = context.getFilename();
+        if (filename.endsWith('index.ts') || filename.endsWith('index.tsx')) {
+          context.report({
+            node,
+            messageId: 'noIndexFiles'
+          });
+        }
+      },
+      
+      // Check import declarations for architectural violations
       ImportDeclaration(node) {
         const importPath = node.source.value;
         const filePath = context.getFilename();

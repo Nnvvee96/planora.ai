@@ -1,3 +1,13 @@
+/**
+ * Application TypeScript Configuration
+ * 
+ * This configuration is specifically for the React application code.
+ * It includes settings optimized for React development with Vite:
+ * - Modern ES target and lib settings
+ * - React JSX support
+ * - Module bundler resolution
+ * - Path aliases for clean imports
+ */
 {
   "compilerOptions": {
     "target": "ES2020",

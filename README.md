@@ -45,6 +45,24 @@ cp .env.example .env.local
 npm run dev
 ```
 
+## Documentation
+
+We maintain comprehensive documentation to help developers understand and contribute to the project:
+
+- [Architecture Guide](./docs/ARCHITECTURE.md) - Core architectural principles and code organization
+- [Developer Guide](./docs/developer/guide.md) - Development workflow, testing, and troubleshooting
+- [Setup Guides](./docs/setup/) - Environment setup including Supabase configuration
+
+## Development Tools
+
+Planora.ai includes several development tools to ensure code quality and architecture compliance:
+
+- **ESLint** - Code quality and style checking
+- **Architecture Validation** - Ensures code follows our architectural principles
+- **Scaffolding** - Templates for creating new features and components
+
+Run `npm run arch:monitor` to visualize the current dependency graph and check architecture compliance.
+
 ## Project Structure
 
 ```
