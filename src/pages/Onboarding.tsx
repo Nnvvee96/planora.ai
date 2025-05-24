@@ -43,7 +43,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { getAuthService, AuthService } from '@/features/auth/authApi';
 import * as z from 'zod';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/database/databaseExports';
 
 // Extended User type to handle user metadata
 interface ExtendedUser {

@@ -26,7 +26,8 @@
       "@types/*": ["./src/types/*"],
       "@lib/*": ["./src/lib/*"],
       "@constants/*": ["./src/constants/*"],
-      "@styles/*": ["./src/styles/*"]
+      "@styles/*": ["./src/styles/*"],
+      "@database/*": ["./database/*"]
     },
     "esModuleInterop": true,
     "jsx": "react",
