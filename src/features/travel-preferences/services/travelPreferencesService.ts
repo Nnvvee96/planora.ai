@@ -5,7 +5,7 @@
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/database/databaseExports';
 import { 
   TravelPreferences,
   TravelPreferencesFormValues,

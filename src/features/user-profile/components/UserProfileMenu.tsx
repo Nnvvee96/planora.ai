@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 // Direct imports to avoid circular dependencies 
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/database/databaseExports';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

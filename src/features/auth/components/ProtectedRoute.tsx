@@ -11,7 +11,7 @@ import { useAuthContext } from './AuthProvider';
 import type { AppUser } from '../types/authTypes';
 import { Loader2 } from 'lucide-react';
 // Import supabase directly to handle edge cases
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/database/databaseExports';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;

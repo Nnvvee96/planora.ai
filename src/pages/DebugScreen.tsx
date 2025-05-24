@@ -7,7 +7,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/ui/atoms/Button';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/database/databaseExports';
 
 /**
  * Debug screen component for diagnosing production issues

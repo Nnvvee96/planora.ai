@@ -69,6 +69,9 @@ Run `npm run arch:monitor` to visualize the current dependency graph and check a
 planora.ai/
 ├── src/                    # Source code
 │   ├── components/         # Third-party UI components (shadcn)
+│   ├── database/          # Database structure and client
+│   │   ├── client/        # Supabase client configuration
+│   │   └── schema/        # SQL schema and policies
 │   ├── features/          # Feature modules (auth, travel-planning, etc.)
 │   ├── ui/                # Custom UI components (atoms, molecules, organisms)
 │   ├── lib/               # Shared utilities and services
@@ -95,6 +98,7 @@ planora.ai/
 For detailed documentation, please refer to the following:
 
 - [Architecture](docs/ARCHITECTURE.md) - Project architecture and design decisions
+- [Database](docs/database/DATABASE.md) - Database structure and Supabase integration
 - [Setup Guide](docs/setup/) - Environment setup and configuration
 - [Developer Guide](docs/developer/) - Coding standards and best practices
 
