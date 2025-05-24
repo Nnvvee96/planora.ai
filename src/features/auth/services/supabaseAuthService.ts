@@ -126,8 +126,7 @@ export const supabaseAuthService = {
       console.log('Auth session check result:', { 
         hasSession: !!session, 
         hasError: !!error,
-        errorMessage: error?.message,
-        isNewUser: session?.user?.identities?.[0]?.created_at === session?.user?.created_at
+        errorMessage: error?.message
       });
       
       if (error || !session) {
@@ -140,12 +139,11 @@ export const supabaseAuthService = {
         };
       }
       
-      // Check if this is a new user (just signed up)
-      const isNewUser = session.user.identities?.[0]?.created_at === session.user.created_at;
-      console.log('Is new user from identity provider?', isNewUser);
-      
       const user = session.user;
       console.log('User authenticated successfully:', user.id);
+      
+      // Use the comprehensive registration status check
+      const registrationDetails = await supabaseAuthService.checkUserRegistrationStatus(user.id);
       
       // Instead of importing from user-profile, we'll directly handle the profile update here
       // This breaks the circular dependency
@@ -394,53 +392,124 @@ export const supabaseAuthService = {
         };
       }
       
-      // If this is a new user (just signed up via Google), always send to onboarding
-      if (isNewUser) {
-        console.log('New user detected from identity provider, requiring onboarding');
+      // Return the appropriate response based on registration details
+      if (registrationDetails.registrationStatus === UserRegistrationStatus.NEW_USER) {
+        console.log('New user or missing profile/preferences, requiring onboarding');
         return {
           success: true,
           user,
           registrationStatus: UserRegistrationStatus.NEW_USER
         };
-      }
-      
-      // Handle case where profile doesn't exist
-      if (!profileData || profileError) {
-        console.warn('No profile found, treating as new user requiring onboarding');
-        return {
-          success: true,
-          user,
-          registrationStatus: UserRegistrationStatus.NEW_USER
-        };
-      }
-      
-      // If we reach here, no source indicated onboarding completion
-      // But since this isn't a new user, we'll treat them as returning
-      console.log('Returning user, checking if onboarding is needed');
-      
-      // If any source indicates onboarding is complete, trust it
-      if (localStorageOnboardingComplete || metadataOnboardingComplete || profileData?.has_completed_onboarding) {
+      } else if (registrationDetails.registrationStatus === UserRegistrationStatus.RETURNING_USER) {
         console.log('Returning user with completed onboarding');
         return {
           success: true,
           user,
           registrationStatus: UserRegistrationStatus.RETURNING_USER
         };
+      } else {
+        console.log('Returning user who needs to complete onboarding');
+        return {
+          success: true,
+          user,
+          registrationStatus: UserRegistrationStatus.INCOMPLETE_ONBOARDING
+        };
       }
-      
-      // Otherwise, require onboarding
-      console.log('Returning user who needs to complete onboarding');
-      return {
-        success: true,
-        user,
-        registrationStatus: UserRegistrationStatus.INCOMPLETE_ONBOARDING
-      };
     } catch (err) {
       console.error('Error in auth callback:', err);
       return { 
         success: false, 
         user: null, 
         error: err instanceof Error ? err.message : 'Unknown error',
+        registrationStatus: UserRegistrationStatus.ERROR
+      };
+    }
+  },
+  
+  /**
+   * Update onboarding status for user
+   */
+  /**
+   * Check user registration status
+   * Comprehensive function that checks multiple sources to determine user status
+   * @param userId User ID to check
+   * @returns Object with registration status details
+   */
+  checkUserRegistrationStatus: async (userId: string): Promise<{
+    isNewUser: boolean;
+    hasProfile: boolean;
+    hasCompletedOnboarding: boolean;
+    hasTravelPreferences: boolean;
+    registrationStatus: UserRegistrationStatus;
+  }> => {
+    try {
+      console.log('Checking registration status for user:', userId);
+      
+      // Check profile existence
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('has_completed_onboarding, first_name, last_name')
+        .eq('id', userId)
+        .single();
+      
+      const hasProfile = !!profile && !profileError;
+      
+      // Check travel preferences existence
+      const { data: preferences, error: preferencesError } = await supabase
+        .from('travel_preferences')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+      
+      const hasTravelPreferences = !!preferences && !preferencesError;
+      
+      // Get user metadata for additional checks
+      const { data: { user } } = await supabase.auth.getUser();
+      const userMetadata = user?.user_metadata || {};
+      
+      // Check onboarding status from multiple sources
+      const profileOnboardingComplete = profile?.has_completed_onboarding === true;
+      const metadataOnboardingComplete = userMetadata.hasCompletedOnboarding === true || userMetadata.has_completed_onboarding === true;
+      const localStorageOnboardingComplete = typeof localStorage !== 'undefined' && localStorage.getItem('hasCompletedInitialFlow') === 'true';
+      
+      // Consolidated onboarding status check
+      const hasCompletedOnboarding = profileOnboardingComplete || metadataOnboardingComplete || localStorageOnboardingComplete || hasTravelPreferences;
+      
+      // Determine if this is a new user (no profile or preferences)
+      const isNewUser = !hasProfile || (!hasCompletedOnboarding && !hasTravelPreferences);
+      
+      // Determine registration status
+      let registrationStatus: UserRegistrationStatus;
+      if (isNewUser) {
+        registrationStatus = UserRegistrationStatus.NEW_USER;
+      } else if (hasCompletedOnboarding) {
+        registrationStatus = UserRegistrationStatus.RETURNING_USER;
+      } else {
+        registrationStatus = UserRegistrationStatus.INCOMPLETE_ONBOARDING;
+      }
+      
+      console.log('Registration status results:', {
+        isNewUser,
+        hasProfile,
+        hasCompletedOnboarding,
+        hasTravelPreferences,
+        registrationStatus
+      });
+      
+      return {
+        isNewUser,
+        hasProfile,
+        hasCompletedOnboarding,
+        hasTravelPreferences,
+        registrationStatus
+      };
+    } catch (error) {
+      console.error('Error checking user registration status:', error);
+      return {
+        isNewUser: true, // Default to new user on error
+        hasProfile: false,
+        hasCompletedOnboarding: false,
+        hasTravelPreferences: false,
         registrationStatus: UserRegistrationStatus.ERROR
       };
     }

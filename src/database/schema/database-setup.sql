@@ -1,5 +1,9 @@
--- Consolidated Supabase Schema for Planora
--- This file contains all tables, indexes, and RLS policies
+-- Complete Supabase Database Setup Script for Planora.ai
+-- This script combines schema creation, triggers, and RLS policies in the correct order
+-- Execute this in the Supabase SQL Editor to set up the complete database
+
+-- Enable UUID extension if not already enabled
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- User Profiles Table
 CREATE TABLE IF NOT EXISTS public.profiles (
@@ -39,6 +43,32 @@ CREATE TABLE IF NOT EXISTS public.travel_preferences (
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS travel_preferences_user_id_idx ON public.travel_preferences(user_id);
 CREATE INDEX IF NOT EXISTS profiles_id_idx ON public.profiles(id);
+
+-- Automatic Profile Creation Trigger
+-- This ensures that when a new user signs up, a profile is automatically created
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, first_name, last_name, birthday, has_completed_onboarding)
+  VALUES (
+    new.id, 
+    new.email, 
+    COALESCE(new.raw_user_meta_data->>'first_name', ''), 
+    COALESCE(new.raw_user_meta_data->>'last_name', ''),
+    NULL,
+    FALSE
+  );
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Drop existing trigger if it exists
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+-- Create trigger for new user registration
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
 -- Enable Row Level Security
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -90,28 +120,33 @@ ON public.travel_preferences
 FOR DELETE
 USING (auth.uid() = user_id);
 
--- Automatic Profile Creation Trigger
--- This ensures that when a new user signs up, a profile is automatically created
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.profiles (id, email, first_name, last_name, birthday, has_completed_onboarding)
-  VALUES (
-    new.id, 
-    new.email, 
-    COALESCE(new.raw_user_meta_data->>'first_name', ''), 
-    COALESCE(new.raw_user_meta_data->>'last_name', ''),
-    NULL,
-    FALSE
-  );
-  RETURN new;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Service role access policies (for administrative functions)
+DROP POLICY IF EXISTS "Service role can view all profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Service role can insert any profile" ON public.profiles;
+DROP POLICY IF EXISTS "Service role can update any profile" ON public.profiles;
 
--- Drop existing trigger if it exists
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE POLICY "Service role can view all profiles"
+ON public.profiles
+FOR SELECT
+USING (auth.role() = 'service_role');
 
--- Create trigger for new user registration
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+CREATE POLICY "Service role can insert any profile"
+ON public.profiles
+FOR INSERT
+WITH CHECK (auth.role() = 'service_role');
+
+CREATE POLICY "Service role can update any profile"
+ON public.profiles
+FOR UPDATE
+USING (auth.role() = 'service_role');
+
+-- Verify setup and tables
+SELECT 
+  table_name, 
+  (SELECT count(*) FROM information_schema.triggers WHERE event_object_table = table_name) as trigger_count
+FROM 
+  information_schema.tables 
+WHERE 
+  table_schema = 'public' 
+  AND table_type = 'BASE TABLE'
+  AND table_name IN ('profiles', 'travel_preferences');
