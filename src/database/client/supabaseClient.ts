@@ -10,15 +10,10 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Type declaration for Vite's import.meta.env
-declare global {
-  interface ImportMeta {
-    env: Record<string, string>;
-  }
-}
-
 // These environment variables are injected by Vite
+// @ts-ignore - Allow access to environment variables without type errors
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+// @ts-ignore - Allow access to environment variables without type errors
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 // Validate environment variables are present
