@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { Apple, Mail, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Footer } from '@/ui/organisms/Footer';
 import { useToast } from "@/components/ui/use-toast";
-import { getGoogleLoginButtonComponent, getAuthContextHook, getAuthService, AuthService } from "@/features/auth/api";
+import { getGoogleLoginButtonComponent, getAuthContextHook, getAuthService, AuthService } from "@/features/auth/authApi";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type UserAuthFormProps = React.HTMLAttributes<HTMLDivElement>

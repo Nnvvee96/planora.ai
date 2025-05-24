@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { getTravelPreferencesPanelComponent } from '@/features/travel-preferences/api';
+import { getTravelPreferencesPanelComponent } from '@/features/travel-preferences/travelPreferencesApi';
 
 /**
  * Travel Preferences Page

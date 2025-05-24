@@ -7,7 +7,7 @@
  */
 
 // Import only from the feature's public API
-import { TravelPlan } from '@/features/travel-planning/api';
+import { TravelPlan } from '@/features/travel-planning/travelPlanningApi';
 import { useAuthIntegration } from './useAuthIntegration';
 
 /**

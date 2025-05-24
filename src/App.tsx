@@ -13,7 +13,7 @@ import {
   getAuthProviderComponent,
   getProtectedRouteComponent,
   getAuthCallbackComponent
-} from '@/features/auth/api';
+} from '@/features/auth/authApi';
 
 // Import error boundary component
 import { ErrorBoundary } from '@/ui/organisms/ErrorBoundary';

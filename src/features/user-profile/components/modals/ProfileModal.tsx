@@ -9,8 +9,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { DatePickerInput } from '@/components/ui/DatePickerInput';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { getAuthService, AuthService } from '@/features/auth/api';
-import { userProfileService } from '@/features/user-profile/api';
+import { getAuthService, AuthService } from '@/features/auth/authApi';
+import { userProfileService } from '@/features/user-profile/userProfileApi';
 import { useToast } from '@/components/ui/use-toast';
 
 const profileSchema = z.object({

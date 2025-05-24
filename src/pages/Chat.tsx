@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { Logo } from '@/ui/atoms/Logo';
 import { Suspense, lazy } from 'react';
-import { getUserProfileMenuComponent } from '@/features/user-profile/api';
+import { getUserProfileMenuComponent } from '@/features/user-profile/userProfileApi';
 import { cn } from "@/lib/utils";
 
 // Types for the chat interface

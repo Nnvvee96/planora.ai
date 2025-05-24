@@ -2,6 +2,15 @@
 
 This guide provides comprehensive information for developers working on the Planora.ai codebase. It explains our clean architecture principles, patterns, and tools to ensure consistent, maintainable code.
 
+## Table of Contents
+
+1. [Quick Start](#quick-start)
+2. [Architecture Overview](#architecture-overview)
+3. [Coding Style Guide](#coding-style-guide)
+4. [Development Workflow](#development-workflow)
+5. [Testing](#testing)
+6. [Troubleshooting](#troubleshooting)
+
 ## Quick Start
 
 1. **Set up your development environment**
@@ -48,7 +57,180 @@ Planora.ai follows a clean architecture pattern that combines:
 
 Our architecture creates clear boundaries between different parts of the system to ensure maintainability, scalability, and testability.
 
-## Directory Structure
+### Directory Structure
+
+```
+src/
+├── ui/                      # Custom UI components following atomic design
+│   ├── atoms/               # Basic building blocks (Button, Logo, etc.)
+│   ├── molecules/           # Combinations of atoms (FeatureCard, TravelCards, etc.)
+│   ├── organisms/           # Complex UI sections (Navigation, Footer, etc.)
+│   └── templates/           # Page layouts (DashboardLayout, AuthLayout, etc.)
+│
+├── components/              # Third-party/library components
+│   └── ui/                  # Low-level shadcn/ui components
+│
+├── features/               # Feature-specific code organized by domain
+│   ├── auth/                # Authentication feature
+│   │   ├── api.ts           # Public API exports for the feature (boundary)
+│   │   ├── types/           # Feature-specific type definitions
+│   │   ├── components/      # Feature-specific components
+│   │   ├── services/        # Feature-related services
+│   │   ├── hooks/           # Custom React hooks for feature
+│   │   └── utils/           # Utility functions for feature
+│   │
+│   ├── travel-planning/     # Travel planning feature
+│   ├── travel-preferences/  # Travel preferences feature
+│   └── user-profile/        # User profile feature
+│
+├── pages/                  # Page components that use features and UI components
+├── store/                   # Global state management
+│   ├── store.ts             # Redux store configuration
+│   ├── slices/              # Redux slices organized by feature
+│   └── hooks.ts             # Typed hooks for Redux
+├── lib/                     # Shared utilities and services
+├── hooks/                   # Shared React hooks
+└── types/                   # Global type definitions
+```
+
+## Coding Style Guide
+
+### Naming Conventions
+
+#### Files and Directories
+- **Feature directories**: kebab-case (`travel-preferences`)
+- **Component files**: PascalCase (`UserProfile.tsx`)
+- **Utility/hook files**: camelCase (`useAuth.ts`)
+- **Test files**: `.test.ts` or `.spec.ts` suffix
+- **Type files**: `.types.ts` or `.d.ts` suffix
+
+#### Variables and Functions
+- **Variables**: camelCase (`const userProfile`)
+- **Constants**: UPPER_SNAKE_CASE (`const MAX_ITEMS = 10`)
+- **Boolean variables**: prefix with `is`, `has`, `should` (`isLoading`, `hasError`)
+- **Functions**: camelCase, verb-based names (`fetchUserData`, `handleSubmit`)
+- **Event handlers**: prefix with `handle` (`handleClick`, `handleSubmit`)
+
+### TypeScript Best Practices
+
+- **Interfaces vs Types**: Use `interface` for public API definitions, `type` for unions, tuples, or complex types
+- **Avoid `any`**: Use `unknown` when type is truly unknown, then narrow
+- **Strict Mode**: Write code compatible with TypeScript's strict mode
+- **Type Exports**: Export types and interfaces for reuse
+
+### Component Design
+
+#### Functional Components
+- Use function declarations for components
+- Destructure props at the top of the component
+- Keep components small and focused on a single responsibility
+
+```tsx
+interface UserProfileProps {
+  userId: string;
+  onUpdate: (user: User) => void;
+}
+
+export function UserProfile({ userId, onUpdate }: UserProfileProps) {
+  // Component implementation
+}
+```
+
+#### Props and State
+- Use TypeScript interfaces for props and state
+- Keep state as local as possible
+- Lift state up when needed by multiple components
+- Use `useReducer` for complex state logic
+
+### Styling
+- Use Tailwind CSS for styling
+- Keep styles scoped to components
+- Use CSS variables for theming
+- Follow BEM naming for custom CSS classes
+
+### State Management
+- **Local State**: `useState`, `useReducer`
+- **Shared State**: Redux Toolkit
+- **Server State**: RTK Query or React Query
+- **Form State**: React Hook Form
+
+### Error Handling
+- Use Error Boundaries for UI errors
+- Handle API errors gracefully
+- Log errors appropriately
+- Provide helpful error messages to users
+
+## Development Workflow
+
+### Branch Naming
+- `feature/`: New features
+- `fix/`: Bug fixes
+- `refactor/`: Code refactoring
+- `docs/`: Documentation updates
+- `chore/`: Maintenance tasks
+
+### Commit Messages
+Follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+
+```
+type(scope): description
+
+[optional body]
+
+[optional footer]
+```
+
+Example:
+```
+feat(auth): add Google OAuth integration
+
+- Add Google OAuth button component
+- Implement auth flow with Supabase
+- Add error handling and loading states
+
+Closes #123
+```
+
+### Code Review Process
+1. Create a pull request
+2. Request review from at least one team member
+3. Address all review comments
+4. Ensure all tests pass
+5. Get approval before merging
+
+## Testing
+
+### Unit Tests
+- Test individual functions and components in isolation
+- Use React Testing Library for component tests
+- Mock external dependencies
+
+### Integration Tests
+- Test feature interactions
+- Mock API calls
+- Test user flows
+
+### End-to-End Tests
+- Test critical user journeys
+- Use Cypress or Playwright
+- Run in CI/CD pipeline
+
+## Troubleshooting
+
+### Common Issues
+1. **Dependency Issues**
+   - Delete `node_modules` and `package-lock.json`
+   - Run `npm install`
+
+2. **Type Errors**
+   - Check type definitions
+   - Ensure all props are properly typed
+   - Use type guards for complex types
+
+3. **Build Failures**
+   - Check for TypeScript errors
+   - Ensure all required environment variables are set
+   - Review recent changes for breaking changes
 
 ```
 src/
@@ -171,7 +353,7 @@ To allow features to communicate:
 
 2. Import only from the feature's public API:
    ```typescript
-   import { someFunction } from '@/features/feature-name/api';
+   import { someFunction } from '@/features/feature-name/featureNameApi';
    ```
 
 3. Use the integration hook in other features:

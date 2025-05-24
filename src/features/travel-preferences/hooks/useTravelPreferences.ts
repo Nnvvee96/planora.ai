@@ -18,7 +18,7 @@ import {
   FlightType, 
   PlanningIntent 
 } from '../types/travelPreferencesTypes';
-import { getAuthService, AuthService } from '../../auth/api';
+import { getAuthService, AuthService } from '../../auth/authApi';
 
 // Define the return type for our hook
 interface UseTravelPreferencesResult {
@@ -76,7 +76,7 @@ export function useTravelPreferences(): UseTravelPreferencesResult {
       // This would be an API call in a real app
       // In our mock version, just set some defaults
       // This is a placeholder implementation
-      const { getUserTravelPreferences } = await import('../api');
+      const { getUserTravelPreferences } = await import('../travelPreferencesApi');
       const userPreferences = await getUserTravelPreferences(currentUser.id);
       setPreferences(userPreferences);
     } catch (err) {
@@ -109,7 +109,7 @@ export function useTravelPreferences(): UseTravelPreferencesResult {
       }
       
       // Dynamic imports to avoid circular dependencies (Planora architectural principle)
-      const { saveTravelPreferences, updateOnboardingStatus } = await import('../api');
+      const { saveTravelPreferences, updateOnboardingStatus } = await import('../travelPreferencesApi');
       
       // Create a complete TravelPreferences object from partial data to satisfy type constraints
       // We ensure all required fields have a default value if not provided

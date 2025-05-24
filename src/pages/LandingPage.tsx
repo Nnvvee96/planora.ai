@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Navigation } from '@/ui/organisms/Navigation';
-import { getTravelCardsComponent } from '@/features/travel-planning/api';
+import { getTravelCardsComponent } from '@/features/travel-planning/travelPlanningApi';
 import { FeatureCard } from '@/ui/molecules/FeatureCard';
 import { GradientButton } from '@/ui/atoms/GradientButton';
 import { Logo } from '@/ui/atoms/Logo';

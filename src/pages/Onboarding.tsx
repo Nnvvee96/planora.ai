@@ -39,9 +39,9 @@ import {
   ComfortPreference,
   LocationPreference,
   FlightType
-} from '@/features/travel-preferences/api';
+} from '@/features/travel-preferences/travelPreferencesApi';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { getAuthService, AuthService } from '@/features/auth/api';
+import { getAuthService, AuthService } from '@/features/auth/authApi';
 import * as z from 'zod';
 import { supabase } from '@/lib/supabase';
 

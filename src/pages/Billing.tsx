@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
-import { getAuthService, AuthService } from '@/features/auth/api';
+import { getAuthService, AuthService } from '@/features/auth/authApi';
 
 const Billing: React.FC = () => {
   const navigate = useNavigate();

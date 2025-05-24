@@ -7,7 +7,7 @@
  */
 
 // Import only from the feature's public API
-import { UserProfile } from '@/features/user-profile/api';
+import { UserProfile } from '@/features/user-profile/userProfileApi';
 import { useAuthIntegration } from './useAuthIntegration';
 
 /**

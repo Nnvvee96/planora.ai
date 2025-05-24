@@ -34,7 +34,7 @@ const SettingsModal = React.lazy(() => import('./modals/SettingsModal').then(mod
 })));
 
 // Import user profile service only
-import { userProfileService } from '@/features/user-profile/api';
+import { userProfileService } from '@/features/user-profile/userProfileApi';
 import { ProfileFormData } from '@/features/user-profile/types/profileTypes';
 
 /**

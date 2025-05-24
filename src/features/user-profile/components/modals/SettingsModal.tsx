@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select } from '@/components/ui/select';
-import { getAuthService, AuthService } from '@/features/auth/api';
+import { getAuthService, AuthService } from '@/features/auth/authApi';
 import { userProfileService } from '../../services/userProfileService';
 
 const passwordSchema = z.object({

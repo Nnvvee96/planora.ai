@@ -6,7 +6,7 @@
  * Following Planora's architectural principles with feature-first organization
  */
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import type { AuthState, User } from '@/features/auth/api';
+import type { AuthState, AppUser } from '@/features/auth/authApi';
 
 // Initial state
 const initialState: AuthState = {
@@ -25,7 +25,7 @@ const authSlice = createSlice({
       state.loading = true;
       state.error = null;
     },
-    loginSuccess: (state, action: PayloadAction<User>) => {
+    loginSuccess: (state, action: PayloadAction<AppUser>) => {
       state.isAuthenticated = true;
       state.user = action.payload;
       state.loading = false;
@@ -39,7 +39,7 @@ const authSlice = createSlice({
       state.loading = true;
       state.error = null;
     },
-    registerSuccess: (state, action: PayloadAction<User>) => {
+    registerSuccess: (state, action: PayloadAction<AppUser>) => {
       state.isAuthenticated = true;
       state.user = action.payload;
       state.loading = false;
