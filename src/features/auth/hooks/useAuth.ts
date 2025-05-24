@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { AppUser, getAuthService, AuthResponse, AuthService } from '../api';
+import { AppUser, getAuthService, AuthResponse, AuthService } from '../authApi';
 import { useNavigate } from 'react-router-dom';
 
 /**

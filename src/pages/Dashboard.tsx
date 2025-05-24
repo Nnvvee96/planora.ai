@@ -17,15 +17,15 @@ import {
 } from 'lucide-react';
 import { Logo } from '@/ui/atoms/Logo';
 import { Suspense, lazy } from 'react';
-import { getUserProfileMenuComponent } from '@/features/user-profile/api';
+import { getUserProfileMenuComponent } from '@/features/user-profile/userProfileApi';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/ui/atoms/Card';
 import { Progress } from '@/components/ui/progress';
 import { useNavigate, Link } from 'react-router-dom';
 import { Footer } from '@/ui/organisms/Footer';
-import { getAuthService, AuthService } from '@/features/auth/api';
+import { getAuthService, AuthService } from '@/features/auth/authApi';
 import { AppUser } from '@/features/auth/types/authTypes';
-import { userProfileService, UserProfile } from '@/features/user-profile/api';
+import { userProfileService, UserProfile } from '@/features/user-profile/userProfileApi';
 
 const Dashboard = () => {
   const navigate = useNavigate();

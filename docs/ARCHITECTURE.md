@@ -1,6 +1,16 @@
 # Planora.ai Architecture Guide
 
-This document outlines the architectural principles and patterns used in the Planora.ai codebase. All contributors should follow these guidelines to maintain consistency and code quality.
+This document outlines the architectural principles, patterns, and tools used in the Planora.ai codebase. All contributors should follow these guidelines to maintain consistency and code quality.
+
+## Table of Contents
+
+1. [Core Architectural Principles](#core-architectural-principles)
+2. [Architecture Decision Records](#architecture-decision-records)
+3. [Code Organization](#code-organization)
+4. [Type Safety](#type-safety)
+5. [Export and Import Patterns](#export-and-import-patterns)
+6. [Architecture Maintenance Tools](#architecture-maintenance-tools)
+7. [Refactoring Guidelines](#refactoring-guidelines)
 
 ## Core Architectural Principles
 
@@ -32,20 +42,100 @@ features/
 - Components, services, hooks, and features must be isolated and reusable
 - Minimize dependencies between modules
 - Design for composition rather than inheritance
+- Features must not directly depend on other features
 
-### 4. Type Safety
+### 4. No Redundancy
+
+- Eliminate duplicated logic, folders, and components
+- Shared functionality should be extracted to appropriate locations
+- Avoid multiple implementations of the same concept
+
+### 5. Clean Code and Naming
+
+- Code must be easy to read, test, extend, and maintain
+- No generic index.ts files; every file must have a unique, descriptive name
+- Follow consistent naming conventions throughout the codebase
+
+## Architecture Decision Records
+
+### ADR-001: Feature-First with Atomic Design
+
+**Status**: Accepted
+
+**Context**: We needed a clear architecture that would support scaling the application while keeping features isolated and UI components well-organized.
+
+**Decision**: We've adopted a hybrid architecture that combines:
+1. Feature-First organization for business logic and domain concerns
+2. Atomic Design for UI components
+
+**Consequences**:
+- Features are encapsulated and have clear boundaries
+- UI components are organized by complexity and reusability
+- Cross-feature communication is formalized through integration hooks
+- Maintenance and scalability are improved
+
+### ADR-002: Feature Isolation and Integration Pattern
+
+**Status**: Accepted
+
+**Context**: Features need to communicate with each other without creating tight coupling.
+
+**Decision**: We've implemented:
+1. Each feature exposes a public API through an `api.ts` file
+2. Integration hooks in `src/hooks/integration` facilitate cross-feature communication
+3. The Redux store provides a centralized state for application-wide data
+
+## Code Organization
+
+### Directory Structure
+
+```
+planora.ai/
+├── src/
+│   ├── components/     # Third-party UI components (shadcn)
+│   ├── features/       # Feature modules (auth, travel-planning, etc.)
+│   ├── ui/             # Custom UI components (atoms, molecules, organisms)
+│   ├── lib/            # Shared utilities and services
+│   ├── hooks/          # Custom React hooks
+│   ├── store/          # State management (Redux)
+│   └── types/          # TypeScript type definitions
+├── docs/               # Project documentation
+├── public/             # Static assets
+└── tests/              # Test files
+```
+
+### Feature Module Structure
+
+Each feature module should follow this structure:
+
+```
+feature-name/
+├── api.ts              # Public API boundary for the feature
+├── components/         # Feature-specific components
+├── hooks/              # Feature-specific hooks
+├── services/           # Business logic and data access
+├── types/              # Type definitions
+└── utils/              # Utility functions
+```
+
+## Type Safety
 
 - Use TypeScript throughout the codebase
 - Define proper interfaces for all data structures
 - Avoid using `any` type whenever possible
 - Create clear type mappings between database schema and application types
+- Use type guards and discriminated unions for better type safety
 
-### 5. Export Patterns
+## Export and Import Patterns
+
+### Export Rules
 
 - **NEVER** use default exports
 - **ALWAYS** use named exports
 - Export types alongside their related components or functions
 - Maintain proper casing in imports
+
+### Import Examples
 
 ```typescript
 // Correct
@@ -71,7 +161,7 @@ export default Button;
 
 ```typescript
 // Correct
-import { useAuth } from '@/features/auth/api';
+import { useAuth } from '@/features/auth/authApi';
 
 // Incorrect
 import { useAuth } from '@/features/auth/hooks/useAuth';

@@ -7,7 +7,7 @@
  */
 
 // Import only from the feature's public API
-import { getAuthService, AuthService } from '@/features/auth/api';
+import { getAuthService, AuthService } from '@/features/auth/authApi';
 import { AppUser } from '@/features/auth/types/authTypes';
 import { useState, useEffect } from 'react';
 

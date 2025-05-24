@@ -11,7 +11,7 @@ import {
   TravelPreferences,
   getUserTravelPreferences,
   saveTravelPreferences
-} from '@/features/travel-preferences/api';
+} from '@/features/travel-preferences/travelPreferencesApi';
 import { useState, useEffect } from 'react';
 import { useAuthIntegration } from './useAuthIntegration';
 

@@ -18,7 +18,7 @@ import { useToast } from "@/components/ui/use-toast";
 // Import types directly from types directory
 import { RegisterData } from "@/features/auth/types/authTypes";
 // Import factory function for auth service
-import { getAuthService, AuthService } from "@/features/auth/api";
+import { getAuthService, AuthService } from "@/features/auth/authApi";
 
 // List of countries for the dropdown
 const countries = [
