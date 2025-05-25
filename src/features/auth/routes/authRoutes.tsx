@@ -7,6 +7,9 @@
 
 import { RouteObject } from 'react-router-dom';
 import { AuthCallback } from '../components/AuthCallback';
+import { EmailConfirmation } from '../components/EmailConfirmation';
+import { ForgotPassword } from '../components/ForgotPassword';
+import { ResetPassword } from '../components/ResetPassword';
 
 /**
  * Auth routes configuration
@@ -16,5 +19,17 @@ export const authRoutes: RouteObject[] = [
   {
     path: '/auth/callback',
     element: <AuthCallback />
+  },
+  {
+    path: '/auth/email-confirmation',
+    element: <EmailConfirmation />
+  },
+  {
+    path: '/forgot-password',
+    element: <ForgotPassword />
+  },
+  {
+    path: '/auth/reset-password',
+    element: <ResetPassword />
   }
 ];

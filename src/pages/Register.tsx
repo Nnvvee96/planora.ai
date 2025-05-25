@@ -125,26 +125,41 @@ function Register() {
         birthdate: data.birthdate.toISOString()
       };
       
-      // Register user through auth service
-      await authService.register(registerData);
+      // Register user through enhanced auth service with email verification status
+      const registrationResult = await authService.register(registerData);
       
       // Store email for verification
       setRegisteredEmail(data.email);
       
-      // Show success toast
-      toast({
-        title: "Registration successful",
-        description: "Please check your email for a verification link. You'll need to verify your email before logging in.",
-      });
-      
-      // Navigate to verification pending screen with clear instructions
-      navigate('/login', { 
-        state: { 
-          email: data.email,
-          verificationNeeded: true,
-          message: "A verification link has been sent to your email. Please check your inbox and click the link to verify your account before logging in." 
-        }
-      });
+      // Show appropriate success message based on whether email confirmation is required
+      if (registrationResult.emailConfirmationRequired) {
+        toast({
+          title: "Registration successful",
+          description: "Please check your email for a verification link. You'll need to verify your email before logging in.",
+        });
+        
+        // Navigate to verification pending screen with clear instructions
+        navigate('/login', { 
+          state: { 
+            email: data.email,
+            verificationNeeded: true,
+            message: "A verification link has been sent to your email. Please check your inbox and click the link to verify your account before logging in." 
+          }
+        });
+      } else {
+        // In development or testing environments, email confirmation might be disabled
+        // So handle the case where the user is immediately registered without verification
+        toast({
+          title: "Registration successful",
+          description: "Your account has been created. You can now log in.",
+        });
+        
+        navigate('/login', {
+          state: {
+            message: "Your account has been created successfully. You can now log in."
+          }
+        });
+      }
     } catch (err) {
       console.error('Registration error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Registration failed. Please try again.';

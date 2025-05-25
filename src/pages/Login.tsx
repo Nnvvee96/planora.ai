@@ -13,6 +13,8 @@ import { Footer } from '@/ui/organisms/Footer';
 import { useToast } from "@/components/ui/use-toast";
 import { getGoogleLoginButtonComponent, getAuthContextHook, getAuthService, AuthService } from "@/features/auth/authApi";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { supabase } from '@/database/databaseExports';
+import { UserRegistrationStatus } from '@/features/auth/types/authTypes';
 
 type UserAuthFormProps = React.HTMLAttributes<HTMLDivElement>
 
@@ -116,8 +118,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     if (error) setError(null);
   };
 
-  // This is a placeholder for future email/password login
-  // Currently, we're only implementing Google Auth
+  // Email/password login implementation
   async function onSubmit(event: React.SyntheticEvent) {
     event.preventDefault();
     setIsLoading(true);
@@ -129,11 +130,51 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         throw new Error('Please enter both email and password');
       }
       
-      // In the future, implement email/password login here
+      // Get auth service from factory function if not already available
+      const service = authService || getAuthService();
+      
+      // Attempt to sign in with email and password
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (signInError) {
+        throw new Error(signInError.message);
+      }
+      
+      if (!data.user) {
+        throw new Error('Login failed. No user data returned.');
+      }
+      
+      // Check if email has been verified
+      const isEmailVerified = await service.checkEmailVerificationStatus(data.user.id);
+      
+      if (!isEmailVerified) {
+        // Email not verified, show verification needed screen
+        navigate('/login', { 
+          state: { 
+            email,
+            verificationNeeded: true,
+            message: "Your email address hasn't been verified. Please check your inbox for a verification link or request a new one." 
+          }
+        });
+        return;
+      }
+      
+      // Login successful, check onboarding status
+      const registrationDetails = await service.checkUserRegistrationStatus(data.user.id);
+      
+      // Redirect based on onboarding status
+      if (registrationDetails.registrationStatus === 'new_user' || registrationDetails.registrationStatus === 'incomplete_onboarding') {
+        navigate('/onboarding');
+      } else {
+        navigate('/dashboard');
+      }
+      
       toast({
-        title: "Email/Password login not implemented",
-        description: "Please use Google login instead.",
-        variant: "destructive"
+        title: "Login successful",
+        description: "Welcome back to Planora!"
       });
     } catch (err) {
       console.error('Login error:', err);
@@ -267,6 +308,48 @@ export function Login() {
   const [verificationNeeded, setVerificationNeeded] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
   const [verificationMessage, setVerificationMessage] = useState('');
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const { toast } = useToast();
+  
+  // Function to handle resending verification email
+  const handleResendVerification = async () => {
+    if (!verificationEmail) {
+      toast({
+        title: "Email Required",
+        description: "Please enter the email address you registered with.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setResendingEmail(true);
+      
+      // Get auth service
+      const authService = getAuthService();
+      
+      // Attempt to resend verification email
+      const success = await authService.resendVerificationEmail(verificationEmail);
+      
+      if (success) {
+        toast({
+          title: "Verification Email Sent",
+          description: `We've sent a new verification link to ${verificationEmail}. Please check your inbox.`,
+        });
+      } else {
+        throw new Error("Failed to send verification email. Please try again later.");
+      }
+    } catch (err) {
+      console.error('Error resending verification email:', err);
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to send verification email",
+        variant: "destructive"
+      });
+    } finally {
+      setResendingEmail(false);
+    }
+  };
   
   useEffect(() => {
     // Check if we were redirected from registration with verification needs
@@ -371,9 +454,10 @@ export function Login() {
                 Didn't receive the email? Check your spam folder or <Button 
                   variant="link" 
                   className="text-planora-accent-purple hover:text-planora-accent-pink p-0 h-auto"
-                  onClick={() => setVerificationNeeded(false)}
+                  onClick={handleResendVerification}
+                  disabled={resendingEmail}
                 >
-                  try again
+                  {resendingEmail ? 'Sending...' : 'resend verification email'}
                 </Button>
               </span>
             </p>

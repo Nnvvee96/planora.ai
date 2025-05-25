@@ -87,5 +87,30 @@ export const userProfileService = {
    */
   updateOnboardingStatus: async (userId: string, hasCompleted: boolean = true): Promise<boolean> => {
     return userProfileServiceImpl.updateUserProfile(userId, { hasCompletedOnboarding: hasCompleted });
+  },
+
+  /**
+   * Delete a user's profile and account
+   * @param userId The user ID to delete
+   * @param deleteAuth Whether to delete the auth record too (requires admin privileges)
+   * @returns True if deletion was successful
+   */
+  deleteUserProfile: async (userId: string, deleteAuth: boolean = false): Promise<boolean> => {
+    return userProfileServiceImpl.deleteUserProfile(userId, deleteAuth);
+  },
+
+  /**
+   * Delete the current user's profile and account
+   * This is a convenience method that gets the current user and deletes their profile
+   * @param deleteAuth Whether to delete the auth record too (requires admin privileges)
+   * @returns True if deletion was successful
+   */
+  deleteCurrentUserProfile: async (deleteAuth: boolean = false): Promise<boolean> => {
+    const profile = await userProfileServiceImpl.getCurrentUser();
+    if (!profile) {
+      console.error('Cannot delete current user profile: No authenticated user');
+      return false;
+    }
+    return userProfileServiceImpl.deleteUserProfile(profile.id, deleteAuth);
   }
 };

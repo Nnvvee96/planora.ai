@@ -464,5 +464,77 @@ export const userProfileService = {
       console.error('Error getting current user profile:', error);
       return null;
     }
+  },
+  
+  /**
+   * Delete a user's profile and account
+   * This performs a cascading delete of all user data
+   * @param userId User ID to delete
+   * @param deleteAuth Whether to delete the auth record too (requires admin privileges)
+   */
+  deleteUserProfile: async (userId: string, deleteAuth: boolean = false): Promise<boolean> => {
+    try {
+      if (!userId) {
+        console.error('User ID is required to delete profile');
+        return false;
+      }
+      
+      console.log(`Deleting user profile for ${userId}, deleteAuth=${deleteAuth}`);
+      
+      // 1. Start a transaction to delete related data (travel preferences first)
+      const { error: travelPrefError } = await supabase
+        .from('travel_preferences')
+        .delete()
+        .eq('user_id', userId);
+      
+      if (travelPrefError) {
+        console.error('Error deleting travel preferences:', travelPrefError);
+        // Continue anyway to try deleting the profile
+      }
+      
+      // 2. Delete the profile record
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+      
+      if (profileError) {
+        console.error('Error deleting profile:', profileError);
+        return false;
+      }
+      
+      // 3. If requested and we have admin permissions, delete the auth record
+      if (deleteAuth) {
+        try {
+          // This requires admin privileges and may not work in all environments
+          const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+          
+          if (authError) {
+            console.error('Error deleting auth user (admin only):', authError);
+            // Don't return false here as we've already deleted the profile
+          } else {
+            console.log('Successfully deleted auth user');
+          }
+        } catch (adminError) {
+          console.error('Admin deletion failed (likely due to permissions):', adminError);
+          // Fall back to signing out the current user if this is a self-deletion
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user && user.id === userId) {
+            await supabase.auth.signOut();
+          }
+        }
+      } else {
+        // If not deleting the auth record, sign out if this is the current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && user.id === userId) {
+          await supabase.auth.signOut();
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting user profile:', error);
+      return false;
+    }
   }
 };
