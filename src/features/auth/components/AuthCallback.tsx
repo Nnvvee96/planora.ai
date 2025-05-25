@@ -46,29 +46,47 @@ export const AuthCallback: React.FC = () => {
         setDebugInfo(envInfo);
         console.log('Auth env debug:', envInfo);
         
+        // Check if the page URL contains known error patterns
+        const hasAuthError = window.location.search.includes('error=server_error') || 
+                           window.location.hash.includes('error=server_error');
+                           
         // First check if we need recovery for 'Database error saving new user'
         // This is a special case that requires custom handling
-        if (window.location.hash.includes('error=server_error') && 
-            window.location.hash.includes('error_description=Database+error+saving+new+user')) {
+        if (hasAuthError && 
+            (window.location.search.includes('error_description=Database+error+saving+new+user') ||
+             window.location.hash.includes('error_description=Database+error+saving+new+user'))) {
+          
           console.log('🔄 Attempting Google auth recovery flow...');
           
-          // Try our recovery mechanism
-          const recoverySuccess = await googleAuthHelper.verifyAndRecoverGoogleAuth(window.location.hash);
+          // First check if we already have an active session despite the error
+          const { data: sessionData } = await supabase.auth.getSession();
           
-          if (recoverySuccess) {
-            // Recovery successful, get the user
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            if (user) {
-              console.log('✅ Recovery successful, redirecting to onboarding...');
-              setRedirectPath('/onboarding');
-              setRedirectMessage('Welcome to Planora! Setting up your account...');
-              setIsProcessing(false);
-              return;
-            }
+          if (sessionData.session?.user) {
+            // We already have an authenticated user, just need to ensure profile exists
+            console.log('✅ Session exists despite error, redirecting to onboarding...');
+            setRedirectPath('/onboarding');
+            setRedirectMessage('Welcome to Planora! Setting up your account...');
+            setIsProcessing(false);
+            return;
           }
           
-          console.log('❌ Recovery failed, falling back to normal flow');
+          // Try our recovery mechanism with the full URL
+          const recoverySuccess = await googleAuthHelper.verifyAndRecoverGoogleAuth(window.location.href);
+          
+          if (recoverySuccess) {
+            // Recovery successful, redirect to onboarding
+            console.log('✅ Recovery successful, redirecting to onboarding...');
+            setRedirectPath('/onboarding');
+            setRedirectMessage('Welcome to Planora! Setting up your account...');
+            setIsProcessing(false);
+            return;
+          }
+          
+          // If we get here, direct recovery failed. Try signing in again.
+          console.log('❌ Recovery failed, suggest signing in again');
+          setError('Authentication error occurred. Please try signing in again.');
+          setIsProcessing(false);
+          return;
         }
         
         // Process the standard authentication callback
