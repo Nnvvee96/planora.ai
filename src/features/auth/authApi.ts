@@ -65,6 +65,16 @@ export const mapSupabaseUser = (user: SupabaseUser): AppUser => {
 export type { AuthResponse, UserRegistrationStatus, GoogleAuthCredentials, SessionInfo };
 
 /**
+ * Authentication Provider Types
+ * Used to identify the method of authentication for a user
+ */
+export enum AuthProviderType {
+  EMAIL = 'email',        // Email/password login
+  GOOGLE = 'google',      // Google OAuth
+  ANONYMOUS = 'anonymous' // No authentication or unknown
+}
+
+/**
  * AuthService interface
  * Defines the shape of authentication service for type safety
  */
@@ -80,10 +90,17 @@ export interface AuthService {
   sendPasswordResetEmail(email: string): Promise<boolean>;
   resetPassword(newPassword: string): Promise<boolean>;
   updatePassword(currentPassword: string, newPassword: string): Promise<void>;
-  updateEmail(newEmail: string): Promise<void>;
+  updateEmail(newEmail: string, password?: string): Promise<void>;
+  getAuthProvider(userId?: string): Promise<AuthProviderType>;
   checkOnboardingStatus(userId: string): Promise<boolean>;
   updateOnboardingStatus(userId: string, hasCompleted?: boolean): Promise<boolean>;
   checkEmailVerificationStatus(userId: string): Promise<boolean>;
+  /**
+   * Determine the authentication provider used by a user
+   * @param userId Optional user ID to check (uses current user if not provided)
+   * @returns The detected authentication provider type
+   */
+  getAuthProvider(userId?: string): Promise<AuthProviderType>;
   checkUserRegistrationStatus(userId: string): Promise<{
     isNewUser: boolean;
     hasProfile: boolean;
@@ -272,10 +289,20 @@ const authService = {
   },
   
   /**
-   * Update user email
+   * Update the user's email address
    * @param newEmail The new email address
+   * @param password Optional password to set when converting from Google auth to email/password
    */
-  updateEmail: async (newEmail: string): Promise<void> => {
-    return supabaseAuthService.updateEmail(newEmail);
+  updateEmail: async (newEmail: string, password?: string): Promise<void> => {
+    return supabaseAuthService.updateEmail(newEmail, password);
+  },
+  
+  /**
+   * Determine the authentication provider used by a user
+   * @param userId Optional user ID to check (uses current user if not provided)
+   * @returns The detected authentication provider type
+   */
+  getAuthProvider: async (userId?: string): Promise<AuthProviderType> => {
+    return supabaseAuthService.getAuthProvider(userId);
   }
 };
