@@ -11,7 +11,8 @@ import {
   AuthResponse, 
   UserRegistrationStatus, 
   GoogleAuthCredentials,
-  RegisterData
+  RegisterData,
+  AuthProviderType
 } from '../types/authTypes';
 
 /**
@@ -659,33 +660,79 @@ export const supabaseAuthService = {
   },
   
   /**
-   * Update user email
+   * Update the user's email address
    * @param newEmail The new email address
+   * @param password Optional password to set when converting from Google auth to email/password
    */
-  updateEmail: async (newEmail: string): Promise<void> => {
+  updateEmail: async (newEmail: string, password?: string): Promise<void> => {
     try {
-      const { error } = await supabase.auth.updateUser({
-        email: newEmail,
-      });
-
-      if (error) {
-        console.error('Error updating email:', error);
-        throw error;
-      }
+      // Check if this is a Google-authenticated user
+      const authProvider = await supabaseAuthService.getAuthProvider();
+      const isGoogleUser = authProvider === AuthProviderType.GOOGLE;
       
-      // Also update the email in the public.profiles table
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ email: newEmail })
-        .eq('id', (await supabase.auth.getUser()).data.user?.id);
+      // Special handling for Google users who are changing email
+      if (isGoogleUser && password) {
+        console.log('Converting Google user to email/password authentication...');
         
-      if (profileError) {
-        console.error('Error updating email in profiles table:', profileError);
-        // Don't throw here as the auth email was updated successfully
+        // When converting from Google auth, we need to:
+        // 1. Update the email
+        // 2. Set a password for future email/password logins
+        // 3. Update metadata to reflect the change
+        
+        // Update user's email address
+        const { error: emailError } = await supabase.auth.updateUser({ email: newEmail });
+        if (emailError) throw emailError;
+        
+        // Set password for future logins
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('No authenticated user found');
+        
+        // Update user metadata to reflect they now use email/password auth
+        const { error: metadataError } = await supabase.auth.updateUser({
+          data: {
+            provider: 'email'
+          }
+        });
+        
+        if (metadataError) {
+          console.error('Error updating user metadata:', metadataError);
+          // Non-critical error, continue with the email update
+        }
+        
+        // Update profile table to reflect email verification status will need to be checked
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ email_verified: false })
+          .eq('id', user.id);
+        
+        if (profileError) {
+          console.error('Error updating profile email verification status:', profileError);
+          // Non-critical error, continue with the email update
+        }
+        
+        console.log('Successfully converted Google user to email/password with new email');
+      } else {
+        // Standard email update for regular users
+        const { error } = await supabase.auth.updateUser({ email: newEmail });
+        if (error) throw error;
+        
+        // Update the profile table to keep it in sync
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({ email_verified: false })
+            .eq('id', user.id);
+            
+          if (profileError) {
+            console.error('Error updating profile email verification status:', profileError);
+            // Non-critical error, continue with the email update
+          }
+        }
       }
-    } catch (err) {
-      console.error('Failed to update email:', err);
-      throw err;
+    } catch (error) {
+      console.error("Error updating email:", error);
+      throw error;
     }
   },
 
@@ -796,19 +843,68 @@ export const supabaseAuthService = {
       const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
-
+      
       if (error) {
         console.error('Error resetting password:', error);
         return false;
       }
-
+      
       return true;
     } catch (err) {
       console.error('Failed to reset password:', err);
       return false;
     }
   },
-
+  
+  /**
+   * Determine the authentication provider used by a user
+   * @param userId Optional user ID to check (uses current user if not provided)
+   * @returns The detected authentication provider type
+   */
+  getAuthProvider: async (userId?: string): Promise<AuthProviderType> => {
+    try {
+      // If userId is not provided, get the current user
+      if (!userId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        userId = user?.id;
+        
+        // If no current user, return anonymous
+        if (!userId) {
+          return AuthProviderType.ANONYMOUS;
+        }
+      }
+      
+      // Get the user data from Supabase auth
+      const { data: { user }, error } = await supabase.auth.admin.getUserById(userId);
+      
+      if (error || !user) {
+        console.error('Error getting user auth provider:', error);
+        return AuthProviderType.ANONYMOUS;
+      }
+      
+      // Check the user's app_metadata for provider information
+      const provider = user.app_metadata?.provider;
+      
+      if (provider === 'google') {
+        return AuthProviderType.GOOGLE;
+      } else if (user.email && user.email_confirmed_at) {
+        // User has confirmed email but no social provider
+        return AuthProviderType.EMAIL;
+      }
+      
+      // If no clear provider is found, check if they have a password set
+      // (Note: Supabase doesn't expose password existence directly, so we infer from email confirmation)
+      if (user.email_confirmed_at) {
+        return AuthProviderType.EMAIL;
+      }
+      
+      return AuthProviderType.ANONYMOUS;
+    } catch (err) {
+      console.error('Failed to determine auth provider:', err);
+      return AuthProviderType.ANONYMOUS;
+    }
+  },
+  
   /**
    * Check if a user's email is verified
    * @param userId The user ID to check verification status for
@@ -816,37 +912,42 @@ export const supabaseAuthService = {
    */
   checkEmailVerificationStatus: async (userId: string): Promise<boolean> => {
     try {
-      // First check in auth.users table if email is confirmed
-      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
-      
-      if (userError || !userData.user) {
-        console.error('Error getting user for email verification check:', userError);
-        
-        // Fallback to checking the profiles table
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('email_verified')
-          .eq('id', userId)
-          .single();
-
-        if (profileError || !profileData) {
-          console.error('Error checking email verification status in profile:', profileError);
-          return false;
-        }
-
-        return profileData.email_verified || false;
-      }
-
-      // If we can access the auth user, check if email_confirmed_at is set
-      const isVerified = userData.user.email_confirmed_at !== null;
-      
-      // Update the profile table to keep it in sync
-      await supabase
+      // First check if there's a profile with this user ID
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .update({ email_verified: isVerified })
-        .eq('id', userId);
-
-      return isVerified;
+        .select('email_verified')
+        .eq('id', userId)
+        .single();
+      
+      if (profileError) {
+        console.error('Error checking email verification status (profile):', profileError);
+        
+        // If profile check fails, try to get verification status from auth directly
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user && user.id === userId) {
+          // For auth users, email is verified if email_confirmed_at is set
+          const isVerified = user.email_confirmed_at !== null;
+          
+          // Try to update the profile with the verified status
+          try {
+            await supabase
+              .from('profiles')
+              .update({ email_verified: isVerified })
+              .eq('id', userId);
+          } catch (updateError) {
+            console.error('Error updating profile email_verified status:', updateError);
+            // Non-critical error, continue with the determined status
+          }
+          
+          return isVerified;
+        }
+        
+        return false;
+      }
+      
+      // Return the email_verified status from the profile
+      return profileData?.email_verified || false;
     } catch (err) {
       console.error('Failed to check email verification status:', err);
       return false;

@@ -42,6 +42,16 @@ export enum UserRegistrationStatus {
 }
 
 /**
+ * Authentication Provider Types
+ * Used to identify the method of authentication for a user
+ */
+export enum AuthProviderType {
+  EMAIL = 'email',        // Email/password login
+  GOOGLE = 'google',      // Google OAuth
+  ANONYMOUS = 'anonymous' // No authentication or unknown
+}
+
+/**
  * Authentication response interface
  */
 export interface AuthResponse {
