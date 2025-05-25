@@ -21,7 +21,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googleusercontent.com https://accounts.google.com https://*.supabase.co; connect-src 'self' https://*.supabase.co https://api.supabase.io wss://*.supabase.co https://accounts.google.com; frame-src 'self' https://accounts.google.com https://*.supabase.co; img-src 'self' data: https://*.googleusercontent.com https://*.supabase.co https://api.supabase.io; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self' data:; object-src 'none'"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googleusercontent.com https://accounts.google.com https://*.supabase.co https://cdn.gpteng.co; connect-src 'self' https://*.supabase.co https://api.supabase.io wss://*.supabase.co https://accounts.google.com https://fonts.googleapis.com; frame-src 'self' https://accounts.google.com https://*.supabase.co; img-src 'self' data: https://*.googleusercontent.com https://*.supabase.co https://api.supabase.io https://images.unsplash.com; style-src 'self' 'unsafe-inline' https://accounts.google.com https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; object-src 'none'"
         },
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
