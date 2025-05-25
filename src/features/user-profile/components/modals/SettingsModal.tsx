@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select } from '@/components/ui/select';
 import { getAuthService, AuthService } from '@/features/auth/authApi';
 import { userProfileService } from '../../services/userProfileService';
+import { DeleteAccountModal } from './DeleteAccountModal';
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, { message: "Current password is required" }),
@@ -51,6 +52,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [language, setLanguage] = React.useState("english");
   const [changePasswordOpen, setChangePasswordOpen] = React.useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
 
   // Initialize auth service using factory function
@@ -289,31 +291,20 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             <h3 className="font-medium text-destructive mb-1">Account Options</h3>
             <p className="text-sm text-muted-foreground mb-2">Permanently delete your account and all data</p>
             
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="w-full">
-                  Delete Account
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete your account and remove all your data from our servers.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction 
-                    className="bg-destructive"
-                    onClick={handleDeleteAccount}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Deleting...' : 'Delete Account'}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {/* Delete Account Button */}
+            <Button 
+              variant="destructive" 
+              className="w-full"
+              onClick={() => setDeleteModalOpen(true)}
+            >
+              Delete Account
+            </Button>
+            
+            {/* Delete Account Modal with 30-day recovery period */}
+            <DeleteAccountModal 
+              isOpen={deleteModalOpen} 
+              onClose={() => setDeleteModalOpen(false)} 
+            />
           </div>
         </div>
 

@@ -47,6 +47,7 @@ import { Notifications } from "./pages/Settings/Notifications";
 import { PrivacySecurity } from "./pages/Settings/PrivacySecurity";
 import { Support } from "./pages/Support";
 import { DebugScreen } from "./pages/DebugScreen";
+import AccountRecoveryPage from "./features/user-profile/components/AccountRecoveryPage";
 
 const queryClient = new QueryClient();
 
@@ -91,6 +92,7 @@ const App = () => {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/auth/callback" element={<Suspense fallback={<div className="flex items-center justify-center h-screen">Processing authentication...</div>}><AuthCallback /></Suspense>} />
+                <Route path="/account-recovery" element={<Suspense fallback={<div className="flex items-center justify-center h-screen">Processing account recovery...</div>}><AccountRecoveryPage /></Suspense>} />
                 <Route path="/debug" element={<DebugScreen />} />
                 
                 {/* Protected routes that require authentication */}
