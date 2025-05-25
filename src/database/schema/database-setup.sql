@@ -56,22 +56,49 @@ CREATE INDEX IF NOT EXISTS profiles_email_verified_idx ON public.profiles(email_
 -- This ensures that when a new user signs up, a profile is automatically created
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  provider text;
+  is_email_verified boolean;
 BEGIN
-  INSERT INTO public.profiles (
-    id, email, first_name, last_name, birthday, birthdate,
-    has_completed_onboarding, email_verified
-  )
-  VALUES (
-    new.id, 
-    new.email, 
-    COALESCE(new.raw_user_meta_data->>'first_name', ''), 
-    COALESCE(new.raw_user_meta_data->>'last_name', ''),
-    NULL,
-    NULL,
-    FALSE,
-    -- Check if email is already confirmed in auth.users
-    new.email_confirmed_at IS NOT NULL
-  );
+  -- Get the authentication provider if available
+  provider := COALESCE(new.raw_app_meta_data->>'provider', new.raw_user_meta_data->>'provider', '');
+  
+  -- Determine if email should be marked as verified
+  -- Email is verified if it's a social login or if email_confirmed_at is set
+  is_email_verified := (provider != '') OR (new.email_confirmed_at IS NOT NULL);
+
+  -- Handle profile creation with error catching
+  BEGIN
+    INSERT INTO public.profiles (
+      id, 
+      email, 
+      first_name, 
+      last_name, 
+      birthday, 
+      birthdate,
+      has_completed_onboarding, 
+      email_verified,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      new.id, 
+      new.email, 
+      COALESCE(new.raw_user_meta_data->>'first_name', ''), 
+      COALESCE(new.raw_user_meta_data->>'last_name', ''),
+      NULL,
+      NULL,
+      FALSE,
+      is_email_verified,
+      now(),
+      now()
+    );
+  EXCEPTION 
+    -- If the profile already exists, do nothing (prevents duplicates)
+    WHEN unique_violation THEN
+      RAISE NOTICE 'Profile for user % already exists', new.id;
+  END;
+  
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

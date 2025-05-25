@@ -10,6 +10,8 @@ import { useAuthContext } from './AuthProvider';
 import { useNavigate } from 'react-router-dom';
 import { UserRegistrationStatus } from '../types/authTypes';
 import { AuthRedirect } from './AuthRedirect';
+import { googleAuthHelper } from '../helpers/googleAuthHelper';
+import { supabase } from '@/database/databaseExports';
 
 /**
  * Component that handles OAuth callback
@@ -44,7 +46,32 @@ export const AuthCallback: React.FC = () => {
         setDebugInfo(envInfo);
         console.log('Auth env debug:', envInfo);
         
-        // Process the authentication callback
+        // First check if we need recovery for 'Database error saving new user'
+        // This is a special case that requires custom handling
+        if (window.location.hash.includes('error=server_error') && 
+            window.location.hash.includes('error_description=Database+error+saving+new+user')) {
+          console.log('🔄 Attempting Google auth recovery flow...');
+          
+          // Try our recovery mechanism
+          const recoverySuccess = await googleAuthHelper.verifyAndRecoverGoogleAuth(window.location.hash);
+          
+          if (recoverySuccess) {
+            // Recovery successful, get the user
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (user) {
+              console.log('✅ Recovery successful, redirecting to onboarding...');
+              setRedirectPath('/onboarding');
+              setRedirectMessage('Welcome to Planora! Setting up your account...');
+              setIsProcessing(false);
+              return;
+            }
+          }
+          
+          console.log('❌ Recovery failed, falling back to normal flow');
+        }
+        
+        // Process the standard authentication callback
         const authResponse = await handleAuthCallback();
         console.log('Auth callback response:', authResponse);
         
