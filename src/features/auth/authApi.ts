@@ -74,11 +74,23 @@ export interface AuthService {
   getCurrentUser(): Promise<AppUser | null>;
   logout(): Promise<void>;
   handleAuthCallback(): Promise<AuthResponse>;
-  register(data: RegisterData): Promise<void>;
+  register(data: RegisterData): Promise<{ user: SupabaseUser | null, emailConfirmationRequired: boolean }>;
+  verifyEmail(token: string): Promise<boolean>;
+  resendVerificationEmail(email: string): Promise<boolean>;
+  sendPasswordResetEmail(email: string): Promise<boolean>;
+  resetPassword(newPassword: string): Promise<boolean>;
   updatePassword(currentPassword: string, newPassword: string): Promise<void>;
   updateEmail(newEmail: string): Promise<void>;
   checkOnboardingStatus(userId: string): Promise<boolean>;
   updateOnboardingStatus(userId: string, hasCompleted?: boolean): Promise<boolean>;
+  checkEmailVerificationStatus(userId: string): Promise<boolean>;
+  checkUserRegistrationStatus(userId: string): Promise<{
+    isNewUser: boolean;
+    hasProfile: boolean;
+    hasCompletedOnboarding: boolean;
+    hasTravelPreferences: boolean;
+    registrationStatus: UserRegistrationStatus;
+  }>;
 }
 
 // Import lazy for component lazy loading
@@ -144,6 +156,55 @@ const authService = {
   },
   
   /**
+   * Verify email address using token
+   * @param token The verification token from email link
+   */
+  verifyEmail: async (token: string): Promise<boolean> => {
+    return supabaseAuthService.verifyEmail(token);
+  },
+  
+  /**
+   * Resend verification email
+   * @param email The email address to resend verification to
+   */
+  resendVerificationEmail: async (email: string): Promise<boolean> => {
+    return supabaseAuthService.resendVerificationEmail(email);
+  },
+  
+  /**
+   * Check if a user's email is verified
+   * @param userId The user ID to check verification status for
+   */
+  checkEmailVerificationStatus: async (userId: string): Promise<boolean> => {
+    return supabaseAuthService.checkEmailVerificationStatus(userId);
+  },
+  
+  /**
+   * Send password reset email
+   * @param email The email address to send password reset to
+   */
+  sendPasswordResetEmail: async (email: string): Promise<boolean> => {
+    return supabaseAuthService.sendPasswordResetEmail(email);
+  },
+  
+  /**
+   * Reset password with reset token
+   * @param newPassword The new password to set
+   */
+  resetPassword: async (newPassword: string): Promise<boolean> => {
+    return supabaseAuthService.resetPassword(newPassword);
+  },
+  
+  /**
+   * Check user registration status
+   * Comprehensive function that checks multiple sources to determine user status
+   * @param userId User ID to check
+   */
+  checkUserRegistrationStatus: async (userId: string) => {
+    return supabaseAuthService.checkUserRegistrationStatus(userId);
+  },
+  
+  /**
    * Update user metadata
    * Updates the user's metadata in Supabase
    */
@@ -196,8 +257,10 @@ const authService = {
 
   /**
    * Register a new user
+   * @param data Registration data including email, password, and profile information
+   * @returns Object with user data and email confirmation status
    */
-  register: async (data: RegisterData): Promise<void> => {
+  register: async (data: RegisterData): Promise<{ user: SupabaseUser | null, emailConfirmationRequired: boolean }> => {
     return supabaseAuthService.register(data);
   },
 

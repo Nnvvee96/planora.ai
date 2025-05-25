@@ -550,21 +550,30 @@ export const supabaseAuthService = {
   /**
    * Register a new user with email and password
    * @param data Registration data including email, password, and profile information
+   * @returns Information about the registration result including if email confirmation is required
    */
-  register: async (data: RegisterData): Promise<void> => {
+  register: async (data: RegisterData): Promise<{ user: User | null, emailConfirmationRequired: boolean }> => {
     try {
-      const { email, password, firstName, lastName } = data;
+      const { email, password, firstName, lastName, metadata = {} } = data;
+      
+      // Combine provided metadata with user information
+      const userMetadata = {
+        firstName,
+        lastName,
+        hasCompletedOnboarding: false,
+        ...metadata
+      };
       
       // Create the user with email and password
+      // We'll use redirectTo to ensure users are redirected after confirming their email
+      const redirectTo = window.location.origin + '/auth/email-confirmation';
+      
       const { error, data: authData } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            firstName,
-            lastName,
-            hasCompletedOnboarding: false
-          }
+          data: userMetadata,
+          emailRedirectTo: redirectTo
         }
       });
       
@@ -577,8 +586,20 @@ export const supabaseAuthService = {
         throw new Error('User registration failed');
       }
       
-      // Additional profile creation will happen via Supabase triggers
-      console.log('User registered successfully');
+      // Determine if email confirmation is required
+      // Supabase returns session=null when email confirmation is required
+      const emailConfirmationRequired = authData.session === null;
+      
+      console.log('User registered successfully', {
+        emailConfirmationRequired,
+        user: authData.user
+      });
+      
+      // Return registration result with confirmation status
+      return {
+        user: authData.user,
+        emailConfirmationRequired
+      };
     } catch (err) {
       console.error('Failed to register user:', err);
       throw err;
@@ -646,6 +667,170 @@ export const supabaseAuthService = {
     } catch (err) {
       console.error('Failed to update email:', err);
       throw err;
+    }
+  },
+
+  /**
+   * Verify email address using token
+   * @param token The verification token from email link
+   * @returns True if verification successful, false otherwise
+   */
+  verifyEmail: async (token: string): Promise<boolean> => {
+    try {
+      // Note: This is actually handled by Supabase automatically via URL
+      // This method is a helper for manually verifying if needed
+      const { error } = await supabase.auth.verifyOtp({
+        token_hash: token,
+        type: 'email'
+      });
+
+      if (error) {
+        console.error('Error verifying email:', error);
+        return false;
+      }
+
+      // Update the profile to mark email as verified
+      const user = (await supabase.auth.getUser()).data.user;
+      if (user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ email_verified: true })
+          .eq('id', user.id);
+
+        if (profileError) {
+          console.error('Error updating email verification status in profile:', profileError);
+          // We still consider this a success as the auth verification worked
+        }
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Failed to verify email:', err);
+      return false;
+    }
+  },
+
+  /**
+   * Resend verification email
+   * @param email The email address to resend verification to
+   * @returns True if email sent successfully, false otherwise
+   */
+  resendVerificationEmail: async (email: string): Promise<boolean> => {
+    try {
+      // Create the redirect URL for verification
+      const redirectTo = window.location.origin + '/auth/email-confirmation';
+      
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: redirectTo
+        }
+      });
+
+      if (error) {
+        console.error('Error resending verification email:', error);
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Failed to resend verification email:', err);
+      return false;
+    }
+  },
+
+  /**
+   * Send password reset email
+   * @param email The email address to send password reset to
+   * @returns True if email sent successfully, false otherwise
+   */
+  sendPasswordResetEmail: async (email: string): Promise<boolean> => {
+    try {
+      // Create the redirect URL for password reset
+      const redirectTo = window.location.origin + '/auth/reset-password';
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo
+      });
+
+      if (error) {
+        console.error('Error sending password reset email:', error);
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Failed to send password reset email:', err);
+      return false;
+    }
+  },
+
+  /**
+   * Reset password with reset token
+   * @param newPassword The new password to set
+   * @returns True if password reset was successful, false otherwise
+   */
+  resetPassword: async (newPassword: string): Promise<boolean> => {
+    try {
+      // The token is automatically included in the URL and handled by Supabase
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        console.error('Error resetting password:', error);
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Failed to reset password:', err);
+      return false;
+    }
+  },
+
+  /**
+   * Check if a user's email is verified
+   * @param userId The user ID to check verification status for
+   * @returns True if email is verified, false otherwise
+   */
+  checkEmailVerificationStatus: async (userId: string): Promise<boolean> => {
+    try {
+      // First check in auth.users table if email is confirmed
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
+      
+      if (userError || !userData.user) {
+        console.error('Error getting user for email verification check:', userError);
+        
+        // Fallback to checking the profiles table
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('email_verified')
+          .eq('id', userId)
+          .single();
+
+        if (profileError || !profileData) {
+          console.error('Error checking email verification status in profile:', profileError);
+          return false;
+        }
+
+        return profileData.email_verified || false;
+      }
+
+      // If we can access the auth user, check if email_confirmed_at is set
+      const isVerified = userData.user.email_confirmed_at !== null;
+      
+      // Update the profile table to keep it in sync
+      await supabase
+        .from('profiles')
+        .update({ email_verified: isVerified })
+        .eq('id', userId);
+
+      return isVerified;
+    } catch (err) {
+      console.error('Failed to check email verification status:', err);
+      return false;
     }
   },
 };

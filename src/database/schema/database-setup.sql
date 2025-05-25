@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   avatar_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
-  has_completed_onboarding BOOLEAN DEFAULT FALSE
+  has_completed_onboarding BOOLEAN DEFAULT FALSE,
+  email_verified BOOLEAN DEFAULT FALSE
 );
 
 -- Travel Preferences Table
@@ -43,20 +44,26 @@ CREATE TABLE IF NOT EXISTS public.travel_preferences (
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS travel_preferences_user_id_idx ON public.travel_preferences(user_id);
 CREATE INDEX IF NOT EXISTS profiles_id_idx ON public.profiles(id);
+CREATE INDEX IF NOT EXISTS profiles_email_verified_idx ON public.profiles(email_verified);
 
 -- Automatic Profile Creation Trigger
 -- This ensures that when a new user signs up, a profile is automatically created
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, first_name, last_name, birthday, has_completed_onboarding)
+  INSERT INTO public.profiles (
+    id, email, first_name, last_name, birthday, 
+    has_completed_onboarding, email_verified
+  )
   VALUES (
     new.id, 
     new.email, 
     COALESCE(new.raw_user_meta_data->>'first_name', ''), 
     COALESCE(new.raw_user_meta_data->>'last_name', ''),
     NULL,
-    FALSE
+    FALSE,
+    -- Check if email is already confirmed in auth.users
+    new.email_confirmed_at IS NOT NULL
   );
   RETURN new;
 END;
