@@ -6,6 +6,7 @@
  */
 
 import { supabase } from '@/database/databaseExports';
+import { AuthError } from '@supabase/supabase-js';
 
 /**
  * Helper to fix common issues with Google authentication
@@ -15,67 +16,39 @@ export const googleAuthHelper = {
   /**
    * Verify and recover Google authentication
    * This handles cases where the auth flow succeeded but profile creation failed
+   * @param url The full URL from the OAuth callback
    */
-  verifyAndRecoverGoogleAuth: async (hash: string): Promise<boolean> => {
+  verifyAndRecoverGoogleAuth: async (url: string): Promise<boolean> => {
     // Check if the URL contains an error related to database user creation
-    if (hash.includes('error=server_error') && 
-        hash.includes('error_description=Database+error+saving+new+user')) {
+    if (url.includes('error=server_error') && 
+        url.includes('error_description=Database+error+saving+new+user')) {
       
-      console.log('Detected database error saving new user, attempting recovery...');
+      console.log('Detected database error saving new user, attempting direct profile creation...');
       
       try {
-        // Exchange the OAuth token for a session
-        // This effectively "completes" the Google auth flow that failed at the DB level
-        const result = await supabase.auth.exchangeCodeForSession(hash.substring(1));
+        // For 'Database error saving new user', the OAuth authentication actually succeeded
+        // but the database trigger to create the profile failed
         
-        if (result.error) {
-          console.error('Recovery attempt failed:', result.error);
-          return false;
+        // First, try to get the current session - there might be a valid session already
+        const { data: sessionData } = await supabase.auth.getSession();
+        
+        if (sessionData.session) {
+          console.log('Existing session found, attempting to create profile...');
+          const { user } = sessionData.session;
+          
+          if (!user) {
+            console.error('Recovery failed: Session exists but no user found');
+            return false;
+          }
+          
+          // Create profile manually since that's what likely failed
+          return await createProfileForUser(user.id, user.email || '', user.user_metadata || {});
         }
         
-        // Get the user from the newly created session
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          console.error('Recovery attempt failed: No user found after exchange');
-          return false;
-        }
-        
-        console.log('Successfully recovered Google authentication for user:', user.id);
-        
-        // Create profile manually if needed
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', user.id)
-          .single();
-        
-        if (!profileData) {
-          console.log('Creating missing profile for recovered user...');
-          
-          // Get timestamp for consistency
-          const timestamp = new Date().toISOString();
-          
-          // Extract user metadata
-          const metadata = user.user_metadata || {};
-          
-          // Create profile with available data
-          await supabase
-            .from('profiles')
-            .insert({
-              id: user.id,
-              email: user.email,
-              first_name: metadata.given_name || metadata.name?.split(' ')[0] || '',
-              last_name: metadata.family_name || metadata.name?.split(' ').slice(1).join(' ') || '',
-              avatar_url: metadata.picture || '',
-              email_verified: true,
-              created_at: timestamp,
-              updated_at: timestamp,
-              has_completed_onboarding: false
-            });
-        }
-        
-        return true;
+        // No active session found, we need to try a different approach
+        // Manual sign-in with Google might be needed at this point
+        console.log('No active session found. User will need to try signing in again.');
+        return false;
       } catch (error) {
         console.error('Google auth recovery failed:', error);
         return false;
@@ -86,3 +59,60 @@ export const googleAuthHelper = {
     return false;
   }
 };
+
+/**
+ * Create a profile for a user who was authenticated but has no profile
+ * @param userId The user ID
+ * @param email The user's email
+ * @param metadata The user's metadata from authentication
+ */
+async function createProfileForUser(
+  userId: string, 
+  email: string, 
+  metadata: Record<string, any>
+): Promise<boolean> {
+  try {
+    // Check if profile already exists
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .single();
+      
+    if (existingProfile) {
+      console.log('Profile already exists for user:', userId);
+      return true;
+    }
+    
+    console.log('Creating missing profile for user:', userId);
+    
+    // Get timestamp for consistency
+    const timestamp = new Date().toISOString();
+    
+    // Create profile with available data
+    const { error } = await supabase
+      .from('profiles')
+      .insert({
+        id: userId,
+        email: email,
+        first_name: metadata.given_name || metadata.name?.split(' ')[0] || '',
+        last_name: metadata.family_name || metadata.name?.split(' ').slice(1).join(' ') || '',
+        avatar_url: metadata.picture || '',
+        email_verified: true,
+        created_at: timestamp,
+        updated_at: timestamp,
+        has_completed_onboarding: false
+      });
+      
+    if (error) {
+      console.error('Error creating profile:', error);
+      return false;
+    }
+    
+    console.log('Successfully created profile for user:', userId);
+    return true;
+  } catch (error) {
+    console.error('Error in createProfileForUser:', error);
+    return false;
+  }
+}
