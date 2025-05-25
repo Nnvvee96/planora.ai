@@ -46,35 +46,76 @@ export const AuthCallback: React.FC = () => {
         setDebugInfo(envInfo);
         console.log('Auth env debug:', envInfo);
         
-        // Check if the page URL contains known error patterns
-        const hasAuthError = window.location.search.includes('error=server_error') || 
-                           window.location.hash.includes('error=server_error');
-                           
-        // First check if we need recovery for 'Database error saving new user'
-        // This is a special case that requires custom handling
-        if (hasAuthError && 
-            (window.location.search.includes('error_description=Database+error+saving+new+user') ||
-             window.location.hash.includes('error_description=Database+error+saving+new+user'))) {
+        // Clean up any auth flow tracking from localStorage
+        const authFlowStarted = localStorage.getItem('auth_flow_started');
+        if (authFlowStarted) {
+          console.log('Auth flow was previously started, cleaning up tracking data');
+          localStorage.removeItem('auth_flow_started');
+          localStorage.removeItem('auth_flow_timestamp');
+        }
+        
+        // Extract auth data from URL
+        const accessToken = new URLSearchParams(window.location.hash.substring(1)).get('access_token');
+        const refreshToken = new URLSearchParams(window.location.hash.substring(1)).get('refresh_token');
+        
+        // Check if we have a complete hash-based auth response
+        const hasHashAuth = accessToken && refreshToken;
+        
+        // Check for error patterns in URL
+        const hasAuthError = window.location.search.includes('error=') || 
+                           window.location.hash.includes('error=');
+        
+        const hasDbError = window.location.search.includes('error_description=Database+error+saving+new+user') ||
+                         window.location.hash.includes('error_description=Database+error+saving+new+user');
+        
+        console.log('Auth callback analysis:', { 
+          hasHashAuth, 
+          hasAuthError, 
+          hasDbError,
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken
+        });
+        
+        // Try to verify if we have an active session regardless of URL parameters
+        const { data: sessionData } = await supabase.auth.getSession();
+        
+        if (sessionData.session?.user) {
+          console.log('Active session found for user:', sessionData.session.user.id);
           
-          console.log('🔄 Attempting Google auth recovery flow...');
-          
-          // First check if we already have an active session despite the error
-          const { data: sessionData } = await supabase.auth.getSession();
-          
-          if (sessionData.session?.user) {
-            // We already have an authenticated user, just need to ensure profile exists
-            console.log('✅ Session exists despite error, redirecting to onboarding...');
-            setRedirectPath('/onboarding');
-            setRedirectMessage('Welcome to Planora! Setting up your account...');
+          // We have a valid session, check if user has completed onboarding
+          try {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('has_completed_onboarding')
+              .eq('id', sessionData.session.user.id)
+              .single();
+            
+            // Determine where to redirect based on onboarding status
+            if (profileData?.has_completed_onboarding) {
+              console.log('User has completed onboarding, redirecting to dashboard');
+              setRedirectPath('/dashboard');
+              setRedirectMessage('Welcome back! Taking you to your dashboard...');
+            } else {
+              console.log('User needs to complete onboarding, redirecting to onboarding');
+              setRedirectPath('/onboarding');
+              setRedirectMessage('Please complete your profile setup...');
+            }
+            
             setIsProcessing(false);
             return;
+          } catch (profileError) {
+            console.error('Error checking profile data:', profileError);
           }
+        }
+        
+        // Handle database error recovery if needed
+        if (hasAuthError && hasDbError) {
+          console.log('🔄 Attempting Google auth recovery for database error...');
           
           // Try our recovery mechanism with the full URL
           const recoverySuccess = await googleAuthHelper.verifyAndRecoverGoogleAuth(window.location.href);
           
           if (recoverySuccess) {
-            // Recovery successful, redirect to onboarding
             console.log('✅ Recovery successful, redirecting to onboarding...');
             setRedirectPath('/onboarding');
             setRedirectMessage('Welcome to Planora! Setting up your account...');
@@ -82,9 +123,9 @@ export const AuthCallback: React.FC = () => {
             return;
           }
           
-          // If we get here, direct recovery failed. Try signing in again.
-          console.log('❌ Recovery failed, suggest signing in again');
-          setError('Authentication error occurred. Please try signing in again.');
+          // If we get here, recovery failed - provide clear instructions
+          console.log('❌ Recovery failed, suggesting manual sign in');
+          setError('We encountered an issue creating your account. Please try signing in again.');
           setIsProcessing(false);
           return;
         }

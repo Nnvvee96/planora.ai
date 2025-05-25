@@ -44,33 +44,52 @@ export const supabaseAuthService = {
    * Initiates Google OAuth flow
    */
   signInWithGoogle: async (): Promise<void> => {
-    // Use environment-specific redirect URL
-    let redirectUrl;
-    
-    if (import.meta.env.DEV) {
-      // Local development
-      redirectUrl = 'http://localhost:3000/auth/callback';
-    } else {
-      // Production environment - hardcode the main domain
-      redirectUrl = 'https://planora-ai-plum.vercel.app/auth/callback';
-    }
-    
-    console.log('Using redirect URL:', redirectUrl);
-    
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: redirectUrl,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
+    try {
+      // Use environment-specific redirect URL
+      let redirectUrl;
+      
+      if (import.meta.env.DEV) {
+        // Local development
+        redirectUrl = 'http://localhost:3000/auth/callback';
+      } else {
+        // Production environment - hardcode the main domain
+        redirectUrl = 'https://planora-ai-plum.vercel.app/auth/callback';
+      }
+      
+      console.log('Google Auth: Initiating sign-in with redirect URL:', redirectUrl);
+      
+      // Ensure we're using the correct Supabase OAuth flow with proper scopes
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          // These specific query parameters help ensure proper Google OAuth flow
+          queryParams: {
+            access_type: 'offline',  // Get refresh token
+            prompt: 'consent',      // Always show consent screen
+            scope: 'profile email', // Request minimal required scopes
+            include_granted_scopes: 'true',
+          },
+          // Skip the URL fragment cleanup - this may be causing issues
+          skipBrowserRedirect: false,
         },
-      },
-    });
-    
-    if (error) {
-      console.error('Error signing in with Google:', error);
-      throw error;
+      });
+      
+      // Track if the sign-in process started successfully
+      if (data?.url) {
+        console.log('Google Auth: Successfully generated OAuth URL, redirecting user...');
+        // You could store a flag in localStorage to help track auth flow state
+        localStorage.setItem('auth_flow_started', 'true');
+        localStorage.setItem('auth_flow_timestamp', Date.now().toString());
+      }
+      
+      if (error) {
+        console.error('Google Auth: Error initiating sign-in:', error);
+        throw error;
+      }
+    } catch (err) {
+      console.error('Google Auth: Unexpected error during sign-in process:', err);
+      throw err;
     }
   },
   
