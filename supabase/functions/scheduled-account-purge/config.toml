@@ -1,3 +1,4 @@
 [functions.scheduled-account-purge]
 schedule = "0 0 * * *"  # Run daily at midnight
 verified_jwt = false
+entrypoint = "./accountPurgeService.ts"
