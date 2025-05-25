@@ -101,11 +101,21 @@ async function createProfileForUser(
         email_verified: true,
         created_at: timestamp,
         updated_at: timestamp,
-        has_completed_onboarding: false
+        has_completed_onboarding: false,
+        account_status: 'active',  // Add required account_status field
+        birthday: null,
+        birthdate: null
       });
       
     if (error) {
       console.error('Error creating profile:', error);
+      // Log the specific error details for better debugging
+      if (error.details) {
+        console.error('Error details:', error.details);
+      }
+      if (error.hint) {
+        console.error('Error hint:', error.hint);
+      }
       return false;
     }
     
@@ -113,6 +123,10 @@ async function createProfileForUser(
     return true;
   } catch (error) {
     console.error('Error in createProfileForUser:', error);
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     return false;
   }
 }
