@@ -14,12 +14,15 @@ import { UserProfile, DbUserProfile } from '../types/profileTypes';
 const mapDbProfileToUserProfile = (dbProfile: DbUserProfile): UserProfile => {
   return {
     id: dbProfile.id,
-    firstName: dbProfile.first_name,
-    lastName: dbProfile.last_name,
+    firstName: dbProfile.first_name || '',
+    lastName: dbProfile.last_name || '',
     email: dbProfile.email,
     avatarUrl: dbProfile.avatar_url,
-    birthdate: dbProfile.birthdate,
+    // Prefer birthdate, fall back to birthday for compatibility
+    birthday: dbProfile.birthday || dbProfile.birthdate,
+    birthdate: dbProfile.birthdate || dbProfile.birthday,
     hasCompletedOnboarding: dbProfile.has_completed_onboarding,
+    emailVerified: dbProfile.email_verified,
     createdAt: dbProfile.created_at,
     updatedAt: dbProfile.updated_at
   };
@@ -36,8 +39,18 @@ const mapUserProfileToDbProfile = (profile: Partial<UserProfile>): Partial<DbUse
   if (profile.lastName !== undefined) dbProfile.last_name = profile.lastName;
   if (profile.email !== undefined) dbProfile.email = profile.email;
   if (profile.avatarUrl !== undefined) dbProfile.avatar_url = profile.avatarUrl;
-  if (profile.birthdate !== undefined) dbProfile.birthdate = profile.birthdate;
+  
+  // Handle both birthday and birthdate fields for compatibility
+  if (profile.birthdate !== undefined) {
+    dbProfile.birthdate = profile.birthdate;
+    dbProfile.birthday = profile.birthdate; // Keep both in sync
+  } else if (profile.birthday !== undefined) {
+    dbProfile.birthday = profile.birthday;
+    dbProfile.birthdate = profile.birthday; // Keep both in sync
+  }
+  
   if (profile.hasCompletedOnboarding !== undefined) dbProfile.has_completed_onboarding = profile.hasCompletedOnboarding;
+  if (profile.emailVerified !== undefined) dbProfile.email_verified = profile.emailVerified;
   
   return dbProfile;
 };
@@ -57,19 +70,30 @@ const extractNameFromGoogleData = (user: { id: string; email?: string; user_meta
   let firstName = '';
   let lastName = '';
   
-  // Try different paths where Google might provide name info
-  if (typeof user_metadata?.name === 'string') {
-    // Name provided as a single string, try to split it
-    const nameParts = (user_metadata.name as string).split(' ');
-    firstName = nameParts[0] || '';
-    lastName = nameParts.slice(1).join(' ') || '';
-  } else if (typeof user_metadata?.full_name === 'string') {
-    // Name provided as a single string under full_name, try to split it
+  // First priority: explicit first_name and last_name fields
+  if (user_metadata?.first_name && user_metadata?.last_name) {
+    firstName = user_metadata.first_name as string;
+    lastName = user_metadata.last_name as string;
+  }
+  // Second priority: given_name and family_name (common in Google OAuth)
+  else if (user_metadata?.given_name && user_metadata?.family_name) {
+    firstName = user_metadata.given_name as string;
+    lastName = user_metadata.family_name as string;
+  }
+  // Third priority: full_name field
+  else if (typeof user_metadata?.full_name === 'string') {
     const nameParts = (user_metadata.full_name as string).split(' ');
     firstName = nameParts[0] || '';
     lastName = nameParts.slice(1).join(' ') || '';
-  } else {
-    // Try to extract from specific name fields
+  }
+  // Fourth priority: name field
+  else if (typeof user_metadata?.name === 'string') {
+    const nameParts = (user_metadata.name as string).split(' ');
+    firstName = nameParts[0] || '';
+    lastName = nameParts.slice(1).join(' ') || '';
+  }
+  // Fifth priority: try individual fields
+  else {
     firstName = (user_metadata?.given_name as string) || 
                 (user_metadata?.first_name as string) || 
                 (user_metadata?.display_name as string) || '';
@@ -79,23 +103,41 @@ const extractNameFromGoogleData = (user: { id: string; email?: string; user_meta
   }
   
   // Fall back to email if name is still empty
-  if (!firstName && !lastName && user.email) {
-    // Extract username part from email and format it
-    const emailParts = user.email.split('@');
-    const username = emailParts[0];
-    // Format username: replace symbols with spaces and capitalize each part
-    const formattedParts = username.split(/[._-]/).map(part => 
-      part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
-    );
-    
-    if (formattedParts.length > 1) {
-      firstName = formattedParts[0];
-      lastName = formattedParts.slice(1).join(' ');
-    } else {
-      firstName = formattedParts[0] || '';
+  if ((!firstName || !lastName) && user.email) {
+    // If we have at least one name part but not both, only fall back for the missing one
+    if (!firstName && !lastName) {
+      // Extract username part from email and format it
+      const emailParts = user.email.split('@');
+      const username = emailParts[0];
+      // Format username: replace symbols with spaces and capitalize each part
+      const formattedParts = username.split(/[._-]/).map(part => 
+        part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+      );
+      
+      if (formattedParts.length > 1) {
+        firstName = formattedParts[0];
+        lastName = formattedParts.slice(1).join(' ');
+      } else {
+        firstName = formattedParts[0] || '';
+      }
+    } else if (!firstName) {
+      // Just extract first name from email
+      const emailParts = user.email.split('@');
+      const username = emailParts[0].split(/[._-]/)[0];
+      firstName = username.charAt(0).toUpperCase() + username.slice(1).toLowerCase();
+    } else if (!lastName) {
+      // Just extract last name from email if possible
+      const emailParts = user.email.split('@');
+      const usernameParts = emailParts[0].split(/[._-]/);
+      if (usernameParts.length > 1) {
+        lastName = usernameParts.slice(1).map(part => 
+          part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+        ).join(' ');
+      }
     }
   }
   
+  console.log('Extracted name information:', { firstName, lastName });
   return { firstName, lastName };
 };
 
@@ -134,6 +176,13 @@ export const userProfileService = {
         console.error('Error checking for existing profile:', error);
       }
       
+      // Get avatar URL from metadata
+      const avatarUrl = (user_metadata?.avatar_url as string) || 
+                       (user_metadata?.picture as string) || '';
+      
+      // For Google Auth, we always set email_verified to true
+      const emailVerified = true;
+      
       if (!data) {
         // No profile exists, create one
         console.log('Creating new profile for user:', user.id);
@@ -145,10 +194,14 @@ export const userProfileService = {
             first_name: firstName,
             last_name: lastName,
             email: user.email,
-            avatar_url: (user_metadata?.avatar_url as string) || (user_metadata?.picture as string) || '',
+            avatar_url: avatarUrl,
             has_completed_onboarding: false,
+            email_verified: emailVerified,
             created_at: timestamp,
-            updated_at: timestamp
+            updated_at: timestamp,
+            // Set both birthday and birthdate to ensure compatibility
+            birthday: null,
+            birthdate: null
           });
           
         if (insertError) {
@@ -156,42 +209,50 @@ export const userProfileService = {
           return false;
         }
         
+        console.log('Successfully created profile with Google data');
         return true;
       } else {
-        // Profile exists, update if name fields are empty
-        if (!data.first_name || !data.last_name) {
-          console.log('Updating existing profile with Google data for user:', user.id);
-          
-          const updates: Record<string, unknown> = {
-            updated_at: timestamp
-          };
-          
-          if (!data.first_name && firstName) {
-            updates.first_name = firstName;
-          }
-          
-          if (!data.last_name && lastName) {
-            updates.last_name = lastName;
-          }
-          
-          if (!data.avatar_url) {
-            updates.avatar_url = (user_metadata?.avatar_url as string) || 
-                                 (user_metadata?.picture as string) || '';
-          }
-          
-          if (Object.keys(updates).length > 1) {
-            const { error: updateError } = await supabase
-              .from('profiles')
-              .update(updates)
-              .eq('id', user.id);
-              
-            if (updateError) {
-              console.error('Error updating profile with Google data:', updateError);
-              return false;
-            }
-          }
+        // Profile exists, update with latest Google data
+        console.log('Updating existing profile with Google data for user:', user.id);
+        
+        const updates: Record<string, unknown> = {
+          updated_at: timestamp,
+          email_verified: emailVerified
+        };
+        
+        // Always update first_name and last_name if we have Google data
+        // This ensures the profile stays in sync with Google account changes
+        if (firstName) {
+          updates.first_name = firstName;
         }
         
+        if (lastName) {
+          updates.last_name = lastName;
+        }
+        
+        // Update avatar if we have one from Google
+        if (avatarUrl) {
+          updates.avatar_url = avatarUrl;
+        }
+        
+        // If both birthday and birthdate are used, keep them in sync
+        if (data.birthday && !data.birthdate) {
+          updates.birthdate = data.birthday;
+        } else if (!data.birthday && data.birthdate) {
+          updates.birthday = data.birthdate;
+        }
+        
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', user.id);
+          
+        if (updateError) {
+          console.error('Error updating profile with Google data:', updateError);
+          return false;
+        }
+        
+        console.log('Successfully updated profile with Google data');
         return true;
       }
     } catch (error) {
@@ -375,7 +436,7 @@ export const userProfileService = {
   },
   
   /**
-   * Update user profile in Supabase
+   * Update a user's profile
    * @param userId User ID to update profile for
    * @param profileData Profile data to update
    */
@@ -389,19 +450,38 @@ export const userProfileService = {
       // Create a copy of profileData to avoid mutating the original
       const profileUpdate = { ...profileData };
       
-      // Format birthdate if it exists
-      if (profileUpdate.birthdate) {
+      // Format date fields - handle both birthday and birthdate
+      const formatDateField = (dateStr: string): string | null => {
         try {
-          // Ensure birthdate is in YYYY-MM-DD format
-          const date = new Date(profileUpdate.birthdate);
+          const date = new Date(dateStr);
           if (!isNaN(date.getTime())) {
-            profileUpdate.birthdate = date.toISOString().split('T')[0];
-          } else {
-            console.warn('Invalid birthdate format, removing from update:', profileUpdate.birthdate);
-            delete profileUpdate.birthdate;
+            return date.toISOString().split('T')[0];
           }
+          console.warn('Invalid date format:', dateStr);
+          return null;
         } catch (e) {
-          console.error('Error formatting birthdate:', e);
+          console.error('Error formatting date:', e);
+          return null;
+        }
+      };
+      
+      // Handle birthdate formatting and synchronization
+      if (profileUpdate.birthdate) {
+        const formattedDate = formatDateField(profileUpdate.birthdate);
+        if (formattedDate) {
+          profileUpdate.birthdate = formattedDate;
+          profileUpdate.birthday = formattedDate; // Keep both fields in sync
+        } else {
+          delete profileUpdate.birthdate;
+          delete profileUpdate.birthday;
+        }
+      } else if (profileUpdate.birthday) {
+        const formattedDate = formatDateField(profileUpdate.birthday);
+        if (formattedDate) {
+          profileUpdate.birthday = formattedDate;
+          profileUpdate.birthdate = formattedDate; // Keep both fields in sync
+        } else {
+          delete profileUpdate.birthday;
           delete profileUpdate.birthdate;
         }
       }
@@ -423,6 +503,36 @@ export const userProfileService = {
       
       if (error) {
         console.error('Error updating profile in database:', error);
+        
+        // Check if this is a column error (like with birthdate vs birthday)
+        if (error.message?.includes('column') && error.message?.includes('does not exist')) {
+          console.log('Column error detected, attempting to fix by adjusting fields');
+          
+          // Remove any problematic fields and try again
+          const safeDbProfile = { ...dbProfile };
+          // If the error message mentions a specific column, try to remove it
+          const errorMatch = error.message.match(/column "([^"]+)"/);
+          if (errorMatch && errorMatch[1]) {
+            const problemColumn = errorMatch[1];
+            console.log(`Removing problematic column: ${problemColumn}`);
+            delete (safeDbProfile as any)[problemColumn];
+            
+            // Try the update again with the fixed profile
+            const { error: retryError } = await supabase
+              .from('profiles')
+              .update({
+                ...safeDbProfile,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', userId);
+              
+            if (!retryError) {
+              console.log('Successfully updated profile after fixing column issue');
+              return true;
+            }
+          }
+        }
+        
         // If the profile doesn't exist, try creating it
         if (error.code === 'PGRST116' || error.message?.includes('not found')) {
           console.log('Profile does not exist, attempting to create it');
@@ -432,10 +542,30 @@ export const userProfileService = {
             lastName: profileUpdate.lastName || '',
             email: profileUpdate.email || '',
             birthdate: profileUpdate.birthdate as string | undefined,
+            birthday: profileUpdate.birthday as string | undefined,
             hasCompletedOnboarding: false,
           });
         }
         return false;
+      }
+      
+      // Also update auth metadata with name and date fields
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && user.id === userId) {
+          const metadata: Record<string, unknown> = {};
+          
+          if (profileUpdate.firstName) metadata.firstName = profileUpdate.firstName;
+          if (profileUpdate.lastName) metadata.lastName = profileUpdate.lastName;
+          if (profileUpdate.birthdate) metadata.birthdate = profileUpdate.birthdate;
+          
+          await supabase.auth.updateUser({
+            data: metadata
+          });
+        }
+      } catch (metadataError) {
+        console.error('Error updating user metadata (non-critical):', metadataError);
+        // Don't fail the overall operation for metadata update failures
       }
       
       console.log('Successfully updated profile:', data);

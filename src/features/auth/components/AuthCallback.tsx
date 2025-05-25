@@ -8,8 +8,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuthContext } from './AuthProvider';
 import { useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
 import { UserRegistrationStatus } from '../types/authTypes';
+import { AuthRedirect } from './AuthRedirect';
 
 /**
  * Component that handles OAuth callback
@@ -22,6 +22,7 @@ export const AuthCallback: React.FC = () => {
   const [debugInfo, setDebugInfo] = useState<Record<string, unknown>>({});
   const [isProcessing, setIsProcessing] = useState(true);
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
+  const [redirectMessage, setRedirectMessage] = useState('Processing your sign-in...');
   
   useEffect(() => {
     const processCallback = async () => {
@@ -52,12 +53,15 @@ export const AuthCallback: React.FC = () => {
           if (authResponse.registrationStatus === UserRegistrationStatus.NEW_USER) {
             console.log('New user detected, redirecting to onboarding...');
             setRedirectPath('/onboarding');
+            setRedirectMessage('Welcome to Planora! Setting up your account...');
           } else if (authResponse.registrationStatus === UserRegistrationStatus.INCOMPLETE_ONBOARDING) {
             console.log('Returning user with incomplete onboarding, redirecting to onboarding...');
             setRedirectPath('/onboarding?returning=true');
+            setRedirectMessage('Welcome back! Finalizing your onboarding...');
           } else {
             console.log('Returning user with completed onboarding, redirecting to dashboard...');
             setRedirectPath('/dashboard');
+            setRedirectMessage('Welcome back! Taking you to your dashboard...');
           }
         } else if (authResponse.error) {
           console.error('Auth callback returned error:', authResponse.error);
@@ -78,12 +82,8 @@ export const AuthCallback: React.FC = () => {
   // Handle redirection after processing is complete
   useEffect(() => {
     if (!isProcessing && redirectPath && !error) {
-      const redirectTimer = setTimeout(() => {
-        console.log(`Redirecting to ${redirectPath}`);
-        navigate(redirectPath, { replace: true });
-      }, 1000); // Short delay for stability
-      
-      return () => clearTimeout(redirectTimer);
+      // Use a short delay for stability
+      console.log(`Redirecting to ${redirectPath}`);
     }
   }, [isProcessing, redirectPath, error, navigate]);
   
@@ -112,24 +112,11 @@ export const AuthCallback: React.FC = () => {
     );
   }
   
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
-      <div className="p-8 rounded-lg bg-white border shadow-md max-w-md w-full text-center">
-        <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
-        <p className="mt-4 text-lg font-medium">{isProcessing ? 'Processing authentication...' : 'Redirecting...'}</p>
-        <p className="text-sm text-gray-500 mt-2">You will be redirected automatically.</p>
-        {redirectPath && (
-          <p className="text-xs text-blue-600 mt-3">Redirecting to: {redirectPath}</p>
-        )}
-        {debugInfo && import.meta.env.DEV && (
-          <div className="mt-4 p-3 bg-gray-50 rounded text-left">
-            <details>
-              <summary className="text-xs text-gray-700 cursor-pointer">Debug Info</summary>
-              <pre className="text-xs overflow-auto mt-2">{JSON.stringify(debugInfo, null, 2)}</pre>
-            </details>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  // If not in error state and we have a redirect path, show the redirect animation
+  if (!isProcessing && redirectPath) {
+    return <AuthRedirect message={redirectMessage} redirectTo={redirectPath} delay={2000} />;
+  }
+  
+  // Show initial loading state while processing
+  return <AuthRedirect message="Processing your sign-in..." />;
 };

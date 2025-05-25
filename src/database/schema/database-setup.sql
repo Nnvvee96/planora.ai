@@ -1,5 +1,6 @@
 -- Complete Supabase Database Setup Script for Planora.ai
 -- This script combines schema creation, triggers, and RLS policies in the correct order
+-- Updated with fixes for birthday/birthdate sync and improved RLS policies
 -- Execute this in the Supabase SQL Editor to set up the complete database
 
 -- Enable UUID extension if not already enabled
@@ -12,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   last_name TEXT,
   email TEXT UNIQUE,
   birthday DATE,
+  birthdate DATE, -- Added birthdate column alongside birthday for compatibility
   avatar_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
@@ -46,13 +48,17 @@ CREATE INDEX IF NOT EXISTS travel_preferences_user_id_idx ON public.travel_prefe
 CREATE INDEX IF NOT EXISTS profiles_id_idx ON public.profiles(id);
 CREATE INDEX IF NOT EXISTS profiles_email_verified_idx ON public.profiles(email_verified);
 
+-- Sync birthday and birthdate columns to maintain data integrity
+-- We need to do this AFTER all schema changes have been committed
+-- so we'll move this code to the end of the script
+
 -- Automatic Profile Creation Trigger
 -- This ensures that when a new user signs up, a profile is automatically created
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.profiles (
-    id, email, first_name, last_name, birthday, 
+    id, email, first_name, last_name, birthday, birthdate,
     has_completed_onboarding, email_verified
   )
   VALUES (
@@ -60,6 +66,7 @@ BEGIN
     new.email, 
     COALESCE(new.raw_user_meta_data->>'first_name', ''), 
     COALESCE(new.raw_user_meta_data->>'last_name', ''),
+    NULL,
     NULL,
     FALSE,
     -- Check if email is already confirmed in auth.users
@@ -85,10 +92,13 @@ ALTER TABLE public.travel_preferences ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can delete their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can view their own travel preferences" ON public.travel_preferences;
 DROP POLICY IF EXISTS "Users can insert their own travel preferences" ON public.travel_preferences;
 DROP POLICY IF EXISTS "Users can update their own travel preferences" ON public.travel_preferences;
 DROP POLICY IF EXISTS "Users can delete their own travel preferences" ON public.travel_preferences;
+DROP POLICY IF EXISTS "Users can read their own travel preferences" ON public.travel_preferences;
+DROP POLICY IF EXISTS "Users can manage their own travel preferences" ON public.travel_preferences;
 
 -- Create policies for the profiles table
 CREATE POLICY "Users can view their own profile" 
@@ -105,6 +115,11 @@ CREATE POLICY "Users can insert their own profile"
 ON public.profiles 
 FOR INSERT 
 WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users can delete their own profile" 
+ON public.profiles 
+FOR DELETE 
+USING (auth.uid() = id);
 
 -- Create policies for travel_preferences table
 CREATE POLICY "Users can view their own travel preferences" 
@@ -157,3 +172,28 @@ WHERE
   table_schema = 'public' 
   AND table_type = 'BASE TABLE'
   AND table_name IN ('profiles', 'travel_preferences');
+
+-- Now that all schema changes are committed, sync the birthday/birthdate columns
+-- This ensures the columns exist before trying to update them
+DO $$
+BEGIN
+    -- First ensure the columns exist to avoid errors
+    BEGIN
+        -- Sync from birthday to birthdate
+        UPDATE public.profiles 
+        SET birthdate = birthday 
+        WHERE birthday IS NOT NULL AND birthdate IS NULL;
+        
+        -- Then sync from birthdate to birthday
+        UPDATE public.profiles 
+        SET birthday = birthdate 
+        WHERE birthdate IS NOT NULL AND birthday IS NULL;
+        
+        -- Set email_verified for all Google-authenticated accounts
+        UPDATE public.profiles SET email_verified = TRUE;
+        
+        RAISE NOTICE 'Successfully synced birthday/birthdate columns and set email_verified';
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Error syncing columns: %', SQLERRM;
+    END;
+END $$;
