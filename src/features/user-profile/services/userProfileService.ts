@@ -597,8 +597,208 @@ export const userProfileService = {
   },
   
   /**
-   * Delete a user's profile and account
-   * This performs a cascading delete of all user data
+   * Request account deletion with a 30-day recovery period
+   * Updates the profile status and creates a deletion request
+   * @param userId User ID to mark for deletion
+   * @param email User's email for recovery communication
+   * @returns Object with success status and optional error message
+   */
+  requestAccountDeletion: async (userId: string, email: string): Promise<{ success: boolean, error?: string }> => {
+    try {
+      if (!userId || !email) {
+        console.error('User ID and email are required to request account deletion');
+        return { success: false, error: 'Missing required information' };
+      }
+      
+      console.log(`Requesting account deletion for user ${userId}`);
+      
+      // Calculate purge date (30 days from now)
+      const now = new Date();
+      const purgeDate = new Date();
+      purgeDate.setDate(now.getDate() + 30);
+      
+      // Generate a recovery token (UUID v4)
+      const recoveryToken = crypto.randomUUID();
+      
+      // Update profile status
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          account_status: 'pending_deletion',
+          deletion_requested_at: now.toISOString(),
+          updated_at: now.toISOString()
+        })
+        .eq('id', userId);
+        
+      if (profileError) {
+        console.error('Error updating profile status:', profileError);
+        return { success: false, error: 'Failed to update account status' };
+      }
+      
+      // Create deletion request
+      const { error: requestError } = await supabase
+        .from('account_deletion_requests')
+        .insert({
+          user_id: userId,
+          email: email,
+          requested_at: now.toISOString(),
+          scheduled_purge_at: purgeDate.toISOString(),
+          status: 'pending',
+          recovery_token: recoveryToken
+        });
+        
+      if (requestError) {
+        console.error('Error creating deletion request:', requestError);
+        
+        // Revert profile status change if request creation fails
+        await supabase
+          .from('profiles')
+          .update({
+            account_status: 'active',
+            deletion_requested_at: null,
+            updated_at: now.toISOString()
+          })
+          .eq('id', userId);
+          
+        return { success: false, error: 'Failed to schedule account deletion' };
+      }
+      
+      // TODO: Send deletion confirmation email with recovery link
+      // This would typically integrate with your email service
+      console.log(`Account deletion scheduled. Recovery token: ${recoveryToken}`);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Account deletion request failed:', error);
+      return { success: false, error: 'Unexpected error during account deletion request' };
+    }
+  },
+  
+  /**
+   * Recover an account that was marked for deletion
+   * @param recoveryToken The token from the recovery link
+   * @returns Object with success status and optional error message
+   */
+  recoverAccount: async (recoveryToken: string): Promise<{ success: boolean, error?: string }> => {
+    try {
+      if (!recoveryToken) {
+        return { success: false, error: 'Recovery token is required' };
+      }
+      
+      console.log(`Attempting account recovery with token: ${recoveryToken}`);
+      
+      // Find the deletion request with this token
+      const { data: request, error: requestError } = await supabase
+        .from('account_deletion_requests')
+        .select('user_id, email, status, scheduled_purge_at')
+        .eq('recovery_token', recoveryToken)
+        .eq('status', 'pending')
+        .single();
+        
+      if (requestError || !request) {
+        console.error('Error finding deletion request:', requestError);
+        return { success: false, error: 'Invalid or expired recovery token' };
+      }
+      
+      // Check if the token is still within the 30-day window
+      const purgeDate = new Date(request.scheduled_purge_at);
+      const now = new Date();
+      
+      if (now > purgeDate) {
+        console.error('Recovery period has expired');
+        return { success: false, error: 'Recovery period has expired' };
+      }
+      
+      // Update profile status
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          account_status: 'active',
+          deletion_requested_at: null,
+          updated_at: now.toISOString()
+        })
+        .eq('id', request.user_id);
+        
+      if (profileError) {
+        console.error('Error recovering profile:', profileError);
+        return { success: false, error: 'Failed to recover account' };
+      }
+      
+      // Update deletion request status
+      const { error: updateError } = await supabase
+        .from('account_deletion_requests')
+        .update({
+          status: 'cancelled'
+        })
+        .eq('recovery_token', recoveryToken);
+        
+      if (updateError) {
+        console.error('Error updating deletion request:', updateError);
+        return { success: false, error: 'Failed to update deletion request' };
+      }
+      
+      // TODO: Send recovery confirmation email
+      // This would typically integrate with your email service
+      console.log(`Account recovered successfully: ${request.user_id}`);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Account recovery failed:', error);
+      return { success: false, error: 'Unexpected error during account recovery' };
+    }
+  },
+  
+  /**
+   * Check if a user's account is pending deletion
+   * @param userId User ID to check
+   * @returns Object with pending status and purge date if applicable
+   */
+  checkAccountDeletionStatus: async (userId: string): Promise<{ isPending: boolean, purgeDate?: Date }> => {
+    try {
+      if (!userId) {
+        return { isPending: false };
+      }
+      
+      // Check profile status
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('account_status, deletion_requested_at')
+        .eq('id', userId)
+        .single();
+        
+      if (profileError || !profile) {
+        return { isPending: false };
+      }
+      
+      if (profile.account_status === 'pending_deletion') {
+        // Get scheduled purge date
+        const { data: request, error: requestError } = await supabase
+          .from('account_deletion_requests')
+          .select('scheduled_purge_at')
+          .eq('user_id', userId)
+          .eq('status', 'pending')
+          .single();
+          
+        if (!requestError && request) {
+          return { 
+            isPending: true, 
+            purgeDate: new Date(request.scheduled_purge_at) 
+          };
+        }
+        
+        return { isPending: true };
+      }
+      
+      return { isPending: false };
+    } catch (error) {
+      console.error('Error checking account deletion status:', error);
+      return { isPending: false };
+    }
+  },
+  
+  /**
+   * Complete the account deletion immediately (hard delete)
+   * This is the original delete method, now used for immediate deletion
    * @param userId User ID to delete
    * @param deleteAuth Whether to delete the auth record too (requires admin privileges)
    */
@@ -622,7 +822,18 @@ export const userProfileService = {
         // Continue anyway to try deleting the profile
       }
       
-      // 2. Delete the profile record
+      // 2. Delete any pending deletion requests
+      const { error: requestError } = await supabase
+        .from('account_deletion_requests')
+        .delete()
+        .eq('user_id', userId);
+        
+      if (requestError) {
+        console.error('Error deleting account deletion requests:', requestError);
+        // Continue anyway to try deleting the profile
+      }
+      
+      // 3. Delete the profile record
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
@@ -633,7 +844,7 @@ export const userProfileService = {
         return false;
       }
       
-      // 3. If requested and we have admin permissions, delete the auth record
+      // 4. If requested and we have admin permissions, delete the auth record
       if (deleteAuth) {
         try {
           // This requires admin privileges and may not work in all environments
