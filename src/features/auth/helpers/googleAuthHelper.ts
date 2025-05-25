@@ -75,12 +75,26 @@ async function createProfileForUser(
     // Check if profile already exists
     const { data: existingProfile } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, email_verified')
       .eq('id', userId)
       .single();
       
     if (existingProfile) {
       console.log('Profile already exists for user:', userId);
+      
+      // If profile exists but email_verified is false, update it for Google sign-ins
+      if (existingProfile.email_verified === false) {
+        console.log('Updating email_verified status for Google account');
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ email_verified: true })
+          .eq('id', userId);
+          
+        if (updateError) {
+          console.error('Error updating email_verified status:', updateError);
+        }
+      }
+      
       return true;
     }
     
@@ -98,7 +112,7 @@ async function createProfileForUser(
         first_name: metadata.given_name || metadata.name?.split(' ')[0] || '',
         last_name: metadata.family_name || metadata.name?.split(' ').slice(1).join(' ') || '',
         avatar_url: metadata.picture || '',
-        email_verified: true,
+        email_verified: true,  // Always true for Google sign-ins
         created_at: timestamp,
         updated_at: timestamp,
         has_completed_onboarding: false,
@@ -116,6 +130,37 @@ async function createProfileForUser(
       if (error.hint) {
         console.error('Error hint:', error.hint);
       }
+      
+      // If we get a column error, try a more minimal profile creation
+      if (error.code === 'PGRST204' || 
+          (error.message && error.message.includes('column') && 
+           error.message.includes('does not exist'))) {
+        
+        console.log('Attempting fallback profile creation without problematic columns');
+        
+        // Try with only the essential fields
+        const { error: fallbackError } = await supabase
+          .from('profiles')
+          .insert({
+            id: userId,
+            email: email,
+            first_name: metadata.given_name || metadata.name?.split(' ')[0] || '',
+            last_name: metadata.family_name || metadata.name?.split(' ').slice(1).join(' ') || '',
+            email_verified: true,
+            created_at: timestamp,
+            updated_at: timestamp,
+            has_completed_onboarding: false,
+            account_status: 'active'
+          });
+          
+        if (!fallbackError) {
+          console.log('Successfully created profile with fallback method');
+          return true;
+        }
+        
+        console.error('Fallback profile creation also failed:', fallbackError);
+      }
+      
       return false;
     }
     

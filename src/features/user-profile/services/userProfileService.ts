@@ -451,7 +451,9 @@ export const userProfileService = {
       const profileUpdate = { ...profileData };
       
       // Format date fields - handle both birthday and birthdate
-      const formatDateField = (dateStr: string): string | null => {
+      const formatDateField = (dateStr: string | null | undefined): string | null => {
+        if (!dateStr) return null;
+        
         try {
           const date = new Date(dateStr);
           if (!isNaN(date.getTime())) {
@@ -466,24 +468,20 @@ export const userProfileService = {
       };
       
       // Handle birthdate formatting and synchronization
-      if (profileUpdate.birthdate) {
-        const formattedDate = formatDateField(profileUpdate.birthdate);
-        if (formattedDate) {
-          profileUpdate.birthdate = formattedDate;
-          profileUpdate.birthday = formattedDate; // Keep both fields in sync
-        } else {
-          delete profileUpdate.birthdate;
-          delete profileUpdate.birthday;
-        }
-      } else if (profileUpdate.birthday) {
-        const formattedDate = formatDateField(profileUpdate.birthday);
-        if (formattedDate) {
-          profileUpdate.birthday = formattedDate;
-          profileUpdate.birthdate = formattedDate; // Keep both fields in sync
-        } else {
-          delete profileUpdate.birthday;
-          delete profileUpdate.birthdate;
-        }
+      const formattedBirthdate = formatDateField(profileUpdate.birthdate);
+      const formattedBirthday = formatDateField(profileUpdate.birthday);
+      
+      // Use whichever date is valid, with birthdate taking precedence
+      if (formattedBirthdate) {
+        profileUpdate.birthdate = formattedBirthdate;
+        profileUpdate.birthday = formattedBirthdate; // Keep both fields in sync
+      } else if (formattedBirthday) {
+        profileUpdate.birthday = formattedBirthday;
+        profileUpdate.birthdate = formattedBirthday; // Keep both fields in sync
+      } else if (profileUpdate.birthdate === '' || profileUpdate.birthday === '') {
+        // Handle explicit empty strings - set to null to clear the field
+        profileUpdate.birthdate = null;
+        profileUpdate.birthday = null;
       }
       
       // Convert profile data to database format
@@ -491,8 +489,8 @@ export const userProfileService = {
       
       console.log('Updating profile in database:', { userId, dbProfile });
       
-      // Update the profile in the database
-      const { data, error } = await supabase
+      // First try: Update with all fields
+      let updateResult = await supabase
         .from('profiles')
         .update({
           ...dbProfile,
@@ -501,51 +499,74 @@ export const userProfileService = {
         .eq('id', userId)
         .select();
       
-      if (error) {
-        console.error('Error updating profile in database:', error);
+      if (updateResult.error) {
+        console.error('Error updating profile in database:', updateResult.error);
         
-        // Check if this is a column error (like with birthdate vs birthday)
-        if (error.message?.includes('column') && error.message?.includes('does not exist')) {
-          console.log('Column error detected, attempting to fix by adjusting fields');
+        // Try more specific error handling approaches
+        if (updateResult.error.code === 'PGRST204' || 
+            (updateResult.error.message?.includes('column') && 
+             updateResult.error.message?.includes('does not exist'))) {
+             
+          console.log('Column error detected - trying fallback update strategy');
           
-          // Remove any problematic fields and try again
-          const safeDbProfile = { ...dbProfile };
-          // If the error message mentions a specific column, try to remove it
-          const errorMatch = error.message.match(/column "([^"]+)"/);
-          if (errorMatch && errorMatch[1]) {
-            const problemColumn = errorMatch[1];
-            console.log(`Removing problematic column: ${problemColumn}`);
-            delete (safeDbProfile as any)[problemColumn];
-            
-            // Try the update again with the fixed profile
-            const { error: retryError } = await supabase
+          // Strategy 1: Try without birthdate if that's the problematic column
+          if (updateResult.error.message?.includes('birthdate')) {
+            console.log('Birthdate column issue detected - trying with only birthday');
+            const { error: retryError1 } = await supabase
               .from('profiles')
               .update({
-                ...safeDbProfile,
-                updated_at: new Date().toISOString()
+                first_name: dbProfile.first_name,
+                last_name: dbProfile.last_name,
+                email: dbProfile.email,
+                birthday: dbProfile.birthday, // Keep only the older field name
+                updated_at: new Date().toISOString(),
+                // Explicitly exclude birthdate
               })
               .eq('id', userId);
               
-            if (!retryError) {
-              console.log('Successfully updated profile after fixing column issue');
+            if (!retryError1) {
+              console.log('Successfully updated profile with birthday only');
               return true;
             }
           }
+          
+          // Strategy 2: Try with core fields only
+          console.log('Trying core fields only update');
+          const { error: retryError2 } = await supabase
+            .from('profiles')
+            .update({
+              first_name: dbProfile.first_name,
+              last_name: dbProfile.last_name,
+              email: dbProfile.email,
+              updated_at: new Date().toISOString(),
+              // Exclude both date fields
+            })
+            .eq('id', userId);
+            
+          if (!retryError2) {
+            console.log('Successfully updated profile with core fields only');
+            return true;
+          }
+          
+          // If we got here, we have a more serious issue
+          console.error('All update strategies failed');
         }
         
         // If the profile doesn't exist, try creating it
-        if (error.code === 'PGRST116' || error.message?.includes('not found')) {
+        if (updateResult.error.code === 'PGRST116' || updateResult.error.message?.includes('not found')) {
           console.log('Profile does not exist, attempting to create it');
           return userProfileService.createUserProfile({
             id: userId,
             firstName: profileUpdate.firstName || '',
             lastName: profileUpdate.lastName || '',
             email: profileUpdate.email || '',
-            birthdate: profileUpdate.birthdate as string | undefined,
-            birthday: profileUpdate.birthday as string | undefined,
+            birthdate: profileUpdate.birthdate as string | null | undefined,
+            birthday: profileUpdate.birthday as string | null | undefined,
             hasCompletedOnboarding: false,
+            emailVerified: true, // Set to true for new profiles since we have verified emails
           });
         }
+        
         return false;
       }
       
@@ -555,8 +576,8 @@ export const userProfileService = {
         if (user && user.id === userId) {
           const metadata: Record<string, unknown> = {};
           
-          if (profileUpdate.firstName) metadata.firstName = profileUpdate.firstName;
-          if (profileUpdate.lastName) metadata.lastName = profileUpdate.lastName;
+          if (profileUpdate.firstName) metadata.first_name = profileUpdate.firstName;
+          if (profileUpdate.lastName) metadata.last_name = profileUpdate.lastName;
           if (profileUpdate.birthdate) metadata.birthdate = profileUpdate.birthdate;
           
           await supabase.auth.updateUser({
@@ -568,11 +589,14 @@ export const userProfileService = {
         // Don't fail the overall operation for metadata update failures
       }
       
-      console.log('Successfully updated profile:', data);
+      console.log('Successfully updated profile:', updateResult.data);
       return true;
       
     } catch (error) {
       console.error('Unexpected error updating profile:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+      }
       return false;
     }
   },

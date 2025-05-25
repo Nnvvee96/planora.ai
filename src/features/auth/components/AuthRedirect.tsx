@@ -85,11 +85,14 @@ export const AuthRedirect: React.FC<AuthRedirectProps> = ({
               viewBox="0 0 24 24" 
               fill="none" 
               stroke="currentColor"
-              className="text-white animate-bounce"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-white"
             >
-              <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" />
-              <path d="M14.05 2a9 9 0 015.71 5.71" />
-              <path d="M14.05 6a5 5 0 013.16 3.16" />
+              {/* Airplane icon - more appropriate for a travel app */}
+              <path d="M22 12c0 1.1-.9 2-2 2H6l-4 4V6a2 2 0 0 1 2-2h16c1.1 0 2 .9 2 2v6Z" fill="currentColor" opacity="0.2" />
+              <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
             </svg>
           </div>
         </div>
