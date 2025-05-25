@@ -25,7 +25,26 @@ export enum TravelDurationType {
   LONGER = 'longer'
 }
 
-// Date flexibility from Onboarding - "Date Flexibility"
+/**
+ * Date flexibility from Onboarding - "Date Flexibility"
+ * 
+ * Complete mapping between UI options and database values:
+ * - Fixed Dates → 'fixed' - User has specific travel dates with no flexibility
+ * - ± 3 Days → 'flexible-few' - User can travel 3 days before or after their preferred dates
+ * - ± 1 Week → 'flexible-week' - User can travel up to 1 week before or after their preferred dates
+ * - Very Flexible → 'very-flexible' - User is completely flexible with travel dates
+ *
+ * For custom flexibility (when travel duration is 'longer'):
+ * - The date_flexibility field still uses one of these enum values
+ * - The custom_date_flexibility field stores the numeric value entered by the user
+ *
+ * Example:
+ * When user selects "± 3 Days" with custom value of "40" for a longer trip:
+ * {
+ *   date_flexibility: 'flexible-few',  // From the enum
+ *   custom_date_flexibility: '40'      // Custom numeric value
+ * }
+ */
 export enum DateFlexibilityType {
   FLEXIBLE_FEW = 'flexible-few',
   FLEXIBLE_WEEK = 'flexible-week',
