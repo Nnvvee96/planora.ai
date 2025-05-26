@@ -3,12 +3,6 @@
  * 
  * Central export file for database-related functionality.
  * Follows Planora's architectural principle of named exports only.
- * 
- * Database Components:
- * - Client: Supabase client configuration
- * - Schema: Database tables, RLS policies, and setup scripts
- * - Functions: Edge Functions for database-related operations
- *   - scheduled-account-purge: Automated purging of user accounts past recovery period
  */
 
 // Re-export the Supabase client
