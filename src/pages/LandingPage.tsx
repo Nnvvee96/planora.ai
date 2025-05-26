@@ -6,6 +6,7 @@ import { FeatureCard } from '@/ui/molecules/FeatureCard';
 import { GradientButton } from '@/ui/atoms/GradientButton';
 import { Logo } from '@/ui/atoms/Logo';
 import { Footer } from '@/ui/organisms/Footer';
+import { EarthGlobe } from '@/ui/molecules/EarthGlobe';
 import { 
   MessageCircle, 
   Calendar, 
@@ -149,27 +150,10 @@ const LandingPage = () => {
               </div>
             </div>
             <div className="relative h-[500px] lg:h-[600px] flex items-center justify-center overflow-hidden">
-              <div className="relative w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl">
-                <img 
-                  src="https://images.unsplash.com/photo-1503220317375-aaad61436b1b?q=80&w=1920&auto=format&fit=crop" 
-                  alt="Person enjoying travel experience" 
-                  className="w-full h-full object-cover rounded-2xl"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-8">
-                  <div className="bg-white/90 backdrop-blur-sm p-5 rounded-xl shadow-lg max-w-md">
-                    <p className="text-planora-purple-dark font-medium text-lg italic">"Planora made planning our family trip to Europe so intuitive! We all contributed our preferences and the AI created the perfect itinerary."</p>
-                    <div className="flex items-center mt-3">
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-planora-purple-dark">Jessica P.</span>
-                        <span className="text-sm text-planora-purple-dark/70">Travel enthusiast</span>
-                      </div>
-                      <div className="ml-auto flex">
-                        {Array(5).fill(0).map((_, i) => (
-                          <span key={i} className="text-yellow-500">★</span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+              <div className="relative w-full h-full flex items-center justify-center">
+                {/* 3D Rotating Earth Globe */}
+                <div className="w-full h-full">
+                  <EarthGlobe className="w-full h-full" />
                 </div>
               </div>
             </div>
