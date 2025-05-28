@@ -70,11 +70,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   };
   
-  // Check authentication status on component mount
+  // Track if auth service is initialized
+  const [isAuthServiceInitialized, setIsAuthServiceInitialized] = React.useState(false);
+  
+  // Check authentication status on component mount with improved initialization
   React.useEffect(() => {
+    // Flag to prevent multiple initializations
+    let isInitializing = true;
+    
     const checkAuth = async () => {
       try {
+        console.log('Initializing auth service...');
+        
+        // Force session check to ensure we have the latest session state
+        await supabaseAuthService.refreshSession();
+        
+        // Get the current user after session refresh
         const supabaseUser = await supabaseAuthService.getCurrentUser();
+        
+        // Mark auth service as initialized before updating state
+        if (isInitializing) {
+          setIsAuthServiceInitialized(true);
+          console.log('Auth service successfully initialized');
+          isInitializing = false;
+        }
+        
         setAuthState({
           isAuthenticated: !!supabaseUser,
           user: supabaseUser ? mapSupabaseUser(supabaseUser) : null,
@@ -82,6 +102,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           error: null
         });
       } catch (error) {
+        console.error('Error initializing auth service:', error);
+        
+        // Even on error, mark as initialized to prevent hanging
+        if (isInitializing) {
+          setIsAuthServiceInitialized(true);
+          console.log('Auth service marked as initialized despite error');
+          isInitializing = false;
+        }
+        
         setAuthState({
           isAuthenticated: false,
           user: null,
@@ -91,7 +120,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     };
     
+    // Initialize immediately
     checkAuth();
+    
+    // Set up Supabase auth listener to handle auth changes
+    const { data: { subscription } } = supabaseAuthService.subscribeToAuthChanges((event, session) => {
+      console.log('Auth state changed:', event, !!session);
+      
+      // On any auth change, update our local state
+      if (session?.user) {
+        setAuthState({
+          isAuthenticated: true,
+          user: mapSupabaseUser(session.user),
+          loading: false,
+          error: null
+        });
+      } else {
+        setAuthState({
+          isAuthenticated: false,
+          user: null, 
+          loading: false,
+          error: null
+        });
+      }
+    });
+    
+    // Clean up subscription
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
   
   // Auth methods
