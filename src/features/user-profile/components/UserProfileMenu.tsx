@@ -87,8 +87,15 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
           
           const user = data.user;
           
-          // Safely extract metadata with explicit null checks
-          const userMetadata = user.user_metadata || {};
+          // Safely extract metadata with enhanced null checks
+          // This is a critical point where TypeError: r is null can occur
+          const userMetadata = user?.user_metadata || {};
+          
+          // Add an additional safety check to ensure userMetadata is an object
+          if (typeof userMetadata !== 'object' || userMetadata === null) {
+            console.warn('User metadata is not an object or is null');
+            return; // Exit early if metadata is not valid
+          }
           
           // Get current user data with comprehensive null checking
           const currentUser = {
@@ -101,37 +108,55 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
           // Safely extract first name with fallbacks
           if (typeof userMetadata === 'object') {
             // Check for Google-specific formats
-            if (userMetadata.identities && Array.isArray(userMetadata.identities)) {
-              const googleIdentity = userMetadata.identities.find((identity: any) => 
-                identity && identity.provider === 'google'
-              );
-              
-              if (googleIdentity && googleIdentity.identity_data) {
-                currentUser.firstName = googleIdentity.identity_data.given_name || 
-                                       googleIdentity.identity_data.first_name || '';
+            // Add safe optional chaining for all property accesses
+            if (userMetadata?.identities && Array.isArray(userMetadata.identities)) {
+              // Add try-catch to handle any unexpected errors during this critical operation
+              try {
+                const googleIdentity = userMetadata.identities.find((identity: any) => 
+                  identity && identity?.provider === 'google'
+                );
+                
+                if (googleIdentity && googleIdentity?.identity_data) {
+                  currentUser.firstName = googleIdentity?.identity_data?.given_name || 
+                                       googleIdentity?.identity_data?.first_name || '';
                                        
-                currentUser.lastName = googleIdentity.identity_data.family_name || 
-                                      googleIdentity.identity_data.last_name || '';
+                  currentUser.lastName = googleIdentity?.identity_data?.family_name || 
+                                      googleIdentity?.identity_data?.last_name || '';
+                }
+              } catch (e) {
+                console.error('Error processing identity data:', e);
+                // Continue with fallbacks
               }
+              
+              // This is now handled inside the try-catch block above
             }
             
             // Fall back to direct metadata fields if needed
+            // Use optional chaining and safe type checks
             if (!currentUser.firstName) {
-              currentUser.firstName = userMetadata.first_name as string || 
-                                    userMetadata.given_name as string || '';
+              const firstName = userMetadata?.first_name || userMetadata?.given_name;
+              currentUser.firstName = typeof firstName === 'string' ? firstName : '';
             }
             
+            // Use optional chaining and safe type checks
             if (!currentUser.lastName) {
-              currentUser.lastName = userMetadata.last_name as string || 
-                                   userMetadata.family_name as string || '';
+              const lastName = userMetadata?.last_name || userMetadata?.family_name;
+              currentUser.lastName = typeof lastName === 'string' ? lastName : '';
             }
             
             // Try to extract from full name if all else fails
-            if (!currentUser.firstName && !currentUser.lastName && userMetadata.name) {
-              const nameParts = (userMetadata.name as string).split(' ');
-              if (nameParts.length > 0) {
-                currentUser.firstName = nameParts[0];
-                currentUser.lastName = nameParts.slice(1).join(' ');
+            // Add safe type checks before splitting name
+            if (!currentUser.firstName && !currentUser.lastName && userMetadata?.name) {
+              try {
+                const nameStr = typeof userMetadata.name === 'string' ? userMetadata.name : String(userMetadata.name);
+                const nameParts = nameStr.split(' ');
+                if (nameParts.length > 0) {
+                  currentUser.firstName = nameParts[0];
+                  currentUser.lastName = nameParts.slice(1).join(' ');
+                }
+              } catch (e) {
+                console.error('Error processing name:', e);
+                // Continue with fallbacks
               }
             }
           }
