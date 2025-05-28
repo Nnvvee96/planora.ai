@@ -12,8 +12,8 @@ import { UserProfile, DbUserProfile } from '../types/profileTypes';
  * Converts snake_case database profile to camelCase application profile
  */
 const mapDbProfileToUserProfile = (dbProfile: DbUserProfile): UserProfile => {
-  // Determine the actual date value, preferring birthdate but falling back to birthday if needed
-  const dateValue = dbProfile.birthdate || dbProfile.birthday || null;
+  // Get the birthdate value (now the standardized field)
+  const dateValue = dbProfile.birthdate || null;
   
   return {
     id: dbProfile.id,
@@ -21,10 +21,8 @@ const mapDbProfileToUserProfile = (dbProfile: DbUserProfile): UserProfile => {
     lastName: dbProfile.last_name || '',
     email: dbProfile.email,
     avatarUrl: dbProfile.avatar_url,
-    // Only use birthdate in the application model going forward
+    // Standard field for birth date information
     birthdate: dateValue,
-    // Remove birthday field from type eventually, but keep for backward compatibility
-    birthday: dateValue, // Deprecated: use birthdate instead
     hasCompletedOnboarding: dbProfile.has_completed_onboarding,
     emailVerified: dbProfile.email_verified,
     createdAt: dbProfile.created_at,
@@ -45,14 +43,12 @@ const mapUserProfileToDbProfile = (profile: Partial<UserProfile>): Partial<DbUse
   if (profile.email !== undefined) dbProfile.email = profile.email;
   if (profile.avatarUrl !== undefined) dbProfile.avatar_url = profile.avatarUrl;
   
-  // Standardize on birthdate field, use either source for backward compatibility
-  const dateValue = profile.birthdate !== undefined ? profile.birthdate : profile.birthday;
-  if (dateValue !== undefined) {
-    // Always set birthdate as the primary field
+  // Standardize on birthdate field, use only birthdate as the standard field
+  const dateValue = profile.birthdate;
+  
+  // Add date to DB model if provided
+  if (dateValue) {
     dbProfile.birthdate = dateValue;
-    // Still set birthday for backward compatibility with existing code
-    // This can be removed once all code is migrated to use birthdate
-    dbProfile.birthday = dateValue;
   }
   
   if (profile.hasCompletedOnboarding !== undefined) dbProfile.has_completed_onboarding = profile.hasCompletedOnboarding;
@@ -205,8 +201,7 @@ export const userProfileService = {
             email_verified: emailVerified,
             created_at: timestamp,
             updated_at: timestamp,
-            // Set both birthday and birthdate to ensure compatibility
-            birthday: null,
+            // Standardize on birthdate field only
             birthdate: null
           });
           
@@ -241,12 +236,8 @@ export const userProfileService = {
           updates.avatar_url = avatarUrl;
         }
         
-        // If both birthday and birthdate are used, keep them in sync
-        if (data.birthday && !data.birthdate) {
-          updates.birthdate = data.birthday;
-        } else if (!data.birthday && data.birthdate) {
-          updates.birthday = data.birthdate;
-        }
+        // Only use birthdate as the standard field
+        // Profile is now using standardized birthdate field
         
         const { error: updateError } = await supabase
           .from('profiles')
@@ -456,10 +447,105 @@ export const userProfileService = {
       // Create a copy of profileData to avoid mutating the original
       const profileUpdate = { ...profileData };
       
-      // Format date fields - handle both birthday and birthdate
+      // Format the standardized birthdate field
       const formatDateField = (dateStr: string | null | undefined): string | null => {
         if (!dateStr) return null;
         
+        try {
+          const date = new Date(dateStr);
+          if (!isNaN(date.getTime())) {
+            return date.toISOString().split('T')[0];
+          }
+          console.warn('Invalid date format:', dateStr);
+          return null;
+        } catch (e) {
+      };
+      
+      // Try to save this profile to the database for future use
+      try {
+        await userProfileService.createUserProfile(syntheticProfile);
+      } catch (saveError) {
+        console.warn('Non-fatal error saving synthetic profile:', saveError);
+      }
+      
+      return syntheticProfile;
+    }
+    
+    console.warn('No profile found for user ID after all fallbacks:', userId);
+    return null;
+  } catch (error) {
+    console.error('Error getting user profile:', error);
+    return null;
+  }
+},
+
+/**
+ * Create a new user profile in Supabase
+ * @param profileData Complete profile data to create
+ */
+createUserProfile: async (profileData: UserProfile): Promise<boolean> => {
+  try {
+    console.log('Creating new user profile for ID:', profileData.id);
+    
+    if (!profileData.id) {
+      console.error('Cannot create user profile: Missing user ID');
+      return false;
+    }
+    
+    // First check if profile already exists
+    const { data } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', profileData.id)
+      .maybeSingle();
+      
+    if (data) {
+      console.log('Profile already exists, using update instead');
+      return userProfileService.updateUserProfile(profileData.id, profileData);
+    }
+    
+    // Create new profile
+    const { error } = await supabase
+      .from('profiles')
+      .insert({
+        ...mapUserProfileToDbProfile(profileData),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+    
+    if (error) {
+      console.error('Error creating user profile:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error creating user profile:', error);
+    return false;
+  }
+},
+
+/**
+ * Update a user's profile
+ * @param userId User ID to update profile for
+ * @param profileData Profile data to update
+ */
+updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Promise<boolean> => {
+  try {
+    if (!userId) {
+      console.error('User ID is required to update profile');
+      return false;
+    }
+    
+    // Create a copy of profileData to avoid mutating the original
+    const profileUpdate = { ...profileData };
+    
+    // Format date field - only using standardized birthdate field
+    // Format: YYYY-MM-DD for ISO format dates
+    try {
+      // Helper function to format date strings
+      const formatDate = (dateStr: string | null | undefined): string | null => {
+        if (!dateStr) return null;
         try {
           const date = new Date(dateStr);
           if (!isNaN(date.getTime())) {
@@ -473,26 +559,43 @@ export const userProfileService = {
         }
       };
       
-      // Standardize date handling to use birthdate field
-      // Determine the source date, prioritizing birthdate but falling back to birthday if needed
-      const sourceDate = profileUpdate.birthdate !== undefined ? profileUpdate.birthdate : profileUpdate.birthday;
-      const formattedDate = formatDateField(sourceDate);
+      const sourceDate = profileUpdate.birthdate;
       
-      // Set the standardized birthdate field
-      if (formattedDate) {
-        // Use the formatted date for both fields for backward compatibility
+      if (sourceDate) {
+        // Ensure date is in YYYY-MM-DD format
+        const formattedDate = formatDate(sourceDate);
         profileUpdate.birthdate = formattedDate;
-        profileUpdate.birthday = formattedDate; // Legacy support - will be removed in future
-      } else if (sourceDate === '') {
-        // Handle explicit empty strings - set to null to clear the field
+      } else if (sourceDate === null) {
+        // Explicitly set to null if the user is clearing the date
         profileUpdate.birthdate = null;
-        profileUpdate.birthday = null;
       }
+    } catch (e) {
+      console.error('Error formatting date:', e);
+      return false; // Return false instead of null to match return type
+    }
+    
+    // Convert profile data to database format
+    const dbProfile = mapUserProfileToDbProfile(profileUpdate);
+    
+    console.log('Updating profile in database:', { userId, dbProfile });
+    
+    // First try: Update with all fields
+    let updateResult = await supabase
+      .from('profiles')
+      .update({
+        ...dbProfile,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .select();
+    
+    if (updateResult.error) {
+      console.error('Error updating profile in database:', updateResult.error);
       
-      // Convert profile data to database format
-      const dbProfile = mapUserProfileToDbProfile(profileUpdate);
-      
-      console.log('Updating profile in database:', { userId, dbProfile });
+      // Try more specific error handling approaches
+      if (updateResult.error.code === 'PGRST204' || 
+          (updateResult.error.message?.includes('column') && 
+           updateResult.error.message?.includes('does not exist'))) {
       
       // First try: Update with all fields
       let updateResult = await supabase
@@ -514,23 +617,22 @@ export const userProfileService = {
              
           console.log('Column error detected - trying fallback update strategy');
           
-          // Strategy 1: Try without birthdate if that's the problematic column
+          // Strategy 1: Try without the specific field that's causing problems
           if (updateResult.error.message?.includes('birthdate')) {
-            console.log('Birthdate column issue detected - trying with only birthday');
+            console.log('Birthdate column issue detected - removing problematic field');
             const { error: retryError1 } = await supabase
               .from('profiles')
               .update({
                 first_name: dbProfile.first_name,
                 last_name: dbProfile.last_name,
                 email: dbProfile.email,
-                birthday: dbProfile.birthday, // Keep only the older field name
                 updated_at: new Date().toISOString(),
                 // Explicitly exclude birthdate
               })
               .eq('id', userId);
               
             if (!retryError1) {
-              console.log('Successfully updated profile with birthday only');
+              console.log('Successfully updated profile with limited fields');
               return true;
             }
           }
@@ -566,7 +668,7 @@ export const userProfileService = {
             lastName: profileUpdate.lastName || '',
             email: profileUpdate.email || '',
             birthdate: profileUpdate.birthdate as string | null | undefined,
-            birthday: profileUpdate.birthday as string | null | undefined,
+            // Standardized on birthdate field only
             hasCompletedOnboarding: false,
             emailVerified: true, // Set to true for new profiles since we have verified emails
           });

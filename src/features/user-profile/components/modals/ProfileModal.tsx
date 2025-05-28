@@ -340,7 +340,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
               name="birthdate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Birthday</FormLabel>
+                  <FormLabel>Birthdate</FormLabel>
                   <FormControl>
                     <div className="flex items-center">
                       <DatePickerInput

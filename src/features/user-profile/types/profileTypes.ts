@@ -12,8 +12,7 @@ export interface UserProfile {
   lastName: string;
   email: string;
   avatarUrl?: string;
-  birthday?: string; // Original field
-  birthdate?: string; // New field - both fields will be kept in sync
+  birthdate?: string; // Standard field for birth date information
   hasCompletedOnboarding: boolean;
   emailVerified?: boolean;
   createdAt?: string;
@@ -27,8 +26,7 @@ export interface DbUserProfile {
   last_name: string;
   email: string;
   avatar_url?: string;
-  birthday?: string; // Original field
-  birthdate?: string; // New field - both fields will be kept in sync
+  birthdate?: string; // Standard field for birth date information
   has_completed_onboarding: boolean;
   email_verified?: boolean;
   created_at?: string;

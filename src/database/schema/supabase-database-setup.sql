@@ -26,38 +26,42 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- Add all potentially missing columns and their comments with error handling
 DO $$
 BEGIN
-  -- Handle birthdate column
+  -- Handle birthdate column (standard field for birth date)
   BEGIN
-    -- Add birthdate column (standard going forward)
+    -- Add birthdate column if it doesn't exist
     ALTER TABLE public.profiles ADD COLUMN birthdate DATE;
     -- Add comment once we know the column exists
-    COMMENT ON COLUMN public.profiles.birthdate IS 'Standard date field for storing birth date information';
+    COMMENT ON COLUMN public.profiles.birthdate IS 'Standard field for storing birth date information';
     RAISE NOTICE 'Added birthdate column';
   EXCEPTION WHEN duplicate_column THEN
     -- Column already exists, still try to add comment
     BEGIN
-      COMMENT ON COLUMN public.profiles.birthdate IS 'Standard date field for storing birth date information';
+      COMMENT ON COLUMN public.profiles.birthdate IS 'Standard field for storing birth date information';
     EXCEPTION WHEN OTHERS THEN
       RAISE NOTICE 'Could not add comment to birthdate column: %', SQLERRM;
     END;
     RAISE NOTICE 'birthdate column already exists';
   END;
   
-  -- Handle birthday column
+  -- Migrate data from birthday to birthdate if birthday exists
   BEGIN
-    -- Add birthday column (for backward compatibility)
-    ALTER TABLE public.profiles ADD COLUMN birthday DATE;
-    -- Add comment once we know the column exists
-    COMMENT ON COLUMN public.profiles.birthday IS 'DEPRECATED: Use birthdate instead. Kept for backward compatibility.';
-    RAISE NOTICE 'Added birthday column';
-  EXCEPTION WHEN duplicate_column THEN
-    -- Column already exists, still try to add comment
-    BEGIN
-      COMMENT ON COLUMN public.profiles.birthday IS 'DEPRECATED: Use birthdate instead. Kept for backward compatibility.';
-    EXCEPTION WHEN OTHERS THEN
-      RAISE NOTICE 'Could not add comment to birthday column: %', SQLERRM;
-    END;
-    RAISE NOTICE 'birthday column already exists';
+    -- First check if birthday column exists
+    PERFORM column_name FROM information_schema.columns 
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'birthday';
+    
+    -- If birthday exists, migrate data and drop the column
+    IF FOUND THEN
+      -- Migrate any existing data
+      UPDATE public.profiles
+      SET birthdate = birthday
+      WHERE birthday IS NOT NULL AND (birthdate IS NULL OR birthdate != birthday);
+      
+      -- Drop the birthday column now that data is migrated
+      ALTER TABLE public.profiles DROP COLUMN birthday;
+      RAISE NOTICE 'Successfully migrated data from birthday to birthdate and dropped birthday column';
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Error during birthday migration: %', SQLERRM;
   END;
   
   -- Handle pending_email_change column
@@ -175,7 +179,7 @@ BEGIN
       first_name, 
       last_name, 
       birthdate,   -- Only add the primary date field
-      birthday,    -- Keep for compatibility
+      -- birthday field has been removed, using only birthdate
       has_completed_onboarding, 
       email_verified,
       account_status,
@@ -312,12 +316,6 @@ CREATE POLICY "Service role can manage email changes"
 ON public.email_change_tracking 
 USING (auth.role() = 'service_role');
 
--- Create policies for email_change_tracking table
-CREATE POLICY "Users can view their own email changes" 
-ON public.email_change_tracking 
-FOR SELECT 
-USING (auth.uid() = user_id);
-
 CREATE POLICY "Users can manage their own email changes" 
 ON public.email_change_tracking 
 FOR ALL 
@@ -387,78 +385,36 @@ BEGIN
     END IF;
 END $$;
 
--- Now that all schema changes are committed, handle birthday/birthdate columns safely
+-- Set email_verified for all Google-authenticated accounts
 DO $$
-DECLARE
-    birthdate_exists boolean;
-    birthday_exists boolean;
 BEGIN
-    -- Check if columns exist
-    SELECT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'birthdate'
-    ) INTO birthdate_exists;
-    
-    SELECT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'birthday'
-    ) INTO birthday_exists;
-    
-    -- Add columns if they don't exist
-    IF NOT birthdate_exists THEN
-        ALTER TABLE public.profiles ADD COLUMN birthdate DATE;
-        RAISE NOTICE 'Added birthdate column to profiles table';
-    END IF;
-    
-    IF NOT birthday_exists THEN
-        ALTER TABLE public.profiles ADD COLUMN birthday DATE;
-        RAISE NOTICE 'Added birthday column to profiles table';
-    END IF;
-    
-    -- Now we can safely sync the columns
+    -- Verify that birthdate column exists (should be added in earlier steps)
     BEGIN
-        -- Sync from birthday to birthdate
-        UPDATE public.profiles 
-        SET birthdate = birthday 
-        WHERE birthday IS NOT NULL AND birthdate IS NULL;
+        -- Add birthdate column if it doesn't exist as a final safety check
+        SELECT EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'birthdate'
+        );
         
-        -- Then sync from birthdate to birthday
-        UPDATE public.profiles 
-        SET birthday = birthdate 
-        WHERE birthdate IS NOT NULL AND birthday IS NULL;
-        
+        IF NOT FOUND THEN
+            ALTER TABLE public.profiles ADD COLUMN birthdate DATE;
+            RAISE NOTICE 'Added birthdate column as final safety check';
+        END IF;
+    
         -- Set email_verified for all Google-authenticated accounts
         UPDATE public.profiles AS p
         SET email_verified = TRUE
         FROM auth.users AS u
         WHERE p.id = u.id AND (u.raw_app_meta_data->>'provider' = 'google' OR u.raw_user_meta_data->>'provider' = 'google');
         
-        RAISE NOTICE 'Successfully synced birthday/birthdate columns and set email_verified';
+        RAISE NOTICE 'Successfully set email_verified flag for Google accounts';
     EXCEPTION WHEN OTHERS THEN
-        RAISE NOTICE 'Error syncing columns: %', SQLERRM;
+        RAISE NOTICE 'Error updating email verification status: %', SQLERRM;
     END;
 END $$;
 
--- Create a compatibility view for applications still using the birthday field
-CREATE OR REPLACE VIEW public.profile_compatibility AS
-SELECT 
-  id,
-  first_name,
-  last_name,
-  email,
-  birthdate,
-  birthdate AS birthday, -- Map birthdate to birthday for backward compatibility
-  avatar_url,
-  created_at,
-  updated_at,
-  has_completed_onboarding,
-  email_verified,
-  account_status,
-  deletion_requested_at
-FROM public.profiles;
-
--- Notify about the date field standardization
+-- Note about the birthdate field standardization
 DO $$
 BEGIN
-    RAISE NOTICE 'Database schema updated: birthdate is now the standard field for birth dates. The birthday field is kept for backward compatibility but will be deprecated in a future update.';
+    RAISE NOTICE 'Database schema updated: birthdate is now the only field for birth dates. The birthday field has been removed.';
 END $$;
