@@ -167,6 +167,9 @@ BEGIN
   -- Get the authentication provider if available
   provider := COALESCE(new.raw_app_meta_data->>'provider', new.raw_user_meta_data->>'provider', '');
   
+  -- Log metadata for debugging (Supabase Edge Functions can view these logs)
+  RAISE LOG 'New user: %, Provider: %, Raw metadata: %', new.id, provider, new.raw_user_meta_data;
+  
   -- Determine if email should be marked as verified
   -- Email is verified if it's a social login or if email_confirmed_at is set
   is_email_verified := (provider != '') OR (new.email_confirmed_at IS NOT NULL);
@@ -189,10 +192,41 @@ BEGIN
     VALUES (
       new.id, 
       new.email, 
-      COALESCE(new.raw_user_meta_data->>'first_name', ''), 
-      COALESCE(new.raw_user_meta_data->>'last_name', ''),
-      NULL,
-      NULL,
+      -- Extract first name with multiple fallbacks for Google auth
+      COALESCE(
+        new.raw_user_meta_data->>'first_name',
+        new.raw_user_meta_data->>'given_name',
+        CASE 
+          WHEN new.raw_user_meta_data->>'name' IS NOT NULL THEN 
+            split_part(new.raw_user_meta_data->>'name', ' ', 1)
+          ELSE ''
+        END,
+        CASE 
+          WHEN new.raw_user_meta_data->>'full_name' IS NOT NULL THEN 
+            split_part(new.raw_user_meta_data->>'full_name', ' ', 1)
+          ELSE ''
+        END,
+        ''
+      ), 
+      -- Extract last name with multiple fallbacks for Google auth
+      COALESCE(
+        new.raw_user_meta_data->>'last_name',
+        new.raw_user_meta_data->>'family_name',
+        CASE 
+          WHEN new.raw_user_meta_data->>'name' IS NOT NULL AND 
+               array_length(string_to_array(new.raw_user_meta_data->>'name', ' '), 1) > 1 THEN
+            (SELECT array_to_string((string_to_array(new.raw_user_meta_data->>'name', ' '))[2:], ' '))
+          ELSE ''
+        END,
+        CASE 
+          WHEN new.raw_user_meta_data->>'full_name' IS NOT NULL AND 
+               array_length(string_to_array(new.raw_user_meta_data->>'full_name', ' '), 1) > 1 THEN
+            (SELECT array_to_string((string_to_array(new.raw_user_meta_data->>'full_name', ' '))[2:], ' '))
+          ELSE ''
+        END,
+        ''
+      ),
+      NULL, -- birthdate (standardized field)
       FALSE,
       is_email_verified,
       'active',
