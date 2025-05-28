@@ -18,6 +18,7 @@ import {
 /**
  * Supabase authentication service
  * Provides methods for authentication operations
+ * Following Planora's architectural principles with feature-first organization
  */
 export const supabaseAuthService = {
   /**
@@ -788,4 +789,78 @@ export const supabaseAuthService = {
       throw err;
     }
   },
+
+  /**
+   * Refresh the current auth session
+   * Ensures we have the latest session state
+   * @returns The refreshed session data
+   */
+  refreshSession: async () => {
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('Error refreshing session:', error);
+        return { session: null, error };
+      }
+      
+      return data;
+    } catch (err) {
+      console.error('Failed to refresh session:', err);
+      return { session: null, error: err as Error };
+    }
+  },
+  
+  /**
+   * Subscribe to authentication state changes
+   * @param callback Function to call when auth state changes
+   * @returns Subscription that can be unsubscribed
+   */
+  subscribeToAuthChanges: (callback: (event: string, session: any) => void) => {
+    return supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed event:', event);
+      callback(event, session);
+    });
+  },
+  
+  /**
+   * Update user onboarding status
+   * @param userId User ID
+   * @param hasCompleted Whether onboarding is completed
+   * @returns Success status
+   */
+  updateOnboardingStatus: async (userId: string, hasCompleted: boolean = true): Promise<boolean> => {
+    try {
+      // Update in both auth metadata and profiles table for consistency
+      const { error: userError } = await supabase.auth.updateUser({
+        data: { has_completed_onboarding: hasCompleted, onboarding_complete_date: new Date().toISOString() }
+      });
+
+      if (userError) {
+        console.error('Error updating user metadata for onboarding status:', userError);
+      }
+
+      // Update profiles table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ 
+          has_completed_onboarding: hasCompleted,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', userId);
+
+      if (profileError) {
+        console.error('Error updating profile onboarding status:', profileError);
+        return false;
+      }
+      
+      // Update local storage for fallback mechanism
+      localStorage.setItem('has_completed_onboarding', hasCompleted ? 'true' : 'false');
+      
+      return true;
+    } catch (err) {
+      console.error('Failed to update onboarding status:', err);
+      return false;
+    }
+  }
 };
