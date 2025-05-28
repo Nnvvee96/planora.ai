@@ -11,9 +11,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID REFERENCES auth.users(id) PRIMARY KEY,
   first_name TEXT,
   last_name TEXT,
-  email TEXT UNIQUE,
-  birthdate DATE, -- Standard date field for birth date
-  birthday DATE,  -- Kept for compatibility but will be deprecated
+  email TEXT, -- IMPORTANT: No UNIQUE constraint to prevent conflicts with auth.users during email changes
   avatar_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
@@ -24,6 +22,24 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   pending_email_change TEXT, -- Tracks pending email change during verification
   email_change_requested_at TIMESTAMP WITH TIME ZONE -- When the email change was requested
 );
+
+-- Add birthday/birthdate columns separately to handle potential errors
+DO $$
+BEGIN
+  BEGIN
+    -- Add birthdate column (standard going forward)
+    ALTER TABLE public.profiles ADD COLUMN birthdate DATE;
+  EXCEPTION WHEN duplicate_column THEN
+    RAISE NOTICE 'birthdate column already exists';
+  END;
+  
+  BEGIN
+    -- Add birthday column (for backward compatibility)
+    ALTER TABLE public.profiles ADD COLUMN birthday DATE;
+  EXCEPTION WHEN duplicate_column THEN
+    RAISE NOTICE 'birthday column already exists';
+  END;
+END$$;
 
 -- Add comments documenting our standards
 COMMENT ON COLUMN public.profiles.birthdate IS 'Standard date field for storing birth date information';
