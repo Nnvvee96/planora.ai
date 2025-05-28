@@ -379,7 +379,7 @@ export function Login() {
         <div className="relative z-10 mx-auto flex w-full flex-col justify-center space-y-6 p-4 sm:w-[350px] md:w-[400px]">
           <div className="flex flex-col space-y-2 text-center">
             <div className="mb-4 flex justify-center">
-              <Logo />
+              <Logo href="/" />
             </div>
             
             {verificationNeeded ? (

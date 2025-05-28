@@ -182,9 +182,7 @@ function Register() {
       <div className="flex-grow flex flex-col items-center justify-center p-4">
         {/* Logo */}
         <div className="mb-6 z-10">
-          <Link to="/">
-            <Logo />
-          </Link>
+          <Logo href="/" />
         </div>
         
         <Card className="w-full max-w-md z-10 bg-card/50 backdrop-blur-lg border-white/10">
