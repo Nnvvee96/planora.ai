@@ -323,11 +323,35 @@ BEGIN
     END IF;
 END $$;
 
--- Now that all schema changes are committed, sync the birthday/birthdate columns
--- This ensures the columns exist before trying to update them
+-- Now that all schema changes are committed, handle birthday/birthdate columns safely
 DO $$
+DECLARE
+    birthdate_exists boolean;
+    birthday_exists boolean;
 BEGIN
-    -- First ensure the columns exist to avoid errors
+    -- Check if columns exist
+    SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'birthdate'
+    ) INTO birthdate_exists;
+    
+    SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'birthday'
+    ) INTO birthday_exists;
+    
+    -- Add columns if they don't exist
+    IF NOT birthdate_exists THEN
+        ALTER TABLE public.profiles ADD COLUMN birthdate DATE;
+        RAISE NOTICE 'Added birthdate column to profiles table';
+    END IF;
+    
+    IF NOT birthday_exists THEN
+        ALTER TABLE public.profiles ADD COLUMN birthday DATE;
+        RAISE NOTICE 'Added birthday column to profiles table';
+    END IF;
+    
+    -- Now we can safely sync the columns
     BEGIN
         -- Sync from birthday to birthdate
         UPDATE public.profiles 
