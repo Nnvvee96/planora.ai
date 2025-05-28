@@ -165,8 +165,16 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
       // Login successful, check onboarding status
       const registrationDetails = await service.checkUserRegistrationStatus(data.user.id);
       
-      // Redirect based on onboarding status
-      if (registrationDetails.registrationStatus === 'new_user' || registrationDetails.registrationStatus === 'incomplete_onboarding') {
+      // Check if there's a redirect path stored in localStorage
+      const redirectPath = localStorage.getItem('redirect_after_login');
+      
+      // Redirect based on stored path or onboarding status
+      if (redirectPath) {
+        // Clear the redirect path from localStorage
+        localStorage.removeItem('redirect_after_login');
+        navigate(redirectPath);
+      } else if (registrationDetails.registrationStatus === 'new_user' || 
+                 registrationDetails.registrationStatus === 'incomplete_onboarding') {
         navigate('/onboarding');
       } else {
         navigate('/dashboard');
@@ -305,10 +313,12 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
 
 export function Login() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [verificationNeeded, setVerificationNeeded] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
   const [verificationMessage, setVerificationMessage] = useState('');
   const [resendingEmail, setResendingEmail] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const { toast } = useToast();
   
   // Function to handle resending verification email
@@ -352,17 +362,28 @@ export function Login() {
   };
   
   useEffect(() => {
-    // Check if we were redirected from registration with verification needs
+    // Check if location state contains verification info or session expiration info
     if (location.state) {
-      if (location.state.verificationNeeded) {
+      const { verificationNeeded: needsVerification, email, message, sessionExpired: hasSessionExpired } = location.state as any;
+      
+      // Handle verification needed state
+      if (needsVerification) {
         setVerificationNeeded(true);
-        setVerificationEmail(location.state.email || '');
-        setVerificationMessage(location.state.message || 'Please verify your email before logging in.');
-      } else if (location.state.message) {
-        setVerificationMessage(location.state.message);
+        if (email) setVerificationEmail(email);
+        if (message) setVerificationMessage(message);
+      }
+      
+      // Handle session expired state
+      if (hasSessionExpired) {
+        setSessionExpired(true);
+        toast({
+          title: "Session Expired",
+          description: "Your session has expired. Please log in again to continue.",
+          variant: "default"
+        });
       }
     }
-  }, [location]);
+  }, [location, toast]);
   
   return (
     <div className="flex min-h-screen flex-col bg-planora-purple-dark">
@@ -391,10 +412,26 @@ export function Login() {
               </>
             ) : (
               <>
-                <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
-                <p className="text-sm text-muted-foreground">
-                  Enter your email to sign in to your account
-                </p>
+                <div className="text-center mb-8">
+                  <Logo className="h-12 w-auto mx-auto mb-4" />
+                  <h1 className="text-2xl font-bold tracking-tight">
+                    Welcome to Planora
+                  </h1>
+                  <p className="text-muted-foreground mt-2">
+                    Sign in to your account to continue
+                  </p>
+                  
+                  {/* Show session expired message */}
+                  {sessionExpired && (
+                    <Alert className="mt-4 border-yellow-500/50 bg-yellow-500/10">
+                      <AlertCircle className="h-4 w-4 text-yellow-500" />
+                      <AlertTitle className="text-yellow-500">Session Expired</AlertTitle>
+                      <AlertDescription className="text-yellow-500/90">
+                        Your session has expired. Please log in again to continue.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
               </>
             )}
           </div>

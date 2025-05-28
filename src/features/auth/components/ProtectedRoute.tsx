@@ -35,94 +35,136 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const [isVerifying, setIsVerifying] = React.useState(true);
   const [hasCompletedInitialCheck, setHasCompletedInitialCheck] = React.useState(false);
   
-  // Enhanced check for onboarding status using multiple sources
+  // Enhanced check for authentication and onboarding status using multiple sources
   React.useEffect(() => {
-    const verifyOnboardingStatus = async () => {
-      // Skip if loading, not authenticated, or already verified
-      if (loading || !isAuthenticated || hasCompletedInitialCheck) {
-        setIsVerifying(false);
+    const verifyAuthAndOnboardingStatus = async () => {
+      // Always reset to verifying state when dependencies change
+      setIsVerifying(true);
+      
+      // Skip full verification if we're still loading auth context
+      if (loading) {
         return;
       }
-
+      
       try {
-        // Check if user is authenticated
-        if (!user?.id) {
-          // Force a session check to handle potential timing issues
-          const { data: sessionData } = await supabase.auth.getSession();
-          if (!sessionData.session) {
-            console.log('No active session found in database check');
-            setIsVerifying(false);
-            setHasCompletedInitialCheck(true);
-            return;
-          }
-        }
+        // STEP 1: First, explicitly check session with Supabase directly
+        // This ensures we have the most up-to-date session status
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        const hasValidSession = !!sessionData?.session;
         
-        // Use multiple sources to verify onboarding status (most reliable first)
+        console.log('Session verification result:', { 
+          hasValidSession, 
+          sessionError: sessionError?.message || 'none',
+          contextAuth: isAuthenticated
+        });
         
-        // 1. Check local storage first (fastest client-side state)
-        const localStorageOnboarding = localStorage.getItem('has_completed_onboarding') === 'true' || 
-                                      localStorage.getItem('hasCompletedInitialFlow') === 'true';
-        
-        if (localStorageOnboarding) {
-          console.log('Onboarding verified via localStorage');
+        // STEP 2: If requireAuth and no session, redirect to login
+        if (requireAuth && !hasValidSession) {
+          console.log('No valid session found, authentication required');
           setIsVerifying(false);
           setHasCompletedInitialCheck(true);
-          return;
+          return; // The rendering logic will handle redirect
         }
-
-        // 2. Check profiles table for onboarding status
-        if (user?.id) {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('has_completed_onboarding, email_verified')
-            .eq('id', user.id)
-            .single();
+        
+        // STEP 3: If not requireAuth or we have a valid session, continue with onboarding check
+        // But only if onboarding check is required and we've got a valid user ID
+        if (requireOnboarding && hasValidSession) {
+          // Get user ID from session or context
+          const userId = sessionData?.session?.user?.id || user?.id;
           
-          if (profileData?.has_completed_onboarding) {
-            console.log('Onboarding verified via profile record');
-            localStorage.setItem('has_completed_onboarding', 'true');
+          if (!userId) {
+            console.error('Valid session but no user ID found');
             setIsVerifying(false);
             setHasCompletedInitialCheck(true);
             return;
           }
+          
+          // Use multiple sources to verify onboarding status (most reliable first)
+          
+          // 1. Check local storage first (fastest client-side state)
+          const localStorageOnboarding = localStorage.getItem('has_completed_onboarding') === 'true' || 
+                                        localStorage.getItem('hasCompletedInitialFlow') === 'true';
+          
+          if (localStorageOnboarding) {
+            console.log('Onboarding verified via localStorage');
+            setIsVerifying(false);
+            setHasCompletedInitialCheck(true);
+            return;
+          }
+
+          // 2. Check profiles table for onboarding status
+          try {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('has_completed_onboarding')
+              .eq('id', userId)
+              .single();
+            
+            if (profileError) {
+              console.warn('Error checking profile data:', profileError.message);
+            } else if (profileData?.has_completed_onboarding) {
+              console.log('Onboarding verified via profile record');
+              localStorage.setItem('has_completed_onboarding', 'true');
+              setIsVerifying(false);
+              setHasCompletedInitialCheck(true);
+              return;
+            }
+          } catch (profileCheckError) {
+            console.error('Exception during profile check:', profileCheckError);
+          }
+          
+          // 3. Check auth metadata for onboarding status
+          try {
+            const { data: userData, error: userError } = await supabase.auth.getUser();
+            
+            if (userError) {
+              console.warn('Error getting user data:', userError.message);
+            } else if (userData?.user?.user_metadata?.has_completed_onboarding === true) {
+              console.log('Onboarding verified via user metadata');
+              localStorage.setItem('has_completed_onboarding', 'true');
+              setIsVerifying(false);
+              setHasCompletedInitialCheck(true);
+              return;
+            }
+          } catch (userDataError) {
+            console.error('Exception during user metadata check:', userDataError);
+          }
+
+          // 4. Check for travel preferences (existence implies completed onboarding)
+          try {
+            const { data: travelPrefs, error: prefsError } = await supabase
+              .from('travel_preferences')
+              .select('id')
+              .eq('user_id', userId)
+              .limit(1);
+
+            if (prefsError) {
+              console.warn('Error checking travel preferences:', prefsError.message);
+            } else if (travelPrefs && travelPrefs.length > 0) {
+              console.log('Onboarding verified via travel preferences existence');
+              localStorage.setItem('has_completed_onboarding', 'true');
+              setIsVerifying(false);
+              setHasCompletedInitialCheck(true);
+              return;
+            }
+          } catch (prefsCheckError) {
+            console.error('Exception during travel preferences check:', prefsCheckError);
+          }
         }
         
-        // 3. Check auth metadata for onboarding status
-        const { data: userData } = await supabase.auth.getUser();
-        if (userData?.user?.user_metadata?.has_completed_onboarding === true) {
-          console.log('Onboarding verified via user metadata');
-          localStorage.setItem('has_completed_onboarding', 'true');
-          setIsVerifying(false);
-          setHasCompletedInitialCheck(true);
-          return;
-        }
-
-        // 4. Check for travel preferences (existence implies completed onboarding)
-        const { data: travelPrefs } = await supabase
-          .from('travel_preferences')
-          .select('id')
-          .limit(1);
-
-        if (travelPrefs && travelPrefs.length > 0) {
-          console.log('Onboarding verified via travel preferences existence');
-          localStorage.setItem('has_completed_onboarding', 'true');
-          setIsVerifying(false);
-          setHasCompletedInitialCheck(true);
-          return;
-        }
-        
-        // Finally, fall back to the user object from context
+        // STEP 4: If we get here, either onboarding is not required or it is required but not completed
+        // Either way, we're done verifying
         setIsVerifying(false);
         setHasCompletedInitialCheck(true);
       } catch (error) {
-        console.error('Error verifying onboarding status:', error);
+        console.error('Error in authentication verification:', error);
         setIsVerifying(false);
         setHasCompletedInitialCheck(true);
       }
     };
 
-    verifyOnboardingStatus();
-  }, [isAuthenticated, loading, hasCompletedInitialCheck]);
+    verifyAuthAndOnboardingStatus();
+  }, [isAuthenticated, loading, requireAuth, requireOnboarding, user?.id]);
 
   // Show loading state while checking authentication or verifying status
   if (loading || isVerifying) {
