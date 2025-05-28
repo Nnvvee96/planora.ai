@@ -20,12 +20,27 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   has_completed_onboarding BOOLEAN DEFAULT FALSE,
   email_verified BOOLEAN DEFAULT FALSE,
   account_status TEXT DEFAULT 'active' CHECK (account_status IN ('active', 'pending_deletion', 'deleted')),
-  deletion_requested_at TIMESTAMP WITH TIME ZONE
+  deletion_requested_at TIMESTAMP WITH TIME ZONE,
+  pending_email_change TEXT, -- Tracks pending email change during verification
+  email_change_requested_at TIMESTAMP WITH TIME ZONE -- When the email change was requested
 );
 
 -- Add comment documenting our standard
 COMMENT ON COLUMN public.profiles.birthdate IS 'Standard date field for storing birth date information';
 COMMENT ON COLUMN public.profiles.birthday IS 'DEPRECATED: Use birthdate instead. Kept for backward compatibility.';
+
+-- Email Change Tracking Table
+CREATE TABLE IF NOT EXISTS public.email_change_tracking (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id),
+  old_email TEXT NOT NULL,
+  new_email TEXT NOT NULL,
+  requested_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  completed_at TIMESTAMP WITH TIME ZONE,
+  is_provider_change BOOLEAN DEFAULT FALSE, -- Indicates if this was a change from Google to email auth
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed', 'cancelled')),
+  CONSTRAINT unique_active_email_change UNIQUE (user_id, status)
+);
 
 -- Account Deletion Requests Table
 CREATE TABLE IF NOT EXISTS public.account_deletion_requests (
@@ -67,8 +82,11 @@ CREATE INDEX IF NOT EXISTS travel_preferences_user_id_idx ON public.travel_prefe
 CREATE INDEX IF NOT EXISTS profiles_id_idx ON public.profiles(id);
 CREATE INDEX IF NOT EXISTS profiles_email_verified_idx ON public.profiles(email_verified);
 CREATE INDEX IF NOT EXISTS profiles_account_status_idx ON public.profiles(account_status);
+CREATE INDEX IF NOT EXISTS profiles_pending_email_idx ON public.profiles(pending_email_change);
 CREATE INDEX IF NOT EXISTS deletion_requests_status_idx ON public.account_deletion_requests(status);
 CREATE INDEX IF NOT EXISTS deletion_requests_token_idx ON public.account_deletion_requests(recovery_token);
+CREATE INDEX IF NOT EXISTS email_change_tracking_user_id_idx ON public.email_change_tracking(user_id);
+CREATE INDEX IF NOT EXISTS email_change_tracking_status_idx ON public.email_change_tracking(status);
 
 -- Automatic Profile Creation Trigger
 -- This ensures that when a new user signs up, a profile is automatically created
@@ -135,6 +153,7 @@ CREATE TRIGGER on_auth_user_created
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.travel_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.account_deletion_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.email_change_tracking ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies to avoid duplication errors
 DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
@@ -149,6 +168,9 @@ DROP POLICY IF EXISTS "Users can read their own travel preferences" ON public.tr
 DROP POLICY IF EXISTS "Users can manage their own travel preferences" ON public.travel_preferences;
 DROP POLICY IF EXISTS "Users can view their own deletion requests" ON public.account_deletion_requests;
 DROP POLICY IF EXISTS "Service role can manage all deletion requests" ON public.account_deletion_requests;
+DROP POLICY IF EXISTS "Users can view their own email changes" ON public.email_change_tracking;
+DROP POLICY IF EXISTS "Users can manage their own email changes" ON public.email_change_tracking;
+DROP POLICY IF EXISTS "Service role can manage all email changes" ON public.email_change_tracking;
 
 -- Create policies for the profiles table
 CREATE POLICY "Users can view their own profile" 
@@ -202,6 +224,21 @@ CREATE POLICY "Service role can manage all deletion requests"
 ON public.account_deletion_requests 
 USING (auth.role() = 'service_role');
 
+-- Create policies for email_change_tracking table
+CREATE POLICY "Users can view their own email changes" 
+ON public.email_change_tracking 
+FOR SELECT 
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage their own email changes" 
+ON public.email_change_tracking 
+FOR ALL 
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role can manage all email changes" 
+ON public.email_change_tracking 
+USING (auth.role() = 'service_role');
+
 -- Service role access policies (for administrative functions)
 DROP POLICY IF EXISTS "Service role can view all profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Service role can insert any profile" ON public.profiles;
@@ -234,7 +271,7 @@ WHERE
   AND table_name IN ('profiles', 'travel_preferences', 'account_deletion_requests');
 
 -- Now that all schema changes are committed, sync the birthday/birthdate columns
--- This ensures the columns exist before trying to update them
+-- and set up email change tracking table if needed
 DO $$
 BEGIN
     -- First ensure the columns exist to avoid errors
@@ -249,7 +286,12 @@ BEGIN
         SET birthday = birthdate 
         WHERE birthdate IS NOT NULL AND (birthday IS NULL OR birthday != birthdate);
         
-        RAISE NOTICE 'Successfully synced birthday/birthdate columns';
+        -- Make sure pending_email_change is properly initialized
+        UPDATE public.profiles
+        SET pending_email_change = NULL, email_change_requested_at = NULL
+        WHERE pending_email_change IS NULL;
+        
+        RAISE NOTICE 'Successfully synced database columns';
     EXCEPTION WHEN OTHERS THEN
         RAISE NOTICE 'Error syncing columns: %', SQLERRM;
     END;

@@ -662,7 +662,7 @@ export const supabaseAuthService = {
   },
   
   /**
-   * Update the user's email address
+   * Update the user's email address and handle verification flow
    * @param newEmail The new email address
    * @param password Optional password to set when converting from Google auth to email/password
    */
@@ -672,27 +672,65 @@ export const supabaseAuthService = {
       const authProvider = await supabaseAuthService.getAuthProvider();
       const isGoogleUser = authProvider === AuthProviderType.GOOGLE;
       
+      // Get the current user first
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user found');
+      
+      // Store current email for tracking changes
+      const currentEmail = user.email;
+      const userId = user.id;
+      
+      // Create a tracking record in the database for the email change
+      // This helps with state tracking and allows us to properly sync after verification
+      try {
+        const { error: trackingError } = await supabase
+          .from('email_change_tracking')
+          .upsert({
+            user_id: userId,
+            old_email: currentEmail,
+            new_email: newEmail,
+            requested_at: new Date().toISOString(),
+            is_provider_change: isGoogleUser,
+            status: 'pending'
+          }, { onConflict: 'user_id' });
+          
+        if (trackingError) {
+          console.warn('Failed to track email change:', trackingError);
+          // Continue anyway as this is a non-critical enhancement
+        }
+      } catch (err) {
+        // If the table doesn't exist yet, log but continue
+        console.warn('Email change tracking table may not exist yet:', err);
+      }
+      
       // Special handling for Google users who are changing email
       if (isGoogleUser && password) {
         console.log('Converting Google user to email/password authentication...');
         
         // When converting from Google auth, we need to:
-        // 1. Update the email
+        // 1. Update the email (with special redirect options)
         // 2. Set a password for future email/password logins
         // 3. Update metadata to reflect the change
         
-        // Update user's email address
-        const { error: emailError } = await supabase.auth.updateUser({ email: newEmail });
-        if (emailError) throw emailError;
+        // Configure the verification redirect to our custom handler
+        // with a flag indicating this was a provider change
+        const redirectTo = window.location.origin + '/auth/email-change-verification?provider_change=google_to_email';
         
-        // Set password for future logins
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('No authenticated user found');
+        // Update user's email address with custom redirect
+        // Use the separate options parameter for email redirect
+        const { error: emailError } = await supabase.auth.updateUser(
+          { email: newEmail },
+          { emailRedirectTo: redirectTo }
+        );
+        if (emailError) throw emailError;
         
         // Update user metadata to reflect they now use email/password auth
         const { error: metadataError } = await supabase.auth.updateUser({
           data: {
-            provider: 'email'
+            provider: 'email',
+            // Mark that this account was converted from Google
+            previous_provider: 'google',
+            provider_changed_at: new Date().toISOString()
           }
         });
         
@@ -701,35 +739,50 @@ export const supabaseAuthService = {
           // Non-critical error, continue with the email update
         }
         
-        // Update profile table to reflect email verification status will need to be checked
+        // Important: DON'T update the profile email yet - wait for verification
+        // Instead, only update the verification status
         const { error: profileError } = await supabase
           .from('profiles')
-          .update({ email_verified: false })
-          .eq('id', user.id);
+          .update({ 
+            email_verified: false,
+            // Track that there's a pending email change 
+            pending_email_change: newEmail
+          })
+          .eq('id', userId);
         
         if (profileError) {
-          console.error('Error updating profile email verification status:', profileError);
+          console.error('Error updating profile verification status:', profileError);
           // Non-critical error, continue with the email update
         }
         
-        console.log('Successfully converted Google user to email/password with new email');
+        console.log('Successfully initiated Google user conversion to email/password');
       } else {
         // Standard email update for regular users
-        const { error } = await supabase.auth.updateUser({ email: newEmail });
+        // Configure the verification redirect to our custom handler
+        const redirectTo = window.location.origin + '/auth/email-change-verification';
+        
+        // Update user's email address with custom redirect
+        // Use the separate options parameter for email redirect
+        const { error } = await supabase.auth.updateUser(
+          { email: newEmail },
+          { emailRedirectTo: redirectTo }
+        );
         if (error) throw error;
         
-        // Update the profile table to keep it in sync
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({ email_verified: false })
-            .eq('id', user.id);
+        // Important: DON'T update the profile email yet - wait for verification
+        // Instead, only update the verification status and track the pending change
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ 
+            email_verified: false,
+            // Track that there's a pending email change
+            pending_email_change: newEmail
+          })
+          .eq('id', userId);
             
-          if (profileError) {
-            console.error('Error updating profile email verification status:', profileError);
-            // Non-critical error, continue with the email update
-          }
+        if (profileError) {
+          console.error('Error updating profile verification status:', profileError);
+          // Non-critical error, continue with the email update
         }
       }
     } catch (error) {
@@ -746,7 +799,7 @@ export const supabaseAuthService = {
   verifyEmail: async (token: string): Promise<boolean> => {
     try {
       // Note: This is actually handled by Supabase automatically via URL
-      // This method is a helper for manually verifying if needed
+      // This method serves as a confirmation and handles database synchronization
       const { error } = await supabase.auth.verifyOtp({
         token_hash: token,
         type: 'email'
@@ -757,17 +810,79 @@ export const supabaseAuthService = {
         return false;
       }
 
-      // Update the profile to mark email as verified
-      const user = (await supabase.auth.getUser()).data.user;
-      if (user) {
-        const { error: profileError } = await supabase
+      // Get current auth user to verify their email and verify changes
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.warn('No authenticated user found after email verification');
+        // This is still a success from an auth perspective - user just needs to log in again
+        return true;
+      }
+      
+      // First, check if this was a pending email change
+      const { data: profileData, error: profileFetchError } = await supabase
+        .from('profiles')
+        .select('pending_email_change, email')
+        .eq('id', user.id)
+        .single();
+      
+      if (profileFetchError) {
+        console.error('Error fetching profile during email verification:', profileFetchError);
+      }
+      
+      const pendingEmailChange = profileData?.pending_email_change;
+      const currentProfileEmail = profileData?.email;
+      
+      // Compare the emails to determine what happened
+      if (pendingEmailChange && user.email !== currentProfileEmail) {
+        console.log(`Email change verified: ${currentProfileEmail} → ${user.email}`);
+        
+        // This was an email change - update the profile with the new verified email
+        const { error: profileUpdateError } = await supabase
           .from('profiles')
-          .update({ email_verified: true })
+          .update({ 
+            email: user.email,
+            email_verified: true,
+            pending_email_change: null,
+            email_change_requested_at: null,
+            updated_at: new Date().toISOString()
+          })
           .eq('id', user.id);
-
-        if (profileError) {
-          console.error('Error updating email verification status in profile:', profileError);
-          // We still consider this a success as the auth verification worked
+        
+        if (profileUpdateError) {
+          console.error('Error updating profile with verified email:', profileUpdateError);
+        }
+        
+        // Update the email change tracking record
+        try {
+          const { error: trackingError } = await supabase
+            .from('email_change_tracking')
+            .update({
+              status: 'completed',
+              completed_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id)
+            .eq('status', 'pending');
+          
+          if (trackingError) {
+            console.warn('Error updating email change tracking:', trackingError);
+          }
+        } catch (err) {
+          // Table might not exist yet, which is fine
+          console.warn('Error with email tracking table:', err);
+        }
+      } else {
+        // This was a regular email verification (not a change)
+        const { error: verificationUpdateError } = await supabase
+          .from('profiles')
+          .update({ 
+            email_verified: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+        
+        if (verificationUpdateError) {
+          console.error('Error updating profile verification status:', verificationUpdateError);
         }
       }
 
