@@ -228,83 +228,132 @@ const Onboarding = () => {
         { min: Number(formData.budgetRange.min || 500), max: Number(formData.budgetRange.max || 2000) } : 
         { min: 500, max: 2000 };
       
-      // CRITICAL: Force direct database interaction using Supabase
-      // This bypasses any issues with the travel preferences service
+      // First, we need to ensure the session is still valid
+      // Explicitly refresh the session before any operations
+      const { data: sessionCheckData } = await supabase.auth.getSession();
+      if (!sessionCheckData?.session) {
+        console.error('No active session found before travel preferences save');
+        // Force refresh the session to ensure we're authenticated
+        await supabase.auth.refreshSession();
+        
+        // Double-check again after refresh
+        const { data: refreshedSession } = await supabase.auth.getSession();
+        if (!refreshedSession?.session) {
+          throw new Error('Unable to restore session, please log in again');
+        }
+      }
+      
+      // STEP 1: Get profile data BEFORE updating anything (to preserve name fields)
+      let existingFirstName = '';
+      let existingLastName = '';
+      
       try {
-        console.log('🚀 DIRECT DB PATH: Saving travel preferences directly to database');
-        console.log('User ID:', currentUser.id);
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', currentUser.id)
+          .single();
+          
+        if (profileData) {
+          existingFirstName = profileData.first_name || '';
+          existingLastName = profileData.last_name || '';
+          console.log('Retrieved existing profile data:', { existingFirstName, existingLastName });
+        }
+      } catch (profileFetchError) {
+        console.warn('Could not fetch existing profile data:', profileFetchError);
+      }
+      
+      // STEP 2: Save travel preferences to the database first
+      console.log('🚀 DIRECT DB PATH: Saving travel preferences directly to database');
+      console.log('User ID:', currentUser.id);
+      
+      // Ensure we have the latest session before proceeding
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log('Current session:', sessionData?.session ? 'Active' : 'None');
+      
+      // Prepare travel preferences data
+      const prefData = {
+        user_id: currentUser.id,
+        budget_min: budgetRangeData.min,
+        budget_max: budgetRangeData.max,
+        budget_flexibility: Number(formData.budgetTolerance || 10),
+        travel_duration: formData.travelDuration || 'week',
+        date_flexibility: formData.dateFlexibility || 'flexible-few',
+        custom_date_flexibility: formData.customDateFlexibility || '',
+        planning_intent: formData.planningIntent || 'exploring',
+        accommodation_types: formData.accommodationTypes || ['hotel'],
+        accommodation_comfort: formData.accommodationComfort || ['private-room'],
+        location_preference: formData.locationPreference || 'center',
+        flight_type: formData.flightType || 'direct',
+        prefer_cheaper_with_stopover: Boolean(formData.preferCheaperWithStopover),
+        departure_city: formData.departureLocation || 'Berlin',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      console.log('Travel preferences data for insertion:', prefData);
+      
+      // First check if preferences already exist
+      const { data: existingPrefs } = await supabase
+        .from('travel_preferences')
+        .select('id')
+        .eq('user_id', currentUser.id);
         
-        // Ensure we have the latest session before proceeding
-        const { data: sessionData } = await supabase.auth.getSession();
-        console.log('Current session:', sessionData?.session ? 'Active' : 'None');
+      console.log('Existing preferences check:', existingPrefs);
+      
+      // Use upsert for travel preferences - most reliable approach
+      const dbResult = await supabase
+        .from('travel_preferences')
+        .upsert(prefData, { onConflict: 'user_id' });
+      
+      console.log('Direct DB operation result:', dbResult);
+      
+      if (dbResult.error) {
+        console.error('Error in direct DB operation:', dbResult.error);
+        // Continue with other approaches - don't throw yet
+      }
+      
+      // STEP 3: Update profiles table to mark onboarding as completed
+      // IMPORTANT: Preserve existing first_name and last_name values!
+      try {
+        console.log('Updating profiles table directly...');
         
-        // 1. First try to upsert travel preferences with explicit user_id
-        const prefData = {
-          user_id: currentUser.id,
-          budget_min: budgetRangeData.min,
-          budget_max: budgetRangeData.max,
-          budget_flexibility: Number(formData.budgetTolerance || 10),
-          travel_duration: formData.travelDuration || 'week',
-          date_flexibility: formData.dateFlexibility || 'flexible-few',
-          custom_date_flexibility: formData.customDateFlexibility || '',
-          planning_intent: formData.planningIntent || 'exploring',
-          accommodation_types: formData.accommodationTypes || ['hotel'],
-          accommodation_comfort: formData.accommodationComfort || ['private-room'],
-          location_preference: formData.locationPreference || 'center',
-          flight_type: formData.flightType || 'direct',
-          prefer_cheaper_with_stopover: Boolean(formData.preferCheaperWithStopover),
-          departure_city: formData.departureLocation || 'Berlin',
-          created_at: new Date().toISOString(),
+        // Prepare profile update data with preference for existing values
+        const profileUpdateData = {
+          has_completed_onboarding: true,
           updated_at: new Date().toISOString()
         };
         
-        console.log('Travel preferences data for insertion:', prefData);
+        // Only include first_name and last_name if we have values from
+        // either existing profile or current user object
+        const firstName = existingFirstName || currentUser.firstName || '';
+        const lastName = existingLastName || currentUser.lastName || '';
         
-        // First check if preferences already exist
-        const { data: existingPrefs } = await supabase
-          .from('travel_preferences')
-          .select('id')
-          .eq('user_id', currentUser.id);
-          
-        console.log('Existing preferences check:', existingPrefs);
-        
-        let dbResult;
-        if (existingPrefs && existingPrefs.length > 0) {
-          // Update existing record
-          console.log('Updating existing travel preferences');
-          dbResult = await supabase
-            .from('travel_preferences')
-            .update(prefData)
-            .eq('user_id', currentUser.id);
-        } else {
-          // Insert new record
-          console.log('Inserting new travel preferences');
-          dbResult = await supabase
-            .from('travel_preferences')
-            .insert(prefData);
+        if (firstName) {
+          profileUpdateData['first_name'] = firstName;
         }
         
-        console.log('Direct DB operation result:', dbResult);
-        
-        if (dbResult.error) {
-          console.error('Error in direct DB operation:', dbResult.error);
-          
-          // Fallback: try upsert
-          console.log('Attempting upsert as fallback...');
-          const upsertResult = await supabase
-            .from('travel_preferences')
-            .upsert(prefData, { onConflict: 'user_id' });
-            
-          console.log('Upsert fallback result:', upsertResult);
+        if (lastName) {
+          profileUpdateData['last_name'] = lastName;
         }
-      } catch (dbError) {
-        console.error('Direct DB operation failed:', dbError);
+        
+        console.log('Profile update data:', profileUpdateData);
+        
+        const profileUpdate = await supabase
+          .from('profiles')
+          .update(profileUpdateData)
+          .eq('id', currentUser.id);
+          
+        console.log('Profile update result:', profileUpdate);
+        
+        if (profileUpdate.error) {
+          console.error('Profile update error:', profileUpdate.error);
+        }
+      } catch (profileError) {
+        console.error('Failed to update profile directly:', profileError);
       }
       
-      // Also continue with original method as a backup approach
-      console.log('Continuing with original method as backup...');
-      
-      // Format data for travel preferences service
+      // STEP 4: Format data for travel preferences service (secondary approach)
       const travelPreferencesData = {
         budgetRange: budgetRangeData,
         budgetFlexibility: Number(formData.budgetTolerance || 10),
@@ -322,9 +371,7 @@ const Onboarding = () => {
       
       console.log('Regular travel preferences data:', travelPreferencesData);
       
-      // CRITICAL: Multi-pronged approach to ensure data is saved successfully
-      
-      // Approach 1: Save via saveTravelPreferences function
+      // STEP 5: Save via service API as a backup approach
       try {
         const saveResult = await saveTravelPreferences(currentUser.id, travelPreferencesData);
         console.log('Save travel preferences result:', saveResult);
@@ -332,27 +379,23 @@ const Onboarding = () => {
         console.error('Failed to save travel preferences via service:', error);
       }
       
-      // Approach 2: Update profiles table directly
+      // STEP 6: Update local storage BEFORE updating metadata (which triggers auth state change)
+      localStorage.setItem('hasCompletedInitialFlow', 'true');
+      localStorage.setItem('has_completed_onboarding', 'true');
+      localStorage.setItem('userTravelPreferences', JSON.stringify(travelPreferencesData));
+      
+      // STEP 7: Call the official onboarding status update function
+      // This function already handles multiple sources (profile table, metadata, etc.)
       try {
-        console.log('Updating profiles table directly...');
-        const profileUpdate = await supabase
-          .from('profiles')
-          .update({
-            has_completed_onboarding: true,
-            first_name: currentUser.firstName || '',
-            last_name: currentUser.lastName || '',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', currentUser.id);
-          
-        console.log('Profile update result:', profileUpdate);
-      } catch (profileError) {
-        console.error('Failed to update profile directly:', profileError);
+        console.log('Updating onboarding status via official API...');
+        await updateOnboardingStatus(currentUser.id, true);
+      } catch (onboardingError) {
+        console.error('Failed to update onboarding status via API:', onboardingError);
       }
       
-      // Approach 3: Update user metadata
+      // STEP 8: Update user metadata as the LAST step since it triggers auth state change
       try {
-        console.log('Updating user metadata...');
+        console.log('Updating user metadata (final step)...');
         await authService.updateUserMetadata({
           has_completed_onboarding: true,
           onboarding_complete_date: new Date().toISOString(),
@@ -371,27 +414,40 @@ const Onboarding = () => {
             departure_location: formData.departureLocation || 'Berlin'
           }
         });
-        
-        // Local storage as backup mechanism
-        localStorage.setItem('hasCompletedInitialFlow', 'true');
-        localStorage.setItem('userTravelPreferences', JSON.stringify(travelPreferencesData));
-
-        // Update onboarding status via the official function
-        await updateOnboardingStatus(currentUser.id, true);
       } catch (metadataError) {
         console.error('Failed to update user metadata:', metadataError);
-        // Essential fallback
-        localStorage.setItem('hasCompletedInitialFlow', 'true');
       }
       
-      // Show success message
+      // STEP 9: Show success message and navigate to dashboard
       toast({
         title: "Preferences Saved",
         description: "Your travel preferences have been saved successfully"
       });
       
-      // Navigate to dashboard
-      navigate('/dashboard');
+      // IMPORTANT: Before navigating, force refresh the session one final time
+      // This ensures the session is fully updated with all metadata changes
+      try {
+        await supabase.auth.refreshSession();
+        const { data: finalSession } = await supabase.auth.getSession();
+        
+        if (!finalSession?.session) {
+          console.warn('Session appears to be lost after onboarding completion, attempting recovery...');
+          // Final recovery attempt if session was lost
+          localStorage.setItem('redirect_after_login', '/dashboard');
+          // Redirect to login with a message about session expiration
+          navigate('/login', { state: { sessionExpired: true } });
+          return;
+        }
+        
+        console.log('Session verified, redirecting to dashboard...');
+        
+        // Navigate to dashboard with session intact
+        navigate('/dashboard', { replace: true });
+      } catch (navigationError) {
+        console.error('Error during final navigation:', navigationError);
+        // Fallback navigation
+        navigate('/dashboard');
+      }
     } catch (error) {
       console.error('Error completing onboarding:', error);
       const errorMessage = error instanceof Error ? error.message : "An error occurred while saving your preferences";

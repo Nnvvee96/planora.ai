@@ -831,16 +831,27 @@ export const supabaseAuthService = {
    */
   updateOnboardingStatus: async (userId: string, hasCompleted: boolean = true): Promise<boolean> => {
     try {
-      // Update in both auth metadata and profiles table for consistency
-      const { error: userError } = await supabase.auth.updateUser({
-        data: { has_completed_onboarding: hasCompleted, onboarding_complete_date: new Date().toISOString() }
-      });
-
-      if (userError) {
-        console.error('Error updating user metadata for onboarding status:', userError);
+      // STEP 1: Make sure we have a valid session before starting
+      // This helps prevent session loss during the process
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (!sessionData?.session) {
+        console.error('No active session found when updating onboarding status');
+        // Attempt to refresh the session
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError || !refreshData?.session) {
+          console.error('Failed to refresh session:', refreshError);
+          // Still try to update the database, but warn about potential issues
+        }
       }
-
-      // Update profiles table
+      
+      // STEP 2: Update local storage FIRST as it's the most reliable
+      // This ensures we have at least one source of truth that won't be affected by potential API errors
+      localStorage.setItem('has_completed_onboarding', hasCompleted ? 'true' : 'false');
+      localStorage.setItem('hasCompletedInitialFlow', hasCompleted ? 'true' : 'false');
+      
+      // STEP 3: Update profiles table before metadata to avoid race conditions
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ 
@@ -851,16 +862,38 @@ export const supabaseAuthService = {
 
       if (profileError) {
         console.error('Error updating profile onboarding status:', profileError);
-        return false;
+        // Continue with metadata update anyway
       }
       
-      // Update local storage for fallback mechanism
-      localStorage.setItem('has_completed_onboarding', hasCompleted ? 'true' : 'false');
+      // STEP 4: Finally, update the user metadata 
+      // This can trigger a USER_UPDATED event and potentially affect the session
+      const { error: userError } = await supabase.auth.updateUser({
+        data: { 
+          has_completed_onboarding: hasCompleted, 
+          onboarding_complete_date: new Date().toISOString(),
+          onboarding_version: '2.0' // Adding a version to track which onboarding flow was completed
+        }
+      });
+
+      if (userError) {
+        console.error('Error updating user metadata for onboarding status:', userError);
+        // We've already updated local storage and possibly the profile, so return partial success
+        return true;
+      }
+      
+      // STEP 5: Force refresh the session one more time to ensure the session has the latest metadata
+      try {
+        await supabase.auth.refreshSession();
+      } catch (refreshError) {
+        console.warn('Error refreshing session after metadata update:', refreshError);
+        // Not critical, we can still consider this a success
+      }
       
       return true;
     } catch (err) {
       console.error('Failed to update onboarding status:', err);
-      return false;
+      // Even if we fail here, local storage should still be updated
+      return localStorage.getItem('has_completed_onboarding') === 'true';
     }
   }
 };

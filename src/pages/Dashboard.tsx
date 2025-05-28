@@ -26,6 +26,7 @@ import { Footer } from '@/ui/organisms/Footer';
 import { getAuthService, AuthService } from '@/features/auth/authApi';
 import { AppUser } from '@/features/auth/types/authTypes';
 import { userProfileService, UserProfile } from '@/features/user-profile/userProfileApi';
+import { supabase } from '@/database/databaseExports';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -89,13 +90,52 @@ const Dashboard = () => {
   // Only use Guest as a fallback when we're absolutely sure no user data exists
   const userName = userFullName || user?.username || user?.email?.split('@')[0] || (loading ? 'Loading...' : 'Guest');
   
-  // Redirect to login if not authenticated (this provides extra security)
+  // Enhanced session verification and auth state handling
   useEffect(() => {
     // Only run after initial loading completes
-    if (!loading && !user && authService) {
-      console.log('No authenticated user found in Dashboard, redirecting to login');
-      navigate('/login');
-    }
+    if (loading) return;
+    
+    const verifySession = async () => {
+      try {
+        // If we don't have a user in context, check directly with Supabase
+        if (!user && authService) {
+          console.log('No user in context, performing direct session verification...');
+          
+          // Force a session refresh to ensure we have the latest session state
+          const { data: sessionData } = await supabase.auth.getSession();
+          
+          if (sessionData?.session) {
+            console.log('Active session found during verification, but missing user in context');
+            // We have a session but no user in context - trigger a user reload
+            const refreshedUser = await authService.getCurrentUser();
+            
+            if (refreshedUser) {
+              console.log('User reloaded successfully, staying on dashboard');
+              // User was reloaded successfully, no need to redirect
+              return;
+            }
+          }
+          
+          // If we get here, there's genuinely no authenticated session
+          console.log('No authenticated user found in Dashboard, redirecting to login');
+          
+          // Check for onboarding completion in localStorage before redirecting
+          const hasCompletedOnboarding = localStorage.getItem('has_completed_onboarding') === 'true' || 
+                                       localStorage.getItem('hasCompletedInitialFlow') === 'true';
+          
+          if (hasCompletedOnboarding) {
+            // If user had completed onboarding, store that info for after login
+            localStorage.setItem('redirect_after_login', '/dashboard');
+          }
+          
+          navigate('/login');
+        }
+      } catch (error) {
+        console.error('Error during session verification:', error);
+      }
+    };
+    
+    verifySession();
   }, [user, loading, authService, navigate]);
   
   // Handler for directing to chat interface
