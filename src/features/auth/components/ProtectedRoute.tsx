@@ -45,18 +45,59 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       }
 
       try {
-        // Check local storage first (client-side state)
-        const localStorageOnboarding = localStorage.getItem('hasCompletedInitialFlow') === 'true';
+        // Check if user is authenticated
+        if (!user?.id) {
+          // Force a session check to handle potential timing issues
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (!sessionData.session) {
+            console.log('No active session found in database check');
+            setIsVerifying(false);
+            setHasCompletedInitialCheck(true);
+            return;
+          }
+        }
+        
+        // Use multiple sources to verify onboarding status (most reliable first)
+        
+        // 1. Check local storage first (fastest client-side state)
+        const localStorageOnboarding = localStorage.getItem('has_completed_onboarding') === 'true' || 
+                                      localStorage.getItem('hasCompletedInitialFlow') === 'true';
         
         if (localStorageOnboarding) {
           console.log('Onboarding verified via localStorage');
-          // Update user context if needed (done through context, not auth provider direct update)
           setIsVerifying(false);
           setHasCompletedInitialCheck(true);
           return;
         }
 
-        // Check for travel preferences (direct DB check)
+        // 2. Check profiles table for onboarding status
+        if (user?.id) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('has_completed_onboarding, email_verified')
+            .eq('id', user.id)
+            .single();
+          
+          if (profileData?.has_completed_onboarding) {
+            console.log('Onboarding verified via profile record');
+            localStorage.setItem('has_completed_onboarding', 'true');
+            setIsVerifying(false);
+            setHasCompletedInitialCheck(true);
+            return;
+          }
+        }
+        
+        // 3. Check auth metadata for onboarding status
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user?.user_metadata?.has_completed_onboarding === true) {
+          console.log('Onboarding verified via user metadata');
+          localStorage.setItem('has_completed_onboarding', 'true');
+          setIsVerifying(false);
+          setHasCompletedInitialCheck(true);
+          return;
+        }
+
+        // 4. Check for travel preferences (existence implies completed onboarding)
         const { data: travelPrefs } = await supabase
           .from('travel_preferences')
           .select('id')
@@ -64,8 +105,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
         if (travelPrefs && travelPrefs.length > 0) {
           console.log('Onboarding verified via travel preferences existence');
-          // Set local storage for future checks
-          localStorage.setItem('hasCompletedInitialFlow', 'true');
+          localStorage.setItem('has_completed_onboarding', 'true');
           setIsVerifying(false);
           setHasCompletedInitialCheck(true);
           return;

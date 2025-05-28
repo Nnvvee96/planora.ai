@@ -502,6 +502,72 @@ export const supabaseAuthService = {
         console.log('Successfully initiated email change verification process');
       }
       
+      // Create profile for new user
+      try {
+        // Check if profile already exists
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        // Get the provider and determine if email should be verified
+        // For Google auth, email is pre-verified by Google
+        const isGoogleUser = Boolean(user?.app_metadata?.provider === 'google');
+        
+        if (!existingProfile) {
+          // Create profile if it doesn't exist
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: user.id,
+              email: user.email,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              auth_provider: provider,
+              email_verified: isGoogleUser, // Set to true for Google users
+              // Ensure other critical fields have defaults
+              first_name: user?.user_metadata?.full_name?.split(' ')[0] || '',
+              last_name: user?.user_metadata?.full_name?.split(' ').slice(1).join(' ') || ''
+            });
+            
+          if (profileError) {
+            console.error('Error creating profile:', profileError);
+            // Try updating instead if insert fails
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({
+                email: user.email,
+                updated_at: new Date().toISOString(),
+                auth_provider: provider,
+                email_verified: isGoogleUser
+              })
+              .eq('id', user.id);
+              
+            if (updateError) {
+              console.error('Error updating profile as fallback:', updateError);
+            }
+          }
+        } else {
+          // Update existing profile's email verification status for Google users
+          if (isGoogleUser && !existingProfile.email_verified) {
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({
+                email_verified: true,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', user.id);
+              
+            if (updateError) {
+              console.error('Error updating email verification status:', updateError);
+            }
+          }
+        }
+      } catch (profileErr) {
+        console.error('Error creating/updating profile:', profileErr);
+      }
+      
       // Update profile to mark pending email change (gracefully handling missing columns)
       try {
         // First check if the pending_email_change column exists
