@@ -23,29 +23,77 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   email_change_requested_at TIMESTAMP WITH TIME ZONE -- When the email change was requested
 );
 
--- Add birthday/birthdate columns separately to handle potential errors
+-- Add all potentially missing columns and their comments with error handling
 DO $$
 BEGIN
+  -- Handle birthdate column
   BEGIN
     -- Add birthdate column (standard going forward)
     ALTER TABLE public.profiles ADD COLUMN birthdate DATE;
+    -- Add comment once we know the column exists
+    COMMENT ON COLUMN public.profiles.birthdate IS 'Standard date field for storing birth date information';
+    RAISE NOTICE 'Added birthdate column';
   EXCEPTION WHEN duplicate_column THEN
+    -- Column already exists, still try to add comment
+    BEGIN
+      COMMENT ON COLUMN public.profiles.birthdate IS 'Standard date field for storing birth date information';
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Could not add comment to birthdate column: %', SQLERRM;
+    END;
     RAISE NOTICE 'birthdate column already exists';
   END;
   
+  -- Handle birthday column
   BEGIN
     -- Add birthday column (for backward compatibility)
     ALTER TABLE public.profiles ADD COLUMN birthday DATE;
+    -- Add comment once we know the column exists
+    COMMENT ON COLUMN public.profiles.birthday IS 'DEPRECATED: Use birthdate instead. Kept for backward compatibility.';
+    RAISE NOTICE 'Added birthday column';
   EXCEPTION WHEN duplicate_column THEN
+    -- Column already exists, still try to add comment
+    BEGIN
+      COMMENT ON COLUMN public.profiles.birthday IS 'DEPRECATED: Use birthdate instead. Kept for backward compatibility.';
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Could not add comment to birthday column: %', SQLERRM;
+    END;
     RAISE NOTICE 'birthday column already exists';
   END;
+  
+  -- Handle pending_email_change column
+  BEGIN
+    -- Check if column exists, add it if not
+    ALTER TABLE public.profiles ADD COLUMN pending_email_change TEXT;
+    -- Add comment once we know the column exists
+    COMMENT ON COLUMN public.profiles.pending_email_change IS 'Tracks email change during verification process';
+    RAISE NOTICE 'Added pending_email_change column';
+  EXCEPTION WHEN duplicate_column THEN
+    -- Column already exists, still try to add comment
+    BEGIN
+      COMMENT ON COLUMN public.profiles.pending_email_change IS 'Tracks email change during verification process';
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Could not add comment to pending_email_change column: %', SQLERRM;
+    END;
+    RAISE NOTICE 'pending_email_change column already exists';
+  END;
+  
+  -- Handle email_change_requested_at column
+  BEGIN
+    -- Check if column exists, add it if not
+    ALTER TABLE public.profiles ADD COLUMN email_change_requested_at TIMESTAMP WITH TIME ZONE;
+    -- Add comment once we know the column exists
+    COMMENT ON COLUMN public.profiles.email_change_requested_at IS 'Timestamp when email change was requested';
+    RAISE NOTICE 'Added email_change_requested_at column';
+  EXCEPTION WHEN duplicate_column THEN
+    -- Column already exists, still try to add comment
+    BEGIN
+      COMMENT ON COLUMN public.profiles.email_change_requested_at IS 'Timestamp when email change was requested';
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Could not add comment to email_change_requested_at column: %', SQLERRM;
+    END;
+    RAISE NOTICE 'email_change_requested_at column already exists';
+  END;
 END$$;
-
--- Add comments documenting our standards
-COMMENT ON COLUMN public.profiles.birthdate IS 'Standard date field for storing birth date information';
-COMMENT ON COLUMN public.profiles.birthday IS 'DEPRECATED: Use birthdate instead. Kept for backward compatibility.';
-COMMENT ON COLUMN public.profiles.pending_email_change IS 'Tracks email change during verification process';
-COMMENT ON COLUMN public.profiles.email_change_requested_at IS 'Timestamp when email change was requested';
 
 -- Email Change Tracking Table
 CREATE TABLE IF NOT EXISTS public.email_change_tracking (
