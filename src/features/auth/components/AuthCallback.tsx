@@ -82,16 +82,54 @@ export const AuthCallback: React.FC = () => {
         if (sessionData.session?.user) {
           console.log('Active session found for user:', sessionData.session.user.id);
           
-          // We have a valid session, check if user has completed onboarding
+          // We have a valid session, check if user has completed onboarding using multi-source approach
           try {
+            // 1. Try to get data from profiles table
             const { data: profileData } = await supabase
               .from('profiles')
-              .select('has_completed_onboarding')
+              .select('has_completed_onboarding, email_verified, auth_provider')
               .eq('id', sessionData.session.user.id)
               .single();
             
-            // Determine where to redirect based on onboarding status
-            if (profileData?.has_completed_onboarding) {
+            // 2. Check user metadata for onboarding status as alternate source
+            const { data: userData } = await supabase.auth.getUser();
+            const metadataCompletedOnboarding = userData?.user?.user_metadata?.has_completed_onboarding;
+            const isGoogleUser = userData?.user?.app_metadata?.provider === 'google';
+            
+            console.log('User profile check:', { 
+              profileExists: !!profileData,
+              profileOnboardingStatus: profileData?.has_completed_onboarding,
+              metadataOnboardingStatus: metadataCompletedOnboarding,
+              isGoogleUser
+            });
+            
+            // 3. If we're a Google user and the profile doesn't have email_verified, update it
+            if (profileData && isGoogleUser && profileData.email_verified === false) {
+              console.log('Updating email verification status for Google user');
+              
+              // Mark email as verified for Google users
+              const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ 
+                  email_verified: true,
+                  updated_at: new Date().toISOString() 
+                })
+                .eq('id', sessionData.session.user.id);
+                
+              if (updateError) {
+                console.error('Error updating email verification status:', updateError);
+              }
+            }
+            
+            // 4. Determine where to redirect based on onboarding status from EITHER source
+            // Trust metadata if profiles table is missing data
+            const hasCompletedOnboarding = 
+              profileData?.has_completed_onboarding || 
+              metadataCompletedOnboarding === true;
+              
+            // Store onboarding status in localStorage as fallback mechanism
+            if (hasCompletedOnboarding) {
+              localStorage.setItem('has_completed_onboarding', 'true');
               console.log('User has completed onboarding, redirecting to dashboard');
               setRedirectPath('/dashboard');
               setRedirectMessage('Welcome back! Taking you to your dashboard...');
