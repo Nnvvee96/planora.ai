@@ -50,8 +50,10 @@ export const supabaseAuthService = {
       let redirectUrl;
       
       if (import.meta.env.DEV) {
-        // Local development
-        redirectUrl = 'http://localhost:3000/auth/callback';
+        // Local development - use current window location to determine port
+        const currentUrl = window.location.origin;
+        redirectUrl = `${currentUrl}/auth/callback`;
+        console.log('Using dynamic redirect URL:', redirectUrl);
       } else {
         // Production environment - hardcode the main domain
         redirectUrl = 'https://planora-ai-plum.vercel.app/auth/callback';

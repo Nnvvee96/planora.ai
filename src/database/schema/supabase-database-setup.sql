@@ -1,6 +1,6 @@
 -- Complete Supabase Database Setup Script for Planora.ai
 -- This script combines schema creation, triggers, and RLS policies in the correct order
--- Updated with fixes for birthday/birthdate sync and improved RLS policies
+-- Updated with account deletion system, improved RLS policies, and standardized date fields
 -- Execute this in the Supabase SQL Editor to set up the complete database
 
 -- Enable UUID extension if not already enabled
@@ -12,13 +12,32 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   first_name TEXT,
   last_name TEXT,
   email TEXT UNIQUE,
-  birthday DATE,
-  birthdate DATE, -- Added birthdate column alongside birthday for compatibility
+  birthdate DATE, -- Standard date field for birth date
+  birthday DATE,  -- Kept for compatibility but will be deprecated
   avatar_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   has_completed_onboarding BOOLEAN DEFAULT FALSE,
-  email_verified BOOLEAN DEFAULT FALSE
+  email_verified BOOLEAN DEFAULT FALSE,
+  account_status TEXT DEFAULT 'active' CHECK (account_status IN ('active', 'pending_deletion', 'deleted')),
+  deletion_requested_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Add comment documenting our standard
+COMMENT ON COLUMN public.profiles.birthdate IS 'Standard date field for storing birth date information';
+COMMENT ON COLUMN public.profiles.birthday IS 'DEPRECATED: Use birthdate instead. Kept for backward compatibility.';
+
+-- Account Deletion Requests Table
+CREATE TABLE IF NOT EXISTS public.account_deletion_requests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id),
+  email TEXT NOT NULL,
+  requested_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  scheduled_purge_at TIMESTAMP WITH TIME ZONE,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'cancelled', 'completed')),
+  purged_at TIMESTAMP WITH TIME ZONE,
+  recovery_token TEXT,
+  CONSTRAINT unique_active_request UNIQUE (user_id, status)
 );
 
 -- Travel Preferences Table
@@ -47,10 +66,9 @@ CREATE TABLE IF NOT EXISTS public.travel_preferences (
 CREATE INDEX IF NOT EXISTS travel_preferences_user_id_idx ON public.travel_preferences(user_id);
 CREATE INDEX IF NOT EXISTS profiles_id_idx ON public.profiles(id);
 CREATE INDEX IF NOT EXISTS profiles_email_verified_idx ON public.profiles(email_verified);
-
--- Sync birthday and birthdate columns to maintain data integrity
--- We need to do this AFTER all schema changes have been committed
--- so we'll move this code to the end of the script
+CREATE INDEX IF NOT EXISTS profiles_account_status_idx ON public.profiles(account_status);
+CREATE INDEX IF NOT EXISTS deletion_requests_status_idx ON public.account_deletion_requests(status);
+CREATE INDEX IF NOT EXISTS deletion_requests_token_idx ON public.account_deletion_requests(recovery_token);
 
 -- Automatic Profile Creation Trigger
 -- This ensures that when a new user signs up, a profile is automatically created
@@ -74,10 +92,11 @@ BEGIN
       email, 
       first_name, 
       last_name, 
-      birthday, 
-      birthdate,
+      birthdate,   -- Only add the primary date field
+      birthday,    -- Keep for compatibility
       has_completed_onboarding, 
       email_verified,
+      account_status,
       created_at,
       updated_at
     )
@@ -90,6 +109,7 @@ BEGIN
       NULL,
       FALSE,
       is_email_verified,
+      'active',
       now(),
       now()
     );
@@ -114,6 +134,7 @@ CREATE TRIGGER on_auth_user_created
 -- Enable Row Level Security
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.travel_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.account_deletion_requests ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies to avoid duplication errors
 DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
@@ -126,6 +147,8 @@ DROP POLICY IF EXISTS "Users can update their own travel preferences" ON public.
 DROP POLICY IF EXISTS "Users can delete their own travel preferences" ON public.travel_preferences;
 DROP POLICY IF EXISTS "Users can read their own travel preferences" ON public.travel_preferences;
 DROP POLICY IF EXISTS "Users can manage their own travel preferences" ON public.travel_preferences;
+DROP POLICY IF EXISTS "Users can view their own deletion requests" ON public.account_deletion_requests;
+DROP POLICY IF EXISTS "Service role can manage all deletion requests" ON public.account_deletion_requests;
 
 -- Create policies for the profiles table
 CREATE POLICY "Users can view their own profile" 
@@ -169,6 +192,16 @@ ON public.travel_preferences
 FOR DELETE
 USING (auth.uid() = user_id);
 
+-- Create policies for account_deletion_requests table
+CREATE POLICY "Users can view their own deletion requests" 
+ON public.account_deletion_requests 
+FOR SELECT 
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role can manage all deletion requests" 
+ON public.account_deletion_requests 
+USING (auth.role() = 'service_role');
+
 -- Service role access policies (for administrative functions)
 DROP POLICY IF EXISTS "Service role can view all profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Service role can insert any profile" ON public.profiles;
@@ -198,7 +231,7 @@ FROM
 WHERE 
   table_schema = 'public' 
   AND table_type = 'BASE TABLE'
-  AND table_name IN ('profiles', 'travel_preferences');
+  AND table_name IN ('profiles', 'travel_preferences', 'account_deletion_requests');
 
 -- Now that all schema changes are committed, sync the birthday/birthdate columns
 -- This ensures the columns exist before trying to update them
@@ -206,21 +239,42 @@ DO $$
 BEGIN
     -- First ensure the columns exist to avoid errors
     BEGIN
-        -- Sync from birthday to birthdate
+        -- Standardize on birthdate - copy from birthday if birthdate is missing
         UPDATE public.profiles 
         SET birthdate = birthday 
-        WHERE birthday IS NOT NULL AND birthdate IS NULL;
+        WHERE birthday IS NOT NULL AND (birthdate IS NULL OR birthdate != birthday);
         
-        -- Then sync from birthdate to birthday
+        -- Then sync from birthdate to birthday for backward compatibility
         UPDATE public.profiles 
         SET birthday = birthdate 
-        WHERE birthdate IS NOT NULL AND birthday IS NULL;
+        WHERE birthdate IS NOT NULL AND (birthday IS NULL OR birthday != birthdate);
         
-        -- Set email_verified for all Google-authenticated accounts
-        UPDATE public.profiles SET email_verified = TRUE;
-        
-        RAISE NOTICE 'Successfully synced birthday/birthdate columns and set email_verified';
+        RAISE NOTICE 'Successfully synced birthday/birthdate columns';
     EXCEPTION WHEN OTHERS THEN
         RAISE NOTICE 'Error syncing columns: %', SQLERRM;
     END;
+END $$;
+
+-- Create a compatibility view for applications still using the birthday field
+CREATE OR REPLACE VIEW public.profile_compatibility AS
+SELECT 
+  id,
+  first_name,
+  last_name,
+  email,
+  birthdate,
+  birthdate AS birthday, -- Map birthdate to birthday for backward compatibility
+  avatar_url,
+  created_at,
+  updated_at,
+  has_completed_onboarding,
+  email_verified,
+  account_status,
+  deletion_requested_at
+FROM public.profiles;
+
+-- Notify about the date field standardization
+DO $$
+BEGIN
+    RAISE NOTICE 'Database schema updated: birthdate is now the standard field for birth dates. The birthday field is kept for backward compatibility but will be deprecated in a future update.';
 END $$;

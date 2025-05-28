@@ -159,30 +159,85 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
       
       console.log('Data being sent to updateUserProfile:', JSON.stringify(updateData, null, 2));
       
-      // Update the user profile through the user profile service
+      // Check if email has changed
+      const emailChanged = data.email !== currentUser.email;
+
+      // If email changed, use proper email update flow with verification
+      if (emailChanged && data.email) {
+        
+        try {
+          
+          // Use the auth service to properly update email with verification
+          await authService.updateEmail(data.email);
+          
+          // Show special toast for email verification
+          toast({
+            
+            title: 'Email Verification Required',
+            
+            description: 'A verification email has been sent to ' + data.email + '. Please check your inbox to confirm the change.',
+            
+            duration: 6000
+          
+          });
+        
+        } catch (emailError) {
+          
+          console.error('Failed to update email:', emailError);
+          
+          toast({
+            
+            title: 'Email Update Failed',
+            
+            description: emailError instanceof Error ? emailError.message : 'Failed to update email. Please try again.',
+            
+            variant: 'destructive',
+          
+          });
+          
+          throw emailError; // Re-throw to prevent further processing
+        
+        }
+      
+      }
+
+      // Update the user profile through the user profile service (without email if it was changed)
       const updated = await userProfileService.updateUserProfile(currentUser.id, {
+        
         firstName: data.firstName,
+        
         lastName: data.lastName,
-        email: data.email,
+        
+        // Only include email in profile update if it didn't change
+        ...(emailChanged ? {} : { email: data.email }),
+        
         birthdate: data.birthdate || undefined,
+      
       });
       
       if (!updated) {
+        
         throw new Error('Failed to update profile in the database');
+      
       }
       
-      // Update auth user metadata if email changed
-      if (data.email && data.email !== currentUser.email) {
-        try {
-          await authService.updateUserMetadata({
-            email: data.email,
-            first_name: data.firstName,
-            last_name: data.lastName
-          });
-        } catch (authError) {
-          console.warn('Failed to update auth user metadata:', authError);
-          // Non-critical error, continue
-        }
+      // Update auth user metadata for name changes
+      try {
+        
+        await authService.updateUserMetadata({
+          
+          first_name: data.firstName,
+          
+          last_name: data.lastName
+        
+        });
+      
+      } catch (authError) {
+        
+        console.warn('Failed to update auth user metadata:', authError);
+        
+        // Non-critical error, continue
+      
       }
       
       // Call the onProfileUpdate callback if provided
