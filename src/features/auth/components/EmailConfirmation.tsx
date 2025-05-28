@@ -13,7 +13,11 @@ import { Logo } from '@/ui/atoms/Logo';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getAuthService } from '../authApi';
 
-export const EmailConfirmation: React.FC = () => {
+/**
+ * Email confirmation component for handling verification links
+ * Follows Planora's architecture with feature-first organization
+ */
+const EmailConfirmation: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [isVerifying, setIsVerifying] = useState(true);
@@ -150,3 +154,4 @@ export const EmailConfirmation: React.FC = () => {
     </div>
   );
 };
+export { EmailConfirmation };
