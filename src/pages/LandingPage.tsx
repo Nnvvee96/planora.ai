@@ -6,7 +6,6 @@ import { FeatureCard } from '@/ui/molecules/FeatureCard';
 import { GradientButton } from '@/ui/atoms/GradientButton';
 import { Logo } from '@/ui/atoms/Logo';
 import { Footer } from '@/ui/organisms/Footer';
-import { EarthGlobe } from '@/ui/molecules/EarthGlobe';
 import { 
   MessageCircle, 
   Calendar, 
@@ -151,10 +150,7 @@ const LandingPage = () => {
             </div>
             <div className="relative h-[500px] lg:h-[600px] flex items-center justify-center overflow-hidden">
               <div className="relative w-full h-full flex items-center justify-center">
-                {/* 3D Rotating Earth Globe */}
-                <div className="w-full h-full">
-                  <EarthGlobe className="w-full h-full" />
-                </div>
+                {/* Earth globe removed */}
               </div>
             </div>
           </div>
