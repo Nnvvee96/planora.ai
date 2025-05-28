@@ -14,7 +14,8 @@ import { getAuthService, AuthService, AuthProviderType } from '@/features/auth/a
 import { userProfileService } from '../../services/userProfileService';
 import { DeleteAccountModal } from './DeleteAccountModal';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { InfoIcon } from 'lucide-react';
+import { InfoIcon, AlertCircle } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, { message: "Current password is required" }),
@@ -72,6 +73,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onThemeChange,
   onLanguageChange 
 }) => {
+  const { toast } = useToast();
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [language, setLanguage] = React.useState("english");
   const [changePasswordOpen, setChangePasswordOpen] = React.useState(false);
@@ -209,7 +211,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       if (authProvider === AuthProviderType.GOOGLE) {
         // Validate password requirement for Google users
         if (!data.password || data.password.length < 8) {
-          alert("You must set a password when changing from Google authentication");
+          toast({
+            title: "Password Required",
+            description: "You must set a password when changing from Google authentication.",
+            variant: "destructive"
+          });
           return;
         }
         
@@ -217,11 +223,27 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         // This will handle the Google-to-email conversion
         await authService.updateEmail(data.newEmail, data.password);
         
-        alert("A verification email has been sent to " + data.newEmail + ". Please verify your new email address to complete the change. Note: This will disconnect your account from Google Sign-In.");
+        toast({
+          title: "Verification Email Sent",
+          description: (
+            <div>
+              <p>A verification email has been sent to <span className="font-medium">{data.newEmail}</span>.</p>
+              <p className="mt-1">Please verify your new email address to complete the change.</p>
+              <p className="mt-2 text-sm opacity-80">Note: This will disconnect your account from Google Sign-In.</p>
+            </div>
+          ),
+          duration: 8000
+        });
       } else {
         // Standard email change for email/password users
         await authService.updateEmail(data.newEmail);
-        alert("Verification email sent to " + data.newEmail + ". Please check your inbox to confirm the change.");
+        
+        toast({
+          title: "Verification Email Sent",
+          description: (
+            <p>Please check your inbox to confirm the change to <span className="font-medium">{data.newEmail}</span>.</p>
+          )
+        });
       }
       
       setEmailChangeOpen(false);
@@ -421,24 +443,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </DialogHeader>
                 
                 {authProvider === AuthProviderType.GOOGLE && (
-                  <Alert className="my-3 border-yellow-500 bg-yellow-50 dark:bg-yellow-950 dark:border-yellow-800">
-                    <InfoIcon className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-                    <AlertTitle>Important: Google Account</AlertTitle>
-                    <AlertDescription>
-                      <p className="mb-2">
+                <Alert className="mb-4 bg-blue-500/10 border-blue-500/20 text-white">
+                  <div className="flex items-start">
+                    <AlertCircle className="h-5 w-5 text-blue-400 mr-2 mt-0.5" />
+                    <div>
+                      <AlertTitle className="text-white font-medium text-base mb-1">Important: Google Account</AlertTitle>
+                      <AlertDescription className="text-white/90">
                         You're currently signed in with Google. Changing your email address here will:
-                      </p>
-                      <ul className="list-disc pl-5 space-y-1">
+                      </AlertDescription>
+                      <ul className="mt-2 ml-6 list-disc space-y-1 text-white/90">
                         <li>Disconnect your account from Google Sign-In</li>
                         <li>Require you to set a password for future logins</li>
                         <li>Use email/password authentication going forward</li>
                       </ul>
-                      <p className="mt-2">
+                      <AlertDescription className="mt-2 text-white/90">
                         To keep using Google Sign-In, change your email in your Google account instead.
-                      </p>
-                    </AlertDescription>
-                  </Alert>
-                )}
+                      </AlertDescription>
+                    </div>
+                  </div>
+                </Alert>
+              )}
                 
                 <Form {...emailForm}>
                   <form onSubmit={emailForm.handleSubmit(onEmailSubmit)} className="space-y-4">
