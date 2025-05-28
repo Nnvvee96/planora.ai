@@ -9,6 +9,95 @@ import { supabase } from '@/database/databaseExports';
 import { AuthError } from '@supabase/supabase-js';
 
 /**
+ * Extract first name from various Google metadata formats
+ * @param metadata User metadata from authentication
+ * @returns First name or empty string
+ */
+function extractFirstName(metadata: Record<string, any>): string {
+  // Try to get from identities array first (most reliable for Google)
+  if (metadata.identities && Array.isArray(metadata.identities)) {
+    const googleIdentity = metadata.identities.find((identity: any) => 
+      identity.provider === 'google'
+    );
+    
+    if (googleIdentity?.identity_data) {
+      if (googleIdentity.identity_data.given_name) {
+        return googleIdentity.identity_data.given_name;
+      }
+      if (googleIdentity.identity_data.first_name) {
+        return googleIdentity.identity_data.first_name;
+      }
+      if (googleIdentity.identity_data.name) {
+        return googleIdentity.identity_data.name.split(' ')[0] || '';
+      }
+    }
+  }
+  
+  // Try direct metadata fields
+  if (metadata.given_name) {
+    return metadata.given_name;
+  }
+  if (metadata.first_name) {
+    return metadata.first_name;
+  }
+  if (metadata.name) {
+    return metadata.name.split(' ')[0] || '';
+  }
+  if (metadata.full_name) {
+    return metadata.full_name.split(' ')[0] || '';
+  }
+  
+  // No name found
+  return '';
+}
+
+/**
+ * Extract last name from various Google metadata formats
+ * @param metadata User metadata from authentication
+ * @returns Last name or empty string
+ */
+function extractLastName(metadata: Record<string, any>): string {
+  // Try to get from identities array first (most reliable for Google)
+  if (metadata.identities && Array.isArray(metadata.identities)) {
+    const googleIdentity = metadata.identities.find((identity: any) => 
+      identity.provider === 'google'
+    );
+    
+    if (googleIdentity?.identity_data) {
+      if (googleIdentity.identity_data.family_name) {
+        return googleIdentity.identity_data.family_name;
+      }
+      if (googleIdentity.identity_data.last_name) {
+        return googleIdentity.identity_data.last_name;
+      }
+      if (googleIdentity.identity_data.name) {
+        const parts = googleIdentity.identity_data.name.split(' ');
+        return parts.length > 1 ? parts.slice(1).join(' ') : '';
+      }
+    }
+  }
+  
+  // Try direct metadata fields
+  if (metadata.family_name) {
+    return metadata.family_name;
+  }
+  if (metadata.last_name) {
+    return metadata.last_name;
+  }
+  if (metadata.name) {
+    const parts = metadata.name.split(' ');
+    return parts.length > 1 ? parts.slice(1).join(' ') : '';
+  }
+  if (metadata.full_name) {
+    const parts = metadata.full_name.split(' ');
+    return parts.length > 1 ? parts.slice(1).join(' ') : '';
+  }
+  
+  // No name found
+  return '';
+}
+
+/**
  * Helper to fix common issues with Google authentication
  * Provides recovery mechanisms for various failure scenarios
  */
@@ -109,16 +198,15 @@ async function createProfileForUser(
       .insert({
         id: userId,
         email: email,
-        first_name: metadata.given_name || metadata.name?.split(' ')[0] || '',
-        last_name: metadata.family_name || metadata.name?.split(' ').slice(1).join(' ') || '',
-        avatar_url: metadata.picture || '',
+        first_name: extractFirstName(metadata),
+        last_name: extractLastName(metadata),
+        avatar_url: metadata.picture || metadata.avatar_url || '',
         email_verified: true,  // Always true for Google sign-ins
         created_at: timestamp,
         updated_at: timestamp,
         has_completed_onboarding: false,
         account_status: 'active',  // Add required account_status field
-        birthday: null,
-        birthdate: null
+        birthdate: null  // Standardized field for birth date
       });
       
     if (error) {
@@ -144,8 +232,8 @@ async function createProfileForUser(
           .insert({
             id: userId,
             email: email,
-            first_name: metadata.given_name || metadata.name?.split(' ')[0] || '',
-            last_name: metadata.family_name || metadata.name?.split(' ').slice(1).join(' ') || '',
+            first_name: extractFirstName(metadata),
+            last_name: extractLastName(metadata),
             email_verified: true,
             created_at: timestamp,
             updated_at: timestamp,
