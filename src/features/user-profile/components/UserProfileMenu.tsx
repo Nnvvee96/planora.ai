@@ -78,37 +78,91 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
         try {
           // Use supabase directly to avoid circular dependencies with proper null checking
           const { data } = await supabase.auth.getUser();
-          const user = data?.user ?? null;
+          
+          // Comprehensive null checking before accessing any user properties
+          if (!data || !data.user) {
+            console.warn('No user data available');
+            return;
+          }
+          
+          const user = data.user;
+          
+          // Safely extract metadata with explicit null checks
+          const userMetadata = user.user_metadata || {};
           
           // Get current user data with comprehensive null checking
-          const currentUser = user ? {
+          const currentUser = {
             id: user.id,
             email: user.email || '',
-            firstName: (user.user_metadata && typeof user.user_metadata === 'object') ? 
-              (user.user_metadata.first_name as string || user.user_metadata.given_name as string || '') : '',
-            lastName: (user.user_metadata && typeof user.user_metadata === 'object') ? 
-              (user.user_metadata.last_name as string || user.user_metadata.family_name as string || '') : ''
-          } : null;
+            firstName: '',
+            lastName: ''
+          };
           
-          if (currentUser) {
-            // Get detailed profile through the user profile service
-            const profileData = await userProfileService.getUserProfile(currentUser.id);
+          // Safely extract first name with fallbacks
+          if (typeof userMetadata === 'object') {
+            // Check for Google-specific formats
+            if (userMetadata.identities && Array.isArray(userMetadata.identities)) {
+              const googleIdentity = userMetadata.identities.find((identity: any) => 
+                identity && identity.provider === 'google'
+              );
+              
+              if (googleIdentity && googleIdentity.identity_data) {
+                currentUser.firstName = googleIdentity.identity_data.given_name || 
+                                       googleIdentity.identity_data.first_name || '';
+                                       
+                currentUser.lastName = googleIdentity.identity_data.family_name || 
+                                      googleIdentity.identity_data.last_name || '';
+              }
+            }
             
-            // Use data from the profile or fall back to props
-            const combinedFirstName = profileData?.firstName || currentUser.firstName || firstName || '';
-            const combinedLastName = profileData?.lastName || currentUser.lastName || lastName || '';
-            const combinedEmail = currentUser.email || profileData?.email || userEmail || '';
-            const combinedBirthdate = birthdate || '';
+            // Fall back to direct metadata fields if needed
+            if (!currentUser.firstName) {
+              currentUser.firstName = userMetadata.first_name as string || 
+                                    userMetadata.given_name as string || '';
+            }
             
-            setProfileData({
-              firstName: combinedFirstName,
-              lastName: combinedLastName,
-              email: combinedEmail,
-              birthdate: combinedBirthdate
-            });
+            if (!currentUser.lastName) {
+              currentUser.lastName = userMetadata.last_name as string || 
+                                   userMetadata.family_name as string || '';
+            }
+            
+            // Try to extract from full name if all else fails
+            if (!currentUser.firstName && !currentUser.lastName && userMetadata.name) {
+              const nameParts = (userMetadata.name as string).split(' ');
+              if (nameParts.length > 0) {
+                currentUser.firstName = nameParts[0];
+                currentUser.lastName = nameParts.slice(1).join(' ');
+              }
+            }
           }
+          
+          // Get detailed profile through the user profile service
+          const profileData = await userProfileService.getUserProfile(currentUser.id).catch(err => {
+            console.error('Error fetching user profile from service:', err);
+            return null;
+          });
+          
+          // Use data from the profile or fall back to props
+          const combinedFirstName = profileData?.firstName || currentUser.firstName || firstName || '';
+          const combinedLastName = profileData?.lastName || currentUser.lastName || lastName || '';
+          const combinedEmail = currentUser.email || profileData?.email || userEmail || '';
+          const combinedBirthdate = profileData?.birthdate || birthdate || '';
+          
+          setProfileData({
+            firstName: combinedFirstName,
+            lastName: combinedLastName,
+            email: combinedEmail,
+            birthdate: combinedBirthdate
+          });
         } catch (error) {
           console.error('Error fetching user profile:', error);
+          // Still update the profile data with whatever we have from props
+          setProfileData({
+            firstName: firstName || '',
+            lastName: lastName || '',
+            email: userEmail || '',
+            birthdate: birthdate || ''
+          });
         }
       }
     };
