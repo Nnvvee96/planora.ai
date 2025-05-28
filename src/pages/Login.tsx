@@ -409,13 +409,16 @@ export function Login() {
             ) : (
               <>
                 <div className="text-center mb-8">
-                  <Logo className="h-12 w-auto mx-auto mb-4" href="/" />
-                  <h1 className="text-2xl font-bold tracking-tight">
-                    Welcome to Planora
-                  </h1>
-                  <p className="text-muted-foreground mt-2">
-                    Sign in to your account to continue
-                  </p>
+                  {/* Integrated logo layout with flex-row to place logo at the top */}
+                  <div className="flex flex-col items-center">
+                    <Logo className="h-16 w-auto mb-6" href="/" variant="full" />
+                    <h1 className="text-2xl font-bold tracking-tight">
+                      Welcome to Planora
+                    </h1>
+                    <p className="text-muted-foreground mt-2">
+                      Sign in to your account to continue
+                    </p>
+                  </div>
                   
                   {/* Show session expired message */}
                   {sessionExpired && (
