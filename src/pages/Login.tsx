@@ -199,15 +199,15 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   }
 
   return (
-    <div className={cn("grid gap-6", className)} {...props}>
-      <form onSubmit={onSubmit}>
+    <div className={cn("grid gap-6 w-full", className)} {...props}>
+      <form onSubmit={onSubmit} className="w-full">
         {error && (
-          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-md text-sm text-red-500">
+          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-md text-sm text-red-500 w-full break-words">
             {error}
           </div>
         )}
-        <div className="grid gap-4">
-          <div className="grid gap-2">
+        <div className="grid gap-4 w-full">
+          <div className="grid gap-2 w-full">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
@@ -220,10 +220,11 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               value={email}
               onChange={handleEmailChange}
               required
+              className="w-full max-w-full"
             />
           </div>
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between">
+          <div className="grid gap-2 w-full">
+            <div className="flex items-center justify-between w-full">
               <Label htmlFor="password">Password</Label>
               <Link
                 to="/forgot-password"
@@ -242,9 +243,14 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               value={password}
               onChange={handlePasswordChange}
               required
+              className="w-full max-w-full"
             />
           </div>
-          <Button disabled={isLoading} className="bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90">
+          <Button 
+            disabled={isLoading} 
+            className="bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90 w-full"
+            type="submit"
+          >
             {isLoading ? (
               <>
                 <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -259,7 +265,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           </Button>
         </div>
       </form>
-      <div className="relative">
+      <div className="relative w-full">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-white/10" />
         </div>
@@ -269,40 +275,41 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           </span>
         </div>
       </div>
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 w-full">
         {/* Use a simple button that calls the sign in function directly */}
         <Button 
           variant="outline" 
-          className="w-full flex items-center justify-center gap-2" 
+          className="w-full flex items-center justify-center gap-2 flex-shrink-0" 
           onClick={() => authContext?.signInWithGoogle?.()}
           disabled={!authContext?.signInWithGoogle}
+          type="button"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" className="w-5 h-5">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" className="w-5 h-5 flex-shrink-0">
             <path fill="currentColor" d="M12.545,12.151L12.545,12.151c0,1.054,0.855,1.909,1.909,1.909h3.536c-0.421,1.143-1.123,2.206-2.019,3.071c-0.739,0.739-1.578,1.348-2.485,1.818C12.264,19.583,10.931,20,9.545,20c-2.618,0-4.946-1.274-6.421-3.273c-0.891-1.213-1.364-2.697-1.364-4.242c0-1.363,0.379-2.662,1.095-3.769c0.717-1.107,1.717-1.989,2.945-2.545C6.909,5.637,8.235,5.331,9.545,5.331c1.918,0,3.752,0.736,5.114,2.025l-1.997,1.997c-0.979-0.979-2.025-1.436-3.118-1.436c-0.97,0-1.891,0.379-2.592,1.068c-0.701,0.688-1.18,1.654-1.18,2.728c0,1.075,0.479,2.04,1.18,2.728c0.701,0.689,1.622,1.068,2.592,1.068c0.517,0,1.021-0.146,1.44-0.392c0.391-0.229,0.76-0.522,1.095-0.857l2.458-2.458C12.545,11.301,12.545,12.151,12.545,12.151L12.545,12.151z M20.454,10.425h-2v-2h-2v2h-2v2h2v2h2v-2h2V10.425z"/>
           </svg>
-          Sign in with Google
+          <span className="whitespace-nowrap">Sign in with Google</span>
         </Button>
         <Button 
           variant="outline" 
           type="button" 
           disabled={isLoading || import.meta.env.VITE_ENABLE_APPLE_AUTH !== 'true'} 
-          className="w-full" 
+          className="w-full flex-shrink-0" 
           onClick={() => {
             toast({
               title: "Coming Soon",
               description: "Apple sign-in will be available soon.",
             });
           }}>
-          <Apple className="mr-2 h-4 w-4" />
-          Apple
+          <Apple className="mr-2 h-4 w-4 flex-shrink-0" />
+          <span className="whitespace-nowrap">Apple</span>
         </Button>
       </div>
       
       {/* Sign up link moved here, directly below the social login buttons */}
-      <div className="text-center text-sm text-muted-foreground">
+      <div className="text-center text-sm text-muted-foreground w-full">
         <Link
           to="/register"
-          className="hover:text-white underline underline-offset-4"
+          className="hover:text-white underline underline-offset-4 block w-full"
         >
           Don&apos;t have an account? Sign Up
         </Link>
@@ -396,8 +403,8 @@ export function Login() {
         <div className="absolute -bottom-[30%] -right-[10%] w-[60%] h-[60%] rounded-full bg-planora-accent-blue/5 blur-3xl"></div>
       </div>
       
-      <div className="flex-grow flex items-center justify-center">
-        <div className="relative z-10 mx-auto flex w-full flex-col justify-center space-y-6 p-4 sm:w-[350px] md:w-[400px]">
+      <div className="flex-grow flex items-center justify-center px-4 w-full">
+        <div className="relative z-10 mx-auto flex w-full flex-col justify-center space-y-6 max-w-[400px] overflow-hidden">
           <div className="flex flex-col space-y-2 text-center">
             {verificationNeeded ? (
               <>
@@ -478,8 +485,8 @@ export function Login() {
               </div>
             </div>
           ) : (
-            <div className="bg-card/20 backdrop-blur-lg p-6 rounded-lg border border-white/10 shadow-lg">
-              <UserAuthForm />
+            <div className="bg-card/20 backdrop-blur-lg p-6 rounded-lg border border-white/10 shadow-lg w-full max-w-full overflow-hidden">
+              <UserAuthForm className="w-full max-w-full" />
             </div>
           )}
           
