@@ -71,75 +71,42 @@ const extractNameFromGoogleData = (user: { id: string; email?: string; user_meta
   // Extract first and last name from various possible Google metadata formats
   let firstName = '';
   let lastName = '';
-  
-  // First priority: explicit first_name and last_name fields
-  if (user_metadata?.first_name && user_metadata?.last_name) {
-    firstName = user_metadata.first_name as string;
-    lastName = user_metadata.last_name as string;
-  }
-  // Second priority: given_name and family_name (common in Google OAuth)
-  else if (user_metadata?.given_name && user_metadata?.family_name) {
-    firstName = user_metadata.given_name as string;
-    lastName = user_metadata.family_name as string;
-  }
-  // Third priority: full_name field
-  else if (typeof user_metadata?.full_name === 'string') {
-    const nameParts = (user_metadata.full_name as string).split(' ');
-    firstName = nameParts[0] || '';
-    lastName = nameParts.slice(1).join(' ') || '';
-  }
-  // Fourth priority: name field
-  else if (typeof user_metadata?.name === 'string') {
-    const nameParts = (user_metadata.name as string).split(' ');
-    firstName = nameParts[0] || '';
-    lastName = nameParts.slice(1).join(' ') || '';
-  }
-  // Fifth priority: try individual fields
-  else {
-    firstName = (user_metadata?.given_name as string) || 
-                (user_metadata?.first_name as string) || 
-                (user_metadata?.display_name as string) || '';
-                
-    lastName = (user_metadata?.family_name as string) || 
-               (user_metadata?.last_name as string) || '';
-  }
-  
-  // Fall back to email if name is still empty
-  if ((!firstName || !lastName) && user.email) {
-    // If we have at least one name part but not both, only fall back for the missing one
-    if (!firstName && !lastName) {
-      // Extract username part from email and format it
-      const emailParts = user.email.split('@');
-      const username = emailParts[0];
-      // Format username: replace symbols with spaces and capitalize each part
-      const formattedParts = username.split(/[._-]/).map(part => 
-        part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+
+  try {
+    // Try to get from user_metadata.full_name (Google OAuth)
+    if (user_metadata?.full_name && typeof user_metadata.full_name === 'string') {
+      const nameParts = user_metadata.full_name.split(' ');
+      firstName = nameParts[0] || '';
+      lastName = nameParts.slice(1).join(' ') || '';
+    } 
+    // Try to get from user_metadata.name (Google OAuth)
+    else if (user_metadata?.name && typeof user_metadata.name === 'string') {
+      const nameParts = user_metadata.name.split(' ');
+      firstName = nameParts[0] || '';
+      lastName = nameParts.slice(1).join(' ') || '';
+    }
+    // Try to get from individual first_name and last_name fields
+    else if (user_metadata?.first_name && typeof user_metadata.first_name === 'string') {
+      firstName = user_metadata.first_name;
+      lastName = (user_metadata.last_name as string) || '';
+    }
+    // Try to get from identities array (Google OAuth)
+    else if (user_metadata?.identities && Array.isArray(user_metadata.identities)) {
+      const googleIdentity = (user_metadata.identities as any[]).find((identity: any) => 
+        identity.provider === 'google'
       );
       
-      if (formattedParts.length > 1) {
-        firstName = formattedParts[0];
-        lastName = formattedParts.slice(1).join(' ');
-      } else {
-        firstName = formattedParts[0] || '';
-      }
-    } else if (!firstName) {
-      // Just extract first name from email
-      const emailParts = user.email.split('@');
-      const username = emailParts[0].split(/[._-]/)[0];
-      firstName = username.charAt(0).toUpperCase() + username.slice(1).toLowerCase();
-    } else if (!lastName) {
-      // Just extract last name from email if possible
-      const emailParts = user.email.split('@');
-      const usernameParts = emailParts[0].split(/[._-]/);
-      if (usernameParts.length > 1) {
-        lastName = usernameParts.slice(1).map(part => 
-          part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
-        ).join(' ');
+      if (googleIdentity?.identity_data) {
+        firstName = googleIdentity.identity_data.given_name || googleIdentity.identity_data.first_name || '';
+        lastName = googleIdentity.identity_data.family_name || googleIdentity.identity_data.last_name || '';
       }
     }
+    
+    console.log(`Extracted name: ${firstName} ${lastName}`);
+  } catch (e) {
+    console.error('Error extracting name from metadata:', e);
   }
   
-  console.log('Extracted name information:', { firstName, lastName });
   return { firstName, lastName };
 };
 
@@ -148,100 +115,77 @@ const extractNameFromGoogleData = (user: { id: string; email?: string; user_meta
  */
 export const userProfileService = {
   /**
-   * Update a user's profile with Google authentication data
-   * @param user Supabase user with metadata
-   * @returns True if update was successful
+   * Updates a user profile with data from Google authentication
+   * @param user User data from Supabase auth
+   * @returns True if profile was successfully updated
    */
   updateProfileWithGoogleData: async (user: { id: string; email?: string; user_metadata?: Record<string, unknown> }): Promise<boolean> => {
     try {
       if (!user || !user.id) {
-        console.error('Cannot update profile with Google data: Invalid user');
+        console.error('Invalid user data for profile update');
         return false;
       }
       
-      const { user_metadata } = user;
-      
-      // Extract name information
       const { firstName, lastName } = extractNameFromGoogleData(user);
       
-      // Current timestamp for created/updated
-      const timestamp = new Date().toISOString();
-      
-      // Check if user already has a profile
-      const { data, error } = await supabase
+      // Check if a profile already exists
+      const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .maybeSingle();
+        .single();
       
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error checking for existing profile:', error);
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking for existing profile:', checkError);
+        
+        // Try to create a new profile if error suggests it doesn't exist
+        if (checkError.code === 'PGRST104' || checkError.message?.includes('not found')) {
+          console.log('Profile not found, creating new profile for Google user');
+          
+          const timestamp = new Date().toISOString();
+          const emailVerified = true; // Google accounts are pre-verified
+          
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: user.id,
+              first_name: firstName,
+              last_name: lastName,
+              email: user.email,
+              email_verified: emailVerified,
+              created_at: timestamp,
+              updated_at: timestamp,
+              // Standardize on birthdate field only
+              birthdate: null
+            });
+            
+          if (insertError) {
+            console.error('Error creating profile for Google user:', insertError);
+            return false;
+          }
+          
+          console.log('Successfully created profile for Google user');
+          return true;
+        }
+        
+        return false;
       }
       
-      // Get avatar URL from metadata
-      const avatarUrl = (user_metadata?.avatar_url as string) || 
-                       (user_metadata?.picture as string) || '';
-      
-      // For Google Auth, we always set email_verified to true
-      const emailVerified = true;
-      
-      if (!data) {
-        // No profile exists, create one
-        console.log('Creating new profile for user:', user.id);
-        
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            first_name: firstName,
-            last_name: lastName,
-            email: user.email,
-            avatar_url: avatarUrl,
-            has_completed_onboarding: false,
-            email_verified: emailVerified,
-            created_at: timestamp,
-            updated_at: timestamp,
-            // Standardize on birthdate field only
-            birthdate: null
-          });
-          
-        if (insertError) {
-          console.error('Error creating profile:', insertError);
-          return false;
-        }
-        
-        console.log('Successfully created profile with Google data');
-        return true;
-      } else {
-        // Profile exists, update with latest Google data
-        console.log('Updating existing profile with Google data for user:', user.id);
-        
-        const updates: Record<string, unknown> = {
-          updated_at: timestamp,
-          email_verified: emailVerified
-        };
-        
-        // Always update first_name and last_name if we have Google data
-        // This ensures the profile stays in sync with Google account changes
-        if (firstName) {
-          updates.first_name = firstName;
-        }
-        
-        if (lastName) {
-          updates.last_name = lastName;
-        }
-        
-        // Update avatar if we have one from Google
-        if (avatarUrl) {
-          updates.avatar_url = avatarUrl;
-        }
+      if (existingProfile) {
+        console.log('Updating existing profile with Google data');
         
         // Only use birthdate as the standard field
         // Profile is now using standardized birthdate field
         
         const { error: updateError } = await supabase
           .from('profiles')
-          .update(updates)
+          .update({
+            first_name: firstName || existingProfile.first_name,
+            last_name: lastName || existingProfile.last_name,
+            email: user.email,
+            email_verified: true, // Google accounts are pre-verified
+            updated_at: new Date().toISOString()
+          })
           .eq('id', user.id);
           
         if (updateError) {
@@ -252,6 +196,8 @@ export const userProfileService = {
         console.log('Successfully updated profile with Google data');
         return true;
       }
+      
+      return false;
     } catch (error) {
       console.error('Error updating profile with Google data:', error);
       return false;
@@ -265,15 +211,21 @@ export const userProfileService = {
    */
   checkProfileExists: async (userId: string): Promise<boolean> => {
     try {
-      if (!userId) return false;
+      if (!userId) {
+        console.error('User ID is required to check profile');
+        return false;
+      }
       
       const { data, error } = await supabase
         .from('profiles')
         .select('id')
         .eq('id', userId)
-        .maybeSingle();
-      
-      if (error && error.code !== 'PGRST116') {
+        .single();
+        
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return false; // No match found
+        }
         console.error('Error checking profile existence:', error);
         return false;
       }
@@ -289,29 +241,48 @@ export const userProfileService = {
    * Ensure a profile exists for a user
    * Creates a profile if one doesn't exist
    * @param userId The user ID to check/create profile for
-   * @returns True if the profile exists or was created successfully
+   * @returns True if a profile exists or was created
    */
   ensureProfileExists: async (userId: string): Promise<boolean> => {
     try {
-      if (!userId) return false;
+      if (!userId) {
+        console.error('User ID is required to ensure profile');
+        return false;
+      }
       
-      // Check if profile exists
-      const exists = await userProfileService.checkProfileExists(userId);
+      // First check if profile exists
+      const profileExists = await userProfileService.checkProfileExists(userId);
       
-      if (exists) {
+      if (profileExists) {
         return true;
       }
       
       // Get user data from auth
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       
-      if (userError || !user || user.id !== userId) {
-        console.error('Error getting user for profile creation:', userError);
+      if (userError || !user) {
+        console.error('Error getting user data for profile creation:', userError);
         return false;
       }
       
-      // Create profile using Google data if available
-      return await userProfileService.updateProfileWithGoogleData(user);
+      // Create a minimal profile
+      const { error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          email: user.email,
+          first_name: '',
+          last_name: '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+        
+      if (createError) {
+        console.error('Error creating profile:', createError);
+        return false;
+      }
+      
+      return true;
     } catch (error) {
       console.error('Error ensuring profile exists:', error);
       return false;
@@ -324,58 +295,59 @@ export const userProfileService = {
    */
   getUserProfile: async (userId: string): Promise<UserProfile | null> => {
     try {
-      console.log('Getting user profile for user ID:', userId);
+      if (!userId) {
+        console.error('User ID is required to get profile');
+        return null;
+      }
       
-      // First attempt - try to get the profile using maybeSingle to avoid 406 errors
-      const { data, error } = await supabase
+      // Attempt to get profile from database
+      const { data: dbProfile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .maybeSingle();
-      
-      if (data) {
-        // We have profile data, return it
-        return mapDbProfileToUserProfile(data as DbUserProfile);
-      }
-      
+        .single();
+        
       if (error) {
-        console.error('Error fetching user profile from profiles table:', error);
-        // Continue to fallback methods
-      }
-      
-      // First fallback - try to get user from auth metadata
-      console.log('Profile not found in database, trying auth metadata fallback');
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user && user.id === userId) {
-        // Create a synthetic profile from auth data
-        console.log('Creating synthetic profile from auth metadata');
-        const { user_metadata } = user;
-        
-        // Extract name information with proper fallbacks
-        const nameInfo = extractNameFromGoogleData(user);
-        
-        // Create a profile object
-        const syntheticProfile: UserProfile = {
-          id: user.id,
-          firstName: nameInfo.firstName || '',
-          lastName: nameInfo.lastName || '',
-          email: user.email || '',
-          avatarUrl: (user_metadata?.avatar_url as string) || 
-                    (user_metadata?.picture as string) || '',
-          hasCompletedOnboarding: (user_metadata?.has_completed_onboarding as boolean) || false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        
-        // Try to save this profile to the database for future use
-        try {
-          await userProfileService.createUserProfile(syntheticProfile);
-        } catch (saveError) {
-          console.warn('Non-fatal error saving synthetic profile:', saveError);
+        // Not found error is expected when profile doesn't exist
+        if (error.code === 'PGRST116') {
+          console.log('Profile not found for user ID:', userId);
+        } else {
+          console.error('Error getting profile from database:', error);
         }
         
-        return syntheticProfile;
+        // Try to get user data from auth as fallback
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !user) {
+          console.error('Error getting user data as fallback:', userError);
+          return null;
+        }
+        
+        // Create a synthetic profile from auth data
+        if (user.id === userId) {
+          console.log('Creating synthetic profile from auth data');
+          
+          const { firstName, lastName } = extractNameFromGoogleData(user);
+          
+          const syntheticProfile: UserProfile = {
+            id: userId,
+            firstName: firstName || '',
+            lastName: lastName || '',
+            email: user.email || '',
+            avatarUrl: null,
+            birthdate: null,
+            hasCompletedOnboarding: false,
+            emailVerified: !!user.email_confirmed_at,
+            createdAt: user.created_at,
+            updatedAt: user.updated_at
+          };
+          
+          return syntheticProfile;
+        }
+      }
+      
+      if (dbProfile) {
+        return mapDbProfileToUserProfile(dbProfile);
       }
       
       console.warn('No profile found for user ID after all fallbacks:', userId);
@@ -392,36 +364,48 @@ export const userProfileService = {
    */
   createUserProfile: async (profileData: UserProfile): Promise<boolean> => {
     try {
-      console.log('Creating new user profile for ID:', profileData.id);
-      
-      if (!profileData.id) {
-        console.error('Cannot create user profile: Missing user ID');
+      if (!profileData || !profileData.id) {
+        console.error('Profile data with ID is required to create profile');
         return false;
       }
       
-      // First check if profile already exists
-      const { data } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', profileData.id)
-        .maybeSingle();
-        
-      if (data) {
-        console.log('Profile already exists, using update instead');
-        return userProfileService.updateUserProfile(profileData.id, profileData);
-      }
+      // Convert to database format
+      const dbProfile = mapUserProfileToDbProfile(profileData);
       
-      // Create new profile
+      // Add timestamps
+      const now = new Date().toISOString();
+      dbProfile.created_at = now;
+      dbProfile.updated_at = now;
+      
+      // Insert into database
       const { error } = await supabase
         .from('profiles')
-        .insert({
-          ...mapUserProfileToDbProfile(profileData),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-      
+        .insert(dbProfile);
+        
       if (error) {
-        console.error('Error creating user profile:', error);
+        console.error('Error creating profile in database:', error);
+        
+        // Check if it's a unique constraint violation (profile already exists)
+        if (error.code === '23505') {
+          console.log('Profile already exists, attempting update instead');
+          
+          // Try updating instead
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              ...dbProfile,
+              created_at: undefined, // Don't overwrite creation date
+            })
+            .eq('id', profileData.id);
+            
+          if (updateError) {
+            console.error('Error updating existing profile:', updateError);
+            return false;
+          }
+          
+          return true;
+        }
+        
         return false;
       }
       
@@ -448,102 +432,6 @@ export const userProfileService = {
       const profileUpdate = { ...profileData };
       
       // Format the standardized birthdate field
-      const formatDateField = (dateStr: string | null | undefined): string | null => {
-        if (!dateStr) return null;
-        
-        try {
-          const date = new Date(dateStr);
-          if (!isNaN(date.getTime())) {
-            return date.toISOString().split('T')[0];
-          }
-          console.warn('Invalid date format:', dateStr);
-          return null;
-        } catch (e) {
-      };
-      
-      // Try to save this profile to the database for future use
-      try {
-        await userProfileService.createUserProfile(syntheticProfile);
-      } catch (saveError) {
-        console.warn('Non-fatal error saving synthetic profile:', saveError);
-      }
-      
-      return syntheticProfile;
-    }
-    
-    console.warn('No profile found for user ID after all fallbacks:', userId);
-    return null;
-  } catch (error) {
-    console.error('Error getting user profile:', error);
-    return null;
-  }
-},
-
-/**
- * Create a new user profile in Supabase
- * @param profileData Complete profile data to create
- */
-createUserProfile: async (profileData: UserProfile): Promise<boolean> => {
-  try {
-    console.log('Creating new user profile for ID:', profileData.id);
-    
-    if (!profileData.id) {
-      console.error('Cannot create user profile: Missing user ID');
-      return false;
-    }
-    
-    // First check if profile already exists
-    const { data } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', profileData.id)
-      .maybeSingle();
-      
-    if (data) {
-      console.log('Profile already exists, using update instead');
-      return userProfileService.updateUserProfile(profileData.id, profileData);
-    }
-    
-    // Create new profile
-    const { error } = await supabase
-      .from('profiles')
-      .insert({
-        ...mapUserProfileToDbProfile(profileData),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
-    
-    if (error) {
-      console.error('Error creating user profile:', error);
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error creating user profile:', error);
-    return false;
-  }
-},
-
-/**
- * Update a user's profile
- * @param userId User ID to update profile for
- * @param profileData Profile data to update
- */
-updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Promise<boolean> => {
-  try {
-    if (!userId) {
-      console.error('User ID is required to update profile');
-      return false;
-    }
-    
-    // Create a copy of profileData to avoid mutating the original
-    const profileUpdate = { ...profileData };
-    
-    // Format date field - only using standardized birthdate field
-    // Format: YYYY-MM-DD for ISO format dates
-    try {
-      // Helper function to format date strings
       const formatDate = (dateStr: string | null | undefined): string | null => {
         if (!dateStr) return null;
         try {
@@ -559,43 +447,16 @@ updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Pr
         }
       };
       
-      const sourceDate = profileUpdate.birthdate;
-      
-      if (sourceDate) {
-        // Ensure date is in YYYY-MM-DD format
-        const formattedDate = formatDate(sourceDate);
-        profileUpdate.birthdate = formattedDate;
-      } else if (sourceDate === null) {
-        // Explicitly set to null if the user is clearing the date
-        profileUpdate.birthdate = null;
+      // Format birthdate if provided
+      if (profileUpdate.birthdate !== undefined) {
+        profileUpdate.birthdate = formatDate(profileUpdate.birthdate);
       }
-    } catch (e) {
-      console.error('Error formatting date:', e);
-      return false; // Return false instead of null to match return type
-    }
-    
-    // Convert profile data to database format
-    const dbProfile = mapUserProfileToDbProfile(profileUpdate);
-    
-    console.log('Updating profile in database:', { userId, dbProfile });
-    
-    // First try: Update with all fields
-    let updateResult = await supabase
-      .from('profiles')
-      .update({
-        ...dbProfile,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId)
-      .select();
-    
-    if (updateResult.error) {
-      console.error('Error updating profile in database:', updateResult.error);
       
-      // Try more specific error handling approaches
-      if (updateResult.error.code === 'PGRST204' || 
-          (updateResult.error.message?.includes('column') && 
-           updateResult.error.message?.includes('does not exist'))) {
+      // Convert profile data to database format
+      const dbProfile = mapUserProfileToDbProfile(profileUpdate);
+      
+      // Add updated timestamp
+      dbProfile.updated_at = new Date().toISOString();
       
       // First try: Update with all fields
       let updateResult = await supabase
@@ -637,68 +498,52 @@ updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Pr
             }
           }
           
-          // Strategy 2: Try with core fields only
-          console.log('Trying core fields only update');
+          // Strategy 2: Try minimal fields only (names)
+          console.log('Trying minimal update with first_name and last_name only');
           const { error: retryError2 } = await supabase
             .from('profiles')
             .update({
               first_name: dbProfile.first_name,
               last_name: dbProfile.last_name,
-              email: dbProfile.email,
-              updated_at: new Date().toISOString(),
-              // Exclude both date fields
+              updated_at: new Date().toISOString()
             })
             .eq('id', userId);
             
           if (!retryError2) {
-            console.log('Successfully updated profile with core fields only');
+            console.log('Successfully updated profile with names only');
             return true;
           }
           
-          // If we got here, we have a more serious issue
-          console.error('All update strategies failed');
-        }
-        
-        // If the profile doesn't exist, try creating it
-        if (updateResult.error.code === 'PGRST116' || updateResult.error.message?.includes('not found')) {
-          console.log('Profile does not exist, attempting to create it');
-          return userProfileService.createUserProfile({
-            id: userId,
-            firstName: profileUpdate.firstName || '',
-            lastName: profileUpdate.lastName || '',
-            email: profileUpdate.email || '',
-            birthdate: profileUpdate.birthdate as string | null | undefined,
-            // Standardized on birthdate field only
-            hasCompletedOnboarding: false,
-            emailVerified: true, // Set to true for new profiles since we have verified emails
-          });
+          // Strategy 3: Last resort - try to create profile if it doesn't exist
+          if (updateResult.error.message?.includes('not found') || 
+              updateResult.error.code === 'PGRST104' || 
+              updateResult.error.code === 'PGRST116') {
+            console.log('Profile might not exist - trying to create instead');
+            
+            // Construct a minimal profile from the update data
+            const minimalProfile: UserProfile = {
+              id: userId,
+              firstName: profileUpdate.firstName || '',
+              lastName: profileUpdate.lastName || '',
+              email: profileUpdate.email || '',
+              birthdate: profileUpdate.birthdate as string | null | undefined,
+              // Standardized on birthdate field only
+              hasCompletedOnboarding: false,
+              emailVerified: true, // Set to true for new profiles since we have verified emails
+            };
+            
+            const success = await userProfileService.createUserProfile(minimalProfile);
+            if (success) {
+              console.log('Successfully created profile as fallback for update');
+              return true;
+            }
+          }
         }
         
         return false;
       }
       
-      // Also update auth metadata with name and date fields
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user && user.id === userId) {
-          const metadata: Record<string, unknown> = {};
-          
-          if (profileUpdate.firstName) metadata.first_name = profileUpdate.firstName;
-          if (profileUpdate.lastName) metadata.last_name = profileUpdate.lastName;
-          if (profileUpdate.birthdate) metadata.birthdate = profileUpdate.birthdate;
-          
-          await supabase.auth.updateUser({
-            data: metadata
-          });
-        }
-      } catch (metadataError) {
-        console.error('Error updating user metadata (non-critical):', metadataError);
-        // Don't fail the overall operation for metadata update failures
-      }
-      
-      console.log('Successfully updated profile:', updateResult.data);
       return true;
-      
     } catch (error) {
       console.error('Unexpected error updating profile:', error);
       if (error instanceof Error) {
@@ -741,28 +586,28 @@ updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Pr
         return { success: false, error: 'Missing required information' };
       }
       
-      console.log(`Requesting account deletion for user ${userId}`);
-      
+      // Start a transaction
+      const now = new Date().toISOString();
       // Calculate purge date (30 days from now)
-      const now = new Date();
-      const purgeDate = new Date();
-      purgeDate.setDate(now.getDate() + 30);
+      const thirtyDaysLater = new Date();
+      thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
+      const scheduledPurgeAt = thirtyDaysLater.toISOString();
       
-      // Generate a recovery token (UUID v4)
-      const recoveryToken = crypto.randomUUID();
+      // Generate a recovery token
+      const recoveryToken = crypto.randomUUID ? crypto.randomUUID() : `recovery_${userId}_${Date.now()}`;
       
       // Update profile status
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
           account_status: 'pending_deletion',
-          deletion_requested_at: now.toISOString(),
-          updated_at: now.toISOString()
+          deletion_requested_at: now,
+          updated_at: now
         })
         .eq('id', userId);
         
       if (profileError) {
-        console.error('Error updating profile status:', profileError);
+        console.error('Error updating profile status for deletion:', profileError);
         return { success: false, error: 'Failed to update account status' };
       }
       
@@ -772,42 +617,41 @@ updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Pr
         .insert({
           user_id: userId,
           email: email,
-          requested_at: now.toISOString(),
-          scheduled_purge_at: purgeDate.toISOString(),
+          requested_at: now,
+          scheduled_purge_at: scheduledPurgeAt,
           status: 'pending',
           recovery_token: recoveryToken
         });
         
       if (requestError) {
-        console.error('Error creating deletion request:', requestError);
+        console.error('Error creating account deletion request:', requestError);
         
-        // Revert profile status change if request creation fails
+        // Revert profile status if request creation failed
         await supabase
           .from('profiles')
           .update({
             account_status: 'active',
             deletion_requested_at: null,
-            updated_at: now.toISOString()
+            updated_at: now
           })
           .eq('id', userId);
           
-        return { success: false, error: 'Failed to schedule account deletion' };
+        return { success: false, error: 'Failed to create deletion request' };
       }
       
-      // TODO: Send deletion confirmation email with recovery link
-      // This would typically integrate with your email service
-      console.log(`Account deletion scheduled. Recovery token: ${recoveryToken}`);
-      
-      return { success: true };
+      return { 
+        success: true,
+        recoveryToken // Include the token for recovery communication
+      };
     } catch (error) {
-      console.error('Account deletion request failed:', error);
-      return { success: false, error: 'Unexpected error during account deletion request' };
+      console.error('Unexpected error requesting account deletion:', error);
+      return { success: false, error: 'An unexpected error occurred' };
     }
   },
   
   /**
-   * Recover an account that was marked for deletion
-   * @param recoveryToken The token from the recovery link
+   * Recover an account marked for deletion
+   * @param recoveryToken The recovery token from the deletion request
    * @returns Object with success status and optional error message
    */
   recoverAccount: async (recoveryToken: string): Promise<{ success: boolean, error?: string }> => {
@@ -816,81 +660,73 @@ updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Pr
         return { success: false, error: 'Recovery token is required' };
       }
       
-      console.log(`Attempting account recovery with token: ${recoveryToken}`);
-      
-      // Find the deletion request with this token
-      const { data: request, error: requestError } = await supabase
+      // Find the deletion request
+      const { data: request, error: findError } = await supabase
         .from('account_deletion_requests')
-        .select('user_id, email, status, scheduled_purge_at')
+        .select('*')
         .eq('recovery_token', recoveryToken)
         .eq('status', 'pending')
         .single();
         
-      if (requestError || !request) {
-        console.error('Error finding deletion request:', requestError);
+      if (findError || !request) {
+        console.error('Error finding deletion request:', findError);
         return { success: false, error: 'Invalid or expired recovery token' };
       }
       
-      // Check if the token is still within the 30-day window
-      const purgeDate = new Date(request.scheduled_purge_at);
-      const now = new Date();
-      
-      if (now > purgeDate) {
-        console.error('Recovery period has expired');
-        return { success: false, error: 'Recovery period has expired' };
+      // Update the request status
+      const { error: updateRequestError } = await supabase
+        .from('account_deletion_requests')
+        .update({
+          status: 'cancelled',
+        })
+        .eq('id', request.id);
+        
+      if (updateRequestError) {
+        console.error('Error updating deletion request status:', updateRequestError);
+        return { success: false, error: 'Failed to update request status' };
       }
       
-      // Update profile status
-      const { error: profileError } = await supabase
+      // Update the profile status
+      const { error: updateProfileError } = await supabase
         .from('profiles')
         .update({
           account_status: 'active',
           deletion_requested_at: null,
-          updated_at: now.toISOString()
+          updated_at: new Date().toISOString()
         })
         .eq('id', request.user_id);
         
-      if (profileError) {
-        console.error('Error recovering profile:', profileError);
-        return { success: false, error: 'Failed to recover account' };
+      if (updateProfileError) {
+        console.error('Error updating profile status:', updateProfileError);
+        return { success: false, error: 'Failed to restore account' };
       }
-      
-      // Update deletion request status
-      const { error: updateError } = await supabase
-        .from('account_deletion_requests')
-        .update({
-          status: 'cancelled'
-        })
-        .eq('recovery_token', recoveryToken);
-        
-      if (updateError) {
-        console.error('Error updating deletion request:', updateError);
-        return { success: false, error: 'Failed to update deletion request' };
-      }
-      
-      // TODO: Send recovery confirmation email
-      // This would typically integrate with your email service
-      console.log(`Account recovered successfully: ${request.user_id}`);
       
       return { success: true };
     } catch (error) {
-      console.error('Account recovery failed:', error);
-      return { success: false, error: 'Unexpected error during account recovery' };
+      console.error('Unexpected error recovering account:', error);
+      return { success: false, error: 'An unexpected error occurred' };
     }
   },
   
   /**
-   * Check if a user's account is pending deletion
-   * @param userId User ID to check
-   * @returns Object with pending status and purge date if applicable
+   * Check the status of an account deletion request
+   * @param userId User ID to check deletion status for
+   * @returns Object with deletion status information
    */
-  checkAccountDeletionStatus: async (userId: string): Promise<{ isPending: boolean, purgeDate?: Date }> => {
+  checkAccountDeletionStatus: async (userId: string): Promise<{ 
+    isPendingDeletion: boolean, 
+    requestDate?: string,
+    scheduledPurgeDate?: string,
+    daysRemaining?: number,
+    recoveryToken?: string
+  }> => {
     try {
       if (!userId) {
-        return { isPending: false };
+        console.error('User ID is required to check deletion status');
+        return { isPendingDeletion: false };
       }
       
-      // Check profile status
+      // Get profile status
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('account_status, deletion_requested_at')
@@ -898,40 +734,56 @@ updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Pr
         .single();
         
       if (profileError || !profile) {
-        return { isPending: false };
+        console.error('Error getting profile status:', profileError);
+        return { isPendingDeletion: false };
       }
       
-      if (profile.account_status === 'pending_deletion') {
-        // Get scheduled purge date
-        const { data: request, error: requestError } = await supabase
-          .from('account_deletion_requests')
-          .select('scheduled_purge_at')
-          .eq('user_id', userId)
-          .eq('status', 'pending')
-          .single();
-          
-        if (!requestError && request) {
-          return { 
-            isPending: true, 
-            purgeDate: new Date(request.scheduled_purge_at) 
-          };
-        }
+      const isPendingDeletion = profile.account_status === 'pending_deletion';
+      
+      if (!isPendingDeletion) {
+        return { isPendingDeletion: false };
+      }
+      
+      // Get detailed deletion request
+      const { data: request, error: requestError } = await supabase
+        .from('account_deletion_requests')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'pending')
+        .single();
         
-        return { isPending: true };
+      if (requestError || !request) {
+        console.error('Error getting deletion request:', requestError);
+        return { 
+          isPendingDeletion: true,
+          requestDate: profile.deletion_requested_at
+        };
       }
       
-      return { isPending: false };
+      // Calculate days remaining
+      const now = new Date();
+      const purgeDate = new Date(request.scheduled_purge_at);
+      const diffTime = Math.abs(purgeDate.getTime() - now.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      return {
+        isPendingDeletion: true,
+        requestDate: request.requested_at,
+        scheduledPurgeDate: request.scheduled_purge_at,
+        daysRemaining: diffDays,
+        recoveryToken: request.recovery_token
+      };
     } catch (error) {
-      console.error('Error checking account deletion status:', error);
-      return { isPending: false };
+      console.error('Unexpected error checking deletion status:', error);
+      return { isPendingDeletion: false };
     }
   },
   
   /**
-   * Complete the account deletion immediately (hard delete)
-   * This is the original delete method, now used for immediate deletion
+   * Permanently delete a user profile and all associated data
    * @param userId User ID to delete
-   * @param deleteAuth Whether to delete the auth record too (requires admin privileges)
+   * @param deleteAuth Whether to also delete the auth user
+   * @returns True if deletion was successful
    */
   deleteUserProfile: async (userId: string, deleteAuth: boolean = false): Promise<boolean> => {
     try {
@@ -940,72 +792,56 @@ updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Pr
         return false;
       }
       
-      console.log(`Deleting user profile for ${userId}, deleteAuth=${deleteAuth}`);
-      
-      // 1. Start a transaction to delete related data (travel preferences first)
-      const { error: travelPrefError } = await supabase
+      // Delete travel preferences
+      const { error: travelError } = await supabase
         .from('travel_preferences')
         .delete()
         .eq('user_id', userId);
-      
-      if (travelPrefError) {
-        console.error('Error deleting travel preferences:', travelPrefError);
-        // Continue anyway to try deleting the profile
+        
+      if (travelError) {
+        console.warn('Error deleting travel preferences:', travelError);
+        // Continue with deletion even if this fails
       }
       
-      // 2. Delete any pending deletion requests
+      // Mark deletion requests as completed
       const { error: requestError } = await supabase
         .from('account_deletion_requests')
-        .delete()
-        .eq('user_id', userId);
+        .update({
+          status: 'completed',
+          purged_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .eq('status', 'pending');
         
       if (requestError) {
-        console.error('Error deleting account deletion requests:', requestError);
-        // Continue anyway to try deleting the profile
+        console.warn('Error updating deletion requests:', requestError);
+        // Continue with deletion even if this fails
       }
       
-      // 3. Delete the profile record
+      // Delete profile
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
         .eq('id', userId);
-      
+        
       if (profileError) {
         console.error('Error deleting profile:', profileError);
         return false;
       }
       
-      // 4. If requested and we have admin permissions, delete the auth record
+      // Delete auth user if requested
       if (deleteAuth) {
-        try {
-          // This requires admin privileges and may not work in all environments
-          const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-          
-          if (authError) {
-            console.error('Error deleting auth user (admin only):', authError);
-            // Don't return false here as we've already deleted the profile
-          } else {
-            console.log('Successfully deleted auth user');
-          }
-        } catch (adminError) {
-          console.error('Admin deletion failed (likely due to permissions):', adminError);
-          // Fall back to signing out the current user if this is a self-deletion
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user && user.id === userId) {
-            await supabase.auth.signOut();
-          }
-        }
-      } else {
-        // If not deleting the auth record, sign out if this is the current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user && user.id === userId) {
-          await supabase.auth.signOut();
+        const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+        
+        if (authError) {
+          console.error('Error deleting auth user:', authError);
+          return false;
         }
       }
       
       return true;
     } catch (error) {
-      console.error('Error deleting user profile:', error);
+      console.error('Unexpected error deleting user profile:', error);
       return false;
     }
   }
