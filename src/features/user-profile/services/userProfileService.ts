@@ -12,15 +12,19 @@ import { UserProfile, DbUserProfile } from '../types/profileTypes';
  * Converts snake_case database profile to camelCase application profile
  */
 const mapDbProfileToUserProfile = (dbProfile: DbUserProfile): UserProfile => {
+  // Determine the actual date value, preferring birthdate but falling back to birthday if needed
+  const dateValue = dbProfile.birthdate || dbProfile.birthday || null;
+  
   return {
     id: dbProfile.id,
     firstName: dbProfile.first_name || '',
     lastName: dbProfile.last_name || '',
     email: dbProfile.email,
     avatarUrl: dbProfile.avatar_url,
-    // Prefer birthdate, fall back to birthday for compatibility
-    birthday: dbProfile.birthday || dbProfile.birthdate,
-    birthdate: dbProfile.birthdate || dbProfile.birthday,
+    // Only use birthdate in the application model going forward
+    birthdate: dateValue,
+    // Remove birthday field from type eventually, but keep for backward compatibility
+    birthday: dateValue, // Deprecated: use birthdate instead
     hasCompletedOnboarding: dbProfile.has_completed_onboarding,
     emailVerified: dbProfile.email_verified,
     createdAt: dbProfile.created_at,
@@ -30,6 +34,7 @@ const mapDbProfileToUserProfile = (dbProfile: DbUserProfile): UserProfile => {
 
 /**
  * Converts camelCase application profile to snake_case database profile
+ * Standardizes on using birthdate as the single date field in the database
  */
 const mapUserProfileToDbProfile = (profile: Partial<UserProfile>): Partial<DbUserProfile> => {
   const dbProfile: Partial<DbUserProfile> = {};
@@ -40,13 +45,14 @@ const mapUserProfileToDbProfile = (profile: Partial<UserProfile>): Partial<DbUse
   if (profile.email !== undefined) dbProfile.email = profile.email;
   if (profile.avatarUrl !== undefined) dbProfile.avatar_url = profile.avatarUrl;
   
-  // Handle both birthday and birthdate fields for compatibility
-  if (profile.birthdate !== undefined) {
-    dbProfile.birthdate = profile.birthdate;
-    dbProfile.birthday = profile.birthdate; // Keep both in sync
-  } else if (profile.birthday !== undefined) {
-    dbProfile.birthday = profile.birthday;
-    dbProfile.birthdate = profile.birthday; // Keep both in sync
+  // Standardize on birthdate field, use either source for backward compatibility
+  const dateValue = profile.birthdate !== undefined ? profile.birthdate : profile.birthday;
+  if (dateValue !== undefined) {
+    // Always set birthdate as the primary field
+    dbProfile.birthdate = dateValue;
+    // Still set birthday for backward compatibility with existing code
+    // This can be removed once all code is migrated to use birthdate
+    dbProfile.birthday = dateValue;
   }
   
   if (profile.hasCompletedOnboarding !== undefined) dbProfile.has_completed_onboarding = profile.hasCompletedOnboarding;
@@ -467,18 +473,17 @@ export const userProfileService = {
         }
       };
       
-      // Handle birthdate formatting and synchronization
-      const formattedBirthdate = formatDateField(profileUpdate.birthdate);
-      const formattedBirthday = formatDateField(profileUpdate.birthday);
+      // Standardize date handling to use birthdate field
+      // Determine the source date, prioritizing birthdate but falling back to birthday if needed
+      const sourceDate = profileUpdate.birthdate !== undefined ? profileUpdate.birthdate : profileUpdate.birthday;
+      const formattedDate = formatDateField(sourceDate);
       
-      // Use whichever date is valid, with birthdate taking precedence
-      if (formattedBirthdate) {
-        profileUpdate.birthdate = formattedBirthdate;
-        profileUpdate.birthday = formattedBirthdate; // Keep both fields in sync
-      } else if (formattedBirthday) {
-        profileUpdate.birthday = formattedBirthday;
-        profileUpdate.birthdate = formattedBirthday; // Keep both fields in sync
-      } else if (profileUpdate.birthdate === '' || profileUpdate.birthday === '') {
+      // Set the standardized birthdate field
+      if (formattedDate) {
+        // Use the formatted date for both fields for backward compatibility
+        profileUpdate.birthdate = formattedDate;
+        profileUpdate.birthday = formattedDate; // Legacy support - will be removed in future
+      } else if (sourceDate === '') {
         // Handle explicit empty strings - set to null to clear the field
         profileUpdate.birthdate = null;
         profileUpdate.birthday = null;
