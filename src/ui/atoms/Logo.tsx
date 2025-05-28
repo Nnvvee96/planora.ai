@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useAuthContext } from '@/features/auth/components/AuthProvider';
 
 interface LogoProps {
   className?: string;
@@ -11,10 +12,19 @@ interface LogoProps {
 
 const Logo: React.FC<LogoProps> = ({ 
   className = '', 
-  href = '/', 
+  href, 
   size = 'md',
   variant = 'full' 
 }) => {
+  // Use the AuthContext directly to get real-time auth state
+  const { isAuthenticated } = useAuthContext();
+  
+  // Determine correct href based on auth state
+  const getDestination = () => {
+    if (href) return href; // Use provided href if specified
+    return isAuthenticated ? '/dashboard' : '/';
+  };
+  
   const sizeClasses = {
     sm: 'text-xl',
     md: 'text-2xl',
@@ -71,17 +81,19 @@ const Logo: React.FC<LogoProps> = ({
     }
   };
 
-  const logoContent = (
-    <div className={cn(className)}>
+  // The single return statement for the component
+  return (
+    <Link
+      to={getDestination()}
+      className={cn(
+        'font-bold tracking-tight transition-colors',
+        sizeClasses[size],
+        className
+      )}
+    >
       {renderContent()}
-    </div>
+    </Link>
   );
-
-  if (href) {
-    return <Link to={href}>{logoContent}</Link>;
-  }
-
-  return logoContent;
 };
 
 export { Logo };

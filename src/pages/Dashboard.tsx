@@ -85,7 +85,18 @@ const Dashboard = () => {
   const userFirstName = user?.firstName || userProfile?.firstName || '';
   const userLastName = user?.lastName || userProfile?.lastName || '';
   const userFullName = `${userFirstName} ${userLastName}`.trim();
-  const userName = userFullName || user?.username || "Guest";
+  
+  // Only use Guest as a fallback when we're absolutely sure no user data exists
+  const userName = userFullName || user?.username || user?.email?.split('@')[0] || (loading ? 'Loading...' : 'Guest');
+  
+  // Redirect to login if not authenticated (this provides extra security)
+  useEffect(() => {
+    // Only run after initial loading completes
+    if (!loading && !user && authService) {
+      console.log('No authenticated user found in Dashboard, redirecting to login');
+      navigate('/login');
+    }
+  }, [user, loading, authService, navigate]);
   
   // Handler for directing to chat interface
   const handleChatWithPlanora = () => {
