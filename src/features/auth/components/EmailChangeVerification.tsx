@@ -21,7 +21,7 @@ import { supabase } from '@/database/databaseExports';
  * EmailChangeVerification component handles the verification of email changes
  * and proper synchronization between auth state and database state
  */
-export const EmailChangeVerification: React.FC = () => {
+const EmailChangeVerification: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [isVerifying, setIsVerifying] = useState(true);
@@ -245,4 +245,6 @@ export const EmailChangeVerification: React.FC = () => {
   );
 };
 
+// Single export that works with both import styles
+export { EmailChangeVerification };
 export default EmailChangeVerification;

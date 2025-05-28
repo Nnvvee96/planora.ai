@@ -251,8 +251,24 @@ export const supabaseAuthService = {
    * @returns The full URL for email verification redirect
    */
   getEmailVerificationRedirectUrl: (route: string): string => {
-    // Base URL is the current site's origin
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    let baseUrl = '';
+    
+    // First, check for production Vercel URL
+    if (import.meta.env.VITE_PRODUCTION_URL) {
+      baseUrl = import.meta.env.VITE_PRODUCTION_URL;
+    }
+    // Fall back to current origin if available
+    else if (typeof window !== 'undefined' && window.location.origin) {
+      baseUrl = window.location.origin;
+    } 
+    // If all else fails, use the Vercel production URL
+    else {
+      baseUrl = 'https://planora-ai-plum.vercel.app';
+    }
+    
+    // Log the redirect URL for debugging
+    console.log(`Setting email verification redirect URL: ${baseUrl}/auth/${route}`);
+    
     return `${baseUrl}/auth/${route}`;
   },
 
@@ -526,14 +542,20 @@ export const supabaseAuthService = {
   },
   
   /**
-   * Verify email address using token
-   * This is a comprehensive function that handles both regular verification and email change verification
+   * Verify email address using a token from the verification link
+   * Handles both initial email verification and email change verification
    * @param token The verification token from email link
    * @returns True if verification successful, false otherwise
    */
   verifyEmail: async (token: string): Promise<boolean> => {
     try {
       console.log('Starting email verification process with token');
+      
+      // Check if token looks valid
+      if (!token || token.length < 10) {
+        console.error('Invalid verification token format');
+        return false;
+      }
       
       // First verify the token with Supabase auth
       const { error } = await supabase.auth.verifyOtp({
@@ -543,6 +565,9 @@ export const supabaseAuthService = {
 
       if (error) {
         console.error('Error verifying email token:', error);
+        if (error.message.includes('expired')) {
+          throw new Error('Verification link has expired. Please request a new verification email.');
+        }
         return false;
       }
 
@@ -597,36 +622,46 @@ export const supabaseAuthService = {
             
             // Also check if this was a Google-to-Email conversion and mark it in metadata
             try {
-              const { data: trackingData } = await supabase
+              // First check if the table exists before trying to query it
+              const { error: tableCheckError } = await supabase
                 .from('email_change_tracking')
-                .select('auth_provider')
-                .eq('user_id', user.id)
-                .eq('status', 'pending')
-                .single();
-                
-              if (trackingData && trackingData.auth_provider === 'google') {
-                // Mark in user metadata that this was converted from Google
-                await supabase.auth.updateUser({
-                  data: {
-                    converted_from_google: true,
-                    original_provider: 'google',
-                    provider_changed_at: new Date().toISOString()
-                  }
-                });
-                
-                console.log('User metadata updated to reflect Google-to-Email conversion');
-              }
+                .select('count(*)', { count: 'exact', head: true });
               
-              // Update tracking record
-              await supabase
-                .from('email_change_tracking')
-                .update({
-                  status: 'completed',
-                  completed_at: new Date().toISOString()
-                })
-                .eq('user_id', user.id)
-                .eq('status', 'pending');
+              if (tableCheckError && tableCheckError.message.includes('does not exist')) {
+                console.warn('email_change_tracking table does not exist in database');
+                // Continue without tracking - it's not critical
+              } else {
+                // Table exists, proceed with tracking query
+                const { data: trackingData } = await supabase
+                  .from('email_change_tracking')
+                  .select('auth_provider')
+                  .eq('user_id', user.id)
+                  .eq('status', 'pending')
+                  .single();
+                  
+                if (trackingData && trackingData.auth_provider === 'google') {
+                  // Mark in user metadata that this was converted from Google
+                  await supabase.auth.updateUser({
+                    data: {
+                      converted_from_google: true,
+                      original_provider: 'google',
+                      provider_changed_at: new Date().toISOString()
+                    }
+                  });
+                  
+                  console.log('User metadata updated to reflect Google-to-Email conversion');
+                }
                 
+                // Update tracking record
+                await supabase
+                  .from('email_change_tracking')
+                  .update({
+                    status: 'completed',
+                    completed_at: new Date().toISOString()
+                  })
+                  .eq('user_id', user.id)
+                  .eq('status', 'pending');
+              }
             } catch (trackingErr) {
               console.warn('Non-critical error with tracking record:', trackingErr);
               // Continue despite error - this is helpful but not critical

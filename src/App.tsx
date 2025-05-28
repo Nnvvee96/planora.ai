@@ -8,7 +8,7 @@ import { Provider } from 'react-redux';
 import { store } from './store/store';
 import { Suspense, lazy } from 'react';
 
-// Import the auth components directly
+// Import the auth components directly using named imports following Planora's architectural principles
 import { EmailConfirmation } from './features/auth/components/EmailConfirmation';
 import { EmailChangeVerification } from './features/auth/components/EmailChangeVerification';
 import { ResetPassword } from './features/auth/components/ResetPassword';
