@@ -14,8 +14,13 @@ import { Logo } from '@/ui/atoms/Logo';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getAuthService } from '../authApi';
 import { userProfileService } from '@/features/user-profile/services/userProfileService';
+// Import Supabase for direct database operations
 import { supabase } from '@/database/databaseExports';
 
+/**
+ * EmailChangeVerification component handles the verification of email changes
+ * and proper synchronization between auth state and database state
+ */
 export const EmailChangeVerification: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();

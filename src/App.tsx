@@ -8,6 +8,11 @@ import { Provider } from 'react-redux';
 import { store } from './store/store';
 import { Suspense, lazy } from 'react';
 
+// Import the auth components directly
+import { EmailConfirmation } from './features/auth/components/EmailConfirmation';
+import { EmailChangeVerification } from './features/auth/components/EmailChangeVerification';
+import { ResetPassword } from './features/auth/components/ResetPassword';
+
 // Import our auth API components using factory functions
 import { 
   getAuthProviderComponent,
@@ -92,6 +97,21 @@ const App = () => {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/auth/callback" element={<Suspense fallback={<div className="flex items-center justify-center h-screen">Processing authentication...</div>}><AuthCallback /></Suspense>} />
+                <Route path="/auth/email-confirmation" element={
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Verifying your email...</div>}>
+                    <EmailConfirmation />
+                  </Suspense>
+                } />
+                <Route path="/auth/email-change-verification" element={
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Verifying your email change...</div>}>
+                    <EmailChangeVerification />
+                  </Suspense>
+                } />
+                <Route path="/auth/reset-password" element={
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading password reset...</div>}>
+                    <ResetPassword />
+                  </Suspense>
+                } />
                 <Route path="/account-recovery" element={<Suspense fallback={<div className="flex items-center justify-center h-screen">Processing account recovery...</div>}><AccountRecoveryPage /></Suspense>} />
                 <Route path="/debug" element={<DebugScreen />} />
                 
