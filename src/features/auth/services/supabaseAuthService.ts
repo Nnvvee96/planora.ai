@@ -860,32 +860,25 @@ export const supabaseAuthService = {
   
   /**
    * Determine the authentication provider used by a user
-   * @param userId Optional user ID to check (uses current user if not provided)
-   * @returns The detected authentication provider type
+   * @returns The detected authentication provider type based on the current user session
    */
-  getAuthProvider: async (userId?: string): Promise<AuthProviderType> => {
+  getAuthProvider: async (): Promise<AuthProviderType> => {
     try {
-      // If userId is not provided, get the current user
-      if (!userId) {
-        const { data: { user } } = await supabase.auth.getUser();
-        userId = user?.id;
-        
-        // If no current user, return anonymous
-        if (!userId) {
-          return AuthProviderType.ANONYMOUS;
-        }
-      }
-      
-      // Get the user data from Supabase auth
-      const { data: { user }, error } = await supabase.auth.admin.getUserById(userId);
+      // Get the current user from the session - this is available to regular users
+      const { data: { user }, error } = await supabase.auth.getUser();
       
       if (error || !user) {
-        console.error('Error getting user auth provider:', error);
+        console.error('Error getting current user:', error);
         return AuthProviderType.ANONYMOUS;
       }
       
-      // Check the user's app_metadata for provider information
-      const provider = user.app_metadata?.provider;
+      // Check user metadata for provider information
+      // The provider info could be in different locations depending on auth method
+      const provider = user.app_metadata?.provider || 
+                      user.identities?.[0]?.provider || 
+                      user.user_metadata?.provider;
+                      
+      console.log('Detected authentication provider:', provider);
       
       if (provider === 'google') {
         return AuthProviderType.GOOGLE;
@@ -894,9 +887,38 @@ export const supabaseAuthService = {
         return AuthProviderType.EMAIL;
       }
       
-      // If no clear provider is found, check if they have a password set
-      // (Note: Supabase doesn't expose password existence directly, so we infer from email confirmation)
+      // Check if the user has any identities that might indicate the auth method
+      if (user.identities && user.identities.length > 0) {
+        // Look through identities for social login providers
+        for (const identity of user.identities) {
+          if (identity.provider === 'google') {
+            return AuthProviderType.GOOGLE;
+          }
+        }
+        
+        // If there are identities but none are social, assume email
+        if (user.email) {
+          return AuthProviderType.EMAIL;
+        }
+      }
+      
+      // If the user has a confirmed email, they likely use email auth
       if (user.email_confirmed_at) {
+        return AuthProviderType.EMAIL;
+      }
+      
+      // As a fallback, check user_metadata for any sign of provider
+      if (user.user_metadata) {
+        if (user.user_metadata.full_name || 
+            user.user_metadata.name ||
+            user.user_metadata.email_verified) {
+          // These fields are typically set for Google auth
+          return AuthProviderType.GOOGLE;
+        }
+      }
+      
+      // If we get here and have an email, assume email auth
+      if (user.email) {
         return AuthProviderType.EMAIL;
       }
       
