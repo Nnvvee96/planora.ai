@@ -14,6 +14,7 @@ import { Logo } from '@/ui/atoms/Logo';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getAuthService } from '../authApi';
 import { userProfileService } from '@/features/user-profile/services/userProfileService';
+import { supabase } from '@/database/databaseExports';
 
 export const EmailChangeVerification: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -43,6 +44,16 @@ export const EmailChangeVerification: React.FC = () => {
         
         // Verify the email using our auth service
         const authService = getAuthService();
+        
+        // Check if verifyEmail method exists on the auth service
+        if (typeof authService.verifyEmail !== 'function') {
+          console.error('verifyEmail method not found on auth service');
+          setError('Verification service unavailable. Please contact support.');
+          setVerificationSuccess(false);
+          setIsVerifying(false);
+          return;
+        }
+        
         const success = await authService.verifyEmail(token);
         
         if (!success) {
@@ -73,10 +84,48 @@ export const EmailChangeVerification: React.FC = () => {
         // Now we need to sync the database profile with the new email
         // This ensures the database is updated even if the user didn't wait
         // for the verification before closing the browser
-        await userProfileService.updateUserProfile(user.id, {
-          email: user.email,
-          emailVerified: true
-        });
+        try {
+          // Update both directly through the profile service and through the auth service
+          // for maximum resilience
+          await userProfileService.updateUserProfile(user.id, {
+            email: user.email,
+            emailVerified: true // Use the property name from UserProfile type
+            // No updatedAt - it will be handled by the service
+          });
+          
+          // Also update database directly to handle properties that might not be in the UserProfile type
+          try {
+            await supabase
+              .from('profiles')
+              .update({
+                pending_email_change: null,
+                email_change_requested_at: null,
+                email_verified: true, // Actual database column name
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', user.id);
+          } catch (dbErr) {
+            console.warn('Error updating profile columns in database:', dbErr);
+          }
+          
+          // Also update the email_change_tracking table if it exists
+          try {
+            await supabase
+              .from('email_change_tracking')
+              .update({
+                status: 'completed',
+                completed_at: new Date().toISOString()
+              })
+              .eq('user_id', user.id)
+              .eq('status', 'pending');
+          } catch (trackingErr) {
+            // Non-critical error, just log it
+            console.warn('Error updating email change tracking:', trackingErr);
+          }
+        } catch (profileErr) {
+          console.warn('Error updating profile during verification:', profileErr);
+          // Non-critical error, continue with the process
+        }
         
         // Set verification as successful
         setVerificationSuccess(true);
