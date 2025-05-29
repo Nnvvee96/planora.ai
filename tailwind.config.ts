@@ -104,11 +104,23 @@ export default {
 					'0%, 100%': { transform: 'translateY(0)' },
 					'50%': { transform: 'translateY(-10px)' },
 				},
+				'float-reverse': {
+					'0%, 100%': { transform: 'translateY(0)' },
+					'50%': { transform: 'translateY(10px)' },
+				},
 				'pulse-light': {
 					'0%, 100%': { opacity: '1' },
 					'50%': { opacity: '0.7' },
 				},
 				'spin-slow': {
+					'0%': { transform: 'rotate(0deg)' },
+					'100%': { transform: 'rotate(360deg)' },
+				},
+				'spin-slow-reverse': {
+					'0%': { transform: 'rotate(0deg)' },
+					'100%': { transform: 'rotate(-360deg)' },
+				},
+				'spin-very-slow': {
 					'0%': { transform: 'rotate(0deg)' },
 					'100%': { transform: 'rotate(360deg)' },
 				},
@@ -145,8 +157,11 @@ export default {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'float': 'float 6s ease-in-out infinite',
+				'float-reverse': 'float-reverse 7s ease-in-out infinite',
 				'pulse-light': 'pulse-light 4s ease-in-out infinite',
 				'spin-slow': 'spin-slow 15s linear infinite',
+				'spin-slow-reverse': 'spin-slow-reverse 18s linear infinite',
+				'spin-very-slow': 'spin-very-slow 25s linear infinite',
 				'orbit': 'orbit 20s linear infinite',
 				'orbit-wide': 'orbit-wide 20s linear infinite',
 				'orbit-wide-reverse': 'orbit-wide-reverse 30s linear infinite',
@@ -154,6 +169,21 @@ export default {
 			},
 			fontFamily: {
 				'sans': ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+			},
+			transitionDelay: {
+				'400': '400ms',
+				'500': '500ms',
+				'600': '600ms', 
+				'800': '800ms',
+				'900': '900ms',
+				'1000': '1000ms',
+				'1500': '1500ms',
+				'2000': '2000ms',
+			},
+			perspective: {
+				'none': 'none',
+				'500': '500px',
+				'1000': '1000px',
 			},
 			backgroundImage: {
         		'hero-pattern': "url('/mesh-gradient.png')",
