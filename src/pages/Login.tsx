@@ -206,9 +206,13 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
             {error}
           </div>
         )}
-        <div className="grid gap-4 w-full">
+        <div className="grid gap-5 w-full">
+          {/* Email Field */}
           <div className="grid gap-2 w-full">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="text-white/80 flex items-center gap-1.5">
+              <Mail className="h-3.5 w-3.5 text-planora-accent-purple/80" />
+              Email
+            </Label>
             <Input
               id="email"
               placeholder="name@example.com"
@@ -220,15 +224,23 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               value={email}
               onChange={handleEmailChange}
               required
-              className="w-full max-w-full"
+              className="w-full max-w-full bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"
             />
           </div>
+          
+          {/* Password Field */}
           <div className="grid gap-2 w-full">
             <div className="flex items-center justify-between w-full">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-white/80 flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 text-planora-accent-purple/80">
+                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                Password
+              </Label>
               <Link
                 to="/forgot-password"
-                className="text-sm text-muted-foreground hover:text-white"
+                className="text-xs text-planora-accent-purple hover:text-planora-accent-pink transition-colors"
               >
                 Forgot password?
               </Link>
@@ -243,12 +255,14 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               value={password}
               onChange={handlePasswordChange}
               required
-              className="w-full max-w-full"
+              className="w-full max-w-full bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"
             />
           </div>
+          
+          {/* Submit Button */}
           <Button 
             disabled={isLoading} 
-            className="bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90 w-full"
+            className="bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90 w-full mt-2 py-5 font-medium"
             type="submit"
           >
             {isLoading ? (
@@ -265,51 +279,52 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           </Button>
         </div>
       </form>
-      <div className="relative w-full">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-white/10" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">
-            Or continue with
-          </span>
-        </div>
+      
+      {/* Divider */}
+      <div className="w-full flex items-center gap-3 py-1">
+        <div className="h-px bg-white/10 flex-grow"></div>
+        <span className="text-xs text-white/40">or continue with</span>
+        <div className="h-px bg-white/10 flex-grow"></div>
       </div>
-      <div className="flex flex-col sm:flex-row gap-3 w-full">
-        {/* Use a simple button that calls the sign in function directly */}
+      
+      {/* Social Login Buttons */}
+      <div className="grid grid-cols-2 gap-3 w-full">
+        {/* Google authentication button */}
         <Button 
           variant="outline" 
-          className="w-full flex items-center justify-center gap-2 flex-shrink-0" 
+          className="border-white/10 bg-white/5 hover:bg-white/10 text-white flex items-center gap-2 justify-center transition-colors"
           onClick={() => authContext?.signInWithGoogle?.()}
-          disabled={!authContext?.signInWithGoogle}
+          disabled={!authContext?.signInWithGoogle || isLoading}
           type="button"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" className="w-5 h-5 flex-shrink-0">
-            <path fill="currentColor" d="M12.545,12.151L12.545,12.151c0,1.054,0.855,1.909,1.909,1.909h3.536c-0.421,1.143-1.123,2.206-2.019,3.071c-0.739,0.739-1.578,1.348-2.485,1.818C12.264,19.583,10.931,20,9.545,20c-2.618,0-4.946-1.274-6.421-3.273c-0.891-1.213-1.364-2.697-1.364-4.242c0-1.363,0.379-2.662,1.095-3.769c0.717-1.107,1.717-1.989,2.945-2.545C6.909,5.637,8.235,5.331,9.545,5.331c1.918,0,3.752,0.736,5.114,2.025l-1.997,1.997c-0.979-0.979-2.025-1.436-3.118-1.436c-0.97,0-1.891,0.379-2.592,1.068c-0.701,0.688-1.18,1.654-1.18,2.728c0,1.075,0.479,2.04,1.18,2.728c0.701,0.689,1.622,1.068,2.592,1.068c0.517,0,1.021-0.146,1.44-0.392c0.391-0.229,0.76-0.522,1.095-0.857l2.458-2.458C12.545,11.301,12.545,12.151,12.545,12.151L12.545,12.151z M20.454,10.425h-2v-2h-2v2h-2v2h2v2h2v-2h2V10.425z"/>
+          <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20.283 10.356h-8.327v3.451h4.792c-.446 2.193-2.313 3.453-4.792 3.453a5.27 5.27 0 0 1-5.279-5.28 5.27 5.27 0 0 1 5.279-5.279c1.259 0 2.397.447 3.29 1.178l2.6-2.599c-1.584-1.381-3.615-2.233-5.89-2.233a8.908 8.908 0 0 0-8.934 8.934 8.907 8.907 0 0 0 8.934 8.934c4.467 0 8.529-3.249 8.529-8.934 0-.528-.081-1.097-.202-1.625z" />
           </svg>
-          <span className="whitespace-nowrap">Sign in with Google</span>
+          <span>Google</span>
         </Button>
+        
+        {/* Apple authentication button (coming soon) */}
         <Button 
           variant="outline" 
           type="button" 
           disabled={isLoading || import.meta.env.VITE_ENABLE_APPLE_AUTH !== 'true'} 
-          className="w-full flex-shrink-0" 
+          className="border-white/10 bg-white/5 hover:bg-white/10 text-white flex items-center gap-2 justify-center transition-colors" 
           onClick={() => {
             toast({
               title: "Coming Soon",
               description: "Apple sign-in will be available soon.",
             });
           }}>
-          <Apple className="mr-2 h-4 w-4 flex-shrink-0" />
-          <span className="whitespace-nowrap">Apple</span>
+          <Apple className="h-4 w-4" />
+          <span>Apple</span>
         </Button>
       </div>
       
-      {/* Sign up link moved here, directly below the social login buttons */}
-      <div className="text-center text-sm text-muted-foreground w-full">
+      {/* Sign up link */}
+      <div className="text-center text-sm text-white/60 mt-2">
         <Link
           to="/register"
-          className="hover:text-white underline underline-offset-4 block w-full"
+          className="text-planora-accent-purple hover:underline transition-colors"
         >
           Don&apos;t have an account? Sign Up
         </Link>
@@ -394,45 +409,46 @@ export function Login() {
   
   return (
     <div className="flex min-h-screen flex-col bg-planora-purple-dark">
-      {/* Simple gradient background without text or distracting elements */}
+      {/* Enhanced gradient background with better visual appeal */}
       <div className="absolute inset-0 bg-gradient-to-b from-planora-purple-dark via-planora-purple-dark to-black opacity-90 z-0"></div>
       
-      {/* Clean background with subtle gradient and no text */}
+      {/* Improved background with subtle gradient elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-[40%] -left-[20%] w-[70%] h-[70%] rounded-full bg-planora-accent-purple/5 blur-3xl"></div>
         <div className="absolute -bottom-[30%] -right-[10%] w-[60%] h-[60%] rounded-full bg-planora-accent-blue/5 blur-3xl"></div>
+        <div className="absolute top-[20%] right-[10%] w-[40%] h-[40%] rounded-full bg-planora-accent-pink/5 blur-3xl"></div>
       </div>
       
       <div className="flex-grow flex items-center justify-center px-4 w-full">
-        <div className="relative z-10 mx-auto flex w-full flex-col justify-center space-y-6 max-w-[400px] overflow-hidden">
+        <div className="relative z-10 mx-auto flex w-full flex-col justify-center space-y-6 max-w-[420px] overflow-hidden">
           <div className="flex flex-col space-y-2 text-center">
             {verificationNeeded ? (
               <>
-                <h1 className="text-2xl font-semibold tracking-tight">Verify Your Email</h1>
-                <p className="text-sm text-muted-foreground">
+                <h1 className="text-2xl font-semibold tracking-tight text-white">Verify Your Email</h1>
+                <p className="text-sm text-white/60">
                   Please check your inbox to complete registration
                 </p>
               </>
             ) : (
               <>
-                <div className="text-center mb-8">
-                  {/* Integrated logo layout with flex-row to place logo at the top */}
+                <div className="text-center mb-6">
+                  {/* Integrated logo with enhanced styling */}
                   <div className="flex flex-col items-center">
-                    <Logo className="h-16 w-auto mb-6" href="/" variant="full" />
-                    <h1 className="text-2xl font-bold tracking-tight">
-                      Welcome to Planora
+                    <Logo className="h-16 w-auto mb-5" href="/" variant="full" />
+                    <h1 className="text-2xl font-bold tracking-tight text-white">
+                      Welcome Back
                     </h1>
-                    <p className="text-muted-foreground mt-2">
-                      Sign in to your account to continue
+                    <p className="text-white/60 text-sm mt-2">
+                      Sign in to your account to continue your planning journey
                     </p>
                   </div>
                   
-                  {/* Show session expired message */}
+                  {/* Show session expired message with improved styling */}
                   {sessionExpired && (
-                    <Alert className="mt-4 border-yellow-500/50 bg-yellow-500/10">
-                      <AlertCircle className="h-4 w-4 text-yellow-500" />
-                      <AlertTitle className="text-yellow-500">Session Expired</AlertTitle>
-                      <AlertDescription className="text-yellow-500/90">
+                    <Alert className="mt-4 border-yellow-500/30 bg-yellow-500/10 text-yellow-200">
+                      <AlertCircle className="h-4 w-4 text-yellow-300" />
+                      <AlertTitle className="text-yellow-200 font-medium">Session Expired</AlertTitle>
+                      <AlertDescription className="text-yellow-200/90 text-sm">
                         Your session has expired. Please log in again to continue.
                       </AlertDescription>
                     </Alert>
@@ -442,28 +458,28 @@ export function Login() {
             )}
           </div>
           
-          {/* Verification Alert */}
+          {/* Verification Alert with improved styling */}
           {verificationMessage && (
-            <Alert className="bg-white/5 border-planora-accent-purple/40 text-white">
+            <Alert className="bg-planora-accent-purple/10 border-planora-accent-purple/30 text-white rounded-lg">
               <AlertCircle className="h-4 w-4 text-planora-accent-purple" />
-              <AlertTitle>Email Verification</AlertTitle>
-              <AlertDescription className="text-white/80">
+              <AlertTitle className="font-medium">Email Verification</AlertTitle>
+              <AlertDescription className="text-white/80 text-sm">
                 {verificationMessage}
               </AlertDescription>
             </Alert>
           )}
           
           {verificationNeeded ? (
-            <div className="bg-card/20 backdrop-blur-lg p-6 rounded-lg border border-white/10 shadow-lg">
+            <div className="bg-black/30 backdrop-blur-lg p-7 rounded-xl border border-white/10 shadow-lg">
               <div className="text-center space-y-6">
-                <div className="mx-auto bg-white/5 w-16 h-16 rounded-full flex items-center justify-center">
+                <div className="mx-auto bg-gradient-to-r from-planora-accent-purple/20 to-planora-accent-pink/20 w-20 h-20 rounded-full flex items-center justify-center">
                   <Mail className="h-8 w-8 text-planora-accent-purple" />
                 </div>
                 
-                <div className="space-y-2">
-                  <h3 className="text-lg font-medium">Check your inbox</h3>
+                <div className="space-y-3">
+                  <h3 className="text-xl font-medium text-white">Check your inbox</h3>
                   {verificationEmail && (
-                    <p className="text-white/60 text-sm">
+                    <p className="text-white/70 text-sm">
                       We've sent a verification link to <span className="text-white font-medium">{verificationEmail}</span>
                     </p>
                   )}
@@ -474,7 +490,7 @@ export function Login() {
                 
                 <div className="pt-4">
                   <Button 
-                    className="w-full bg-white/10 hover:bg-white/20 text-white"
+                    className="w-full bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90 text-white font-medium py-5"
                     onClick={() => {
                       setVerificationNeeded(false);
                     }}
@@ -485,18 +501,19 @@ export function Login() {
               </div>
             </div>
           ) : (
-            <div className="bg-card/20 backdrop-blur-lg p-6 rounded-lg border border-white/10 shadow-lg w-full max-w-full overflow-hidden">
-              <UserAuthForm className="w-full max-w-full" />
+            <div className="bg-black/30 backdrop-blur-lg p-7 rounded-xl border border-white/10 shadow-lg w-full">
+              <UserAuthForm className="w-full" />
             </div>
           )}
           
-          {/* Only showing email verification option here now, "Sign Up" link moved into the form */}
+          {/* Resend verification email option with improved styling */}
           {verificationNeeded && (
-            <p className="px-8 text-center text-sm text-muted-foreground">
+            <p className="text-center text-sm">
               <span className="text-white/60">
-                Didn't receive the email? Check your spam folder or <Button 
+                Didn't receive the email? Check your spam folder or{" "}
+                <Button 
                   variant="link" 
-                  className="text-planora-accent-purple hover:text-planora-accent-pink p-0 h-auto"
+                  className="text-planora-accent-purple hover:text-planora-accent-pink p-0 h-auto font-normal"
                   onClick={handleResendVerification}
                   disabled={resendingEmail}
                 >
@@ -508,7 +525,7 @@ export function Login() {
         </div>
       </div>
       
-      {/* Footer */}
+      {/* Footer with improved position */}
       <div className="mt-auto relative z-10">
         <Footer />
       </div>
