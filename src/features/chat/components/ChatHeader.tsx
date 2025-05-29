@@ -51,7 +51,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           onClick={onEditTravelPersona}
         >
           <Settings className="h-3.5 w-3.5 text-planora-accent-purple" />
-          <span>Edit Travel Persona</span>
+          <span>SmartTravel-Profile</span>
         </Button>
         
         <Link to="/dashboard">
