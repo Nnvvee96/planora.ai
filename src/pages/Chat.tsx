@@ -21,6 +21,9 @@ import { TravelPersonaEditPanel } from '@/features/chat/components/TravelPersona
 // Import from chat feature API
 import { useChatState, MessageRole } from '@/features/chat/chatApi';
 
+// Import UI utilities
+import { useClientOnly } from '@/ui/hooks/useClientOnly';
+
 // Import icons
 import { MessageCircle } from 'lucide-react';
 
@@ -39,6 +42,17 @@ const Chat: React.FC = () => {
   
   // Get the UserProfileMenu component using the factory function
   const UserProfileMenu = getUserProfileMenuComponent();
+  
+  // Create a client-only component wrapper to avoid hydration issues
+  const ClientOnlyProfileMenu = () => {
+    const isMounted = useClientOnly();
+    
+    if (!isMounted) {
+      return <div className="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>;
+    }
+    
+    return <UserProfileMenu userName="" mini={true} />;
+  };
   
   // Load user data
   useEffect(() => {
@@ -114,17 +128,30 @@ const Chat: React.FC = () => {
     );
   }
   
-  // Track window width for responsive design
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  // Use client-only hook to safely handle browser APIs
+  const isMounted = useClientOnly();
   
-  // Update width on resize
+  // Track window width for responsive design with SSR safety
+  const [windowWidth, setWindowWidth] = useState(0);
+  const [isMobileView, setIsMobileView] = useState(false);
+  
+  // Safe window access after component mount
   useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  
-  const isMobileView = windowWidth < 768;
+    if (isMounted) {
+      // Set initial width
+      setWindowWidth(window.innerWidth);
+      setIsMobileView(window.innerWidth < 768);
+      
+      // Update width on resize
+      const handleResize = () => {
+        setWindowWidth(window.innerWidth);
+        setIsMobileView(window.innerWidth < 768);
+      };
+      
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, [isMounted]);
   
   return (
     <div className="flex h-screen overflow-hidden bg-planora-purple-dark">
@@ -147,11 +174,7 @@ const Chat: React.FC = () => {
           isMobile={isMobileView}
           isOpen={isMobileMenuOpen}
           onClose={() => setIsMobileMenuOpen(false)}
-          userProfileComponent={
-            <Suspense fallback={<div className="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>}>
-              <UserProfileMenu userName="" mini={true} />
-            </Suspense>
-          }
+          userProfileComponent={<ClientOnlyProfileMenu />}
         />
       
         {/* Main chat area */}
