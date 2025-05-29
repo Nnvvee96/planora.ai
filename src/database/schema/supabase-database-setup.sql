@@ -1,6 +1,6 @@
 -- Complete Supabase Database Setup Script for Planora.ai
 -- This script combines schema creation, triggers, and RLS policies in the correct order
--- Updated with account deletion system, email change tracking, and improved RLS policies
+-- Updated with account deletion system, email change tracking, improved RLS policies, and email verification system
 -- Execute this in the Supabase SQL Editor to set up the complete database
 
 -- Enable UUID extension if not already enabled
@@ -146,6 +146,17 @@ CREATE TABLE IF NOT EXISTS public.account_deletion_requests (
   CONSTRAINT unique_active_request UNIQUE (user_id, status)
 );
 
+-- Verification Codes Table for Email Verification
+CREATE TABLE IF NOT EXISTS public.verification_codes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  code VARCHAR(6) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  used BOOLEAN DEFAULT FALSE
+);
+
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS travel_preferences_user_id_idx ON public.travel_preferences(user_id);
 CREATE INDEX IF NOT EXISTS profiles_id_idx ON public.profiles(id);
@@ -155,6 +166,9 @@ CREATE INDEX IF NOT EXISTS deletion_requests_status_idx ON public.account_deleti
 CREATE INDEX IF NOT EXISTS deletion_requests_token_idx ON public.account_deletion_requests(recovery_token);
 CREATE INDEX IF NOT EXISTS email_change_user_id_idx ON public.email_change_tracking(user_id);
 CREATE INDEX IF NOT EXISTS email_change_status_idx ON public.email_change_tracking(status);
+CREATE INDEX IF NOT EXISTS verification_codes_user_id_idx ON public.verification_codes(user_id);
+CREATE INDEX IF NOT EXISTS verification_codes_email_idx ON public.verification_codes(email);
+CREATE INDEX IF NOT EXISTS verification_codes_used_idx ON public.verification_codes(used);
 
 -- Automatic Profile Creation Trigger
 -- This ensures that when a new user signs up, a profile is automatically created
@@ -251,11 +265,12 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
--- Enable Row Level Security
+-- Ensure Row Level Security (RLS) is enabled on all tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.travel_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.account_deletion_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.email_change_tracking ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.verification_codes ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies to avoid duplication errors
 DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
@@ -277,6 +292,8 @@ DROP POLICY IF EXISTS "Service role can manage email changes" ON public.email_ch
 DROP POLICY IF EXISTS "Users can view their own email changes" ON public.email_change_tracking;
 DROP POLICY IF EXISTS "Users can manage their own email changes" ON public.email_change_tracking;
 DROP POLICY IF EXISTS "Service role can manage all email changes" ON public.email_change_tracking;
+DROP POLICY IF EXISTS "Users can read their own verification codes" ON public.verification_codes;
+DROP POLICY IF EXISTS "Service role has full access to verification codes" ON public.verification_codes;
 
 -- Create policies for the profiles table
 CREATE POLICY "Users can view their own profile" 
@@ -359,6 +376,17 @@ CREATE POLICY "Service role can manage all email changes"
 ON public.email_change_tracking 
 USING (auth.role() = 'service_role');
 
+-- Create policies for verification codes
+CREATE POLICY "Users can read their own verification codes" 
+ON public.verification_codes 
+FOR SELECT 
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role has full access to verification codes" 
+ON public.verification_codes 
+USING (true)
+WITH CHECK (true);
+
 -- Service role access policies (for administrative functions)
 DROP POLICY IF EXISTS "Service role can view all profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Service role can insert any profile" ON public.profiles;
@@ -388,7 +416,7 @@ FROM
 WHERE 
   table_schema = 'public' 
   AND table_type = 'BASE TABLE'
-  AND table_name IN ('profiles', 'travel_preferences', 'account_deletion_requests', 'email_change_tracking');
+  AND table_name IN ('profiles', 'travel_preferences', 'account_deletion_requests', 'email_change_tracking', 'verification_codes');
 
 -- Safe column addition procedure
 -- This ensures we gracefully add columns if they don't exist
@@ -452,3 +480,40 @@ DO $$
 BEGIN
     RAISE NOTICE 'Database schema updated: birthdate is now the only field for birth dates. The birthday field has been removed.';
 END $$;
+
+-- Function to generate a verification code for a user
+CREATE OR REPLACE FUNCTION public.generate_verification_code(user_id UUID, user_email TEXT)
+RETURNS VARCHAR AS $$
+DECLARE
+  verification_code VARCHAR(6);
+BEGIN
+  -- Generate random 6-digit code
+  verification_code := lpad(floor(random() * 1000000)::text, 6, '0');
+  
+  -- Expire any previous codes for this user
+  UPDATE public.verification_codes 
+  SET used = TRUE 
+  WHERE user_id = $1 AND used = FALSE;
+  
+  -- Insert new code
+  INSERT INTO public.verification_codes (
+    user_id, 
+    email, 
+    code, 
+    expires_at
+  ) VALUES (
+    $1, 
+    $2, 
+    verification_code, 
+    now() + interval '1 hour'
+  );
+  
+  RETURN verification_code;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Verify successful schema updates
+DO $$
+BEGIN
+  RAISE NOTICE 'Supabase schema setup completed successfully for Planora.ai!';
+END$$;
