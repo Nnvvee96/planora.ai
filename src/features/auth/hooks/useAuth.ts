@@ -187,6 +187,17 @@ export const useAuth = () => {
     }
   }, [authService, user]);
   
+  /**
+   * Get the auth service instance
+   * Provides access to the full auth service API
+   */
+  const getAuthServiceInstance = useCallback(() => {
+    if (!authService) {
+      return getAuthService();
+    }
+    return authService;
+  }, [authService]);
+
   return {
     isAuthenticated,
     user,
@@ -195,6 +206,7 @@ export const useAuth = () => {
     signInWithGoogle,
     logout,
     handleAuthCallback,
-    updateOnboardingStatus
+    updateOnboardingStatus,
+    getAuthService: getAuthServiceInstance
   };
 };

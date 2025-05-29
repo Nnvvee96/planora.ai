@@ -19,6 +19,10 @@ import { useToast } from "@/components/ui/use-toast";
 import { RegisterData } from "@/features/auth/types/authTypes";
 // Import factory function for auth service
 import { getAuthService, AuthService } from "@/features/auth/authApi";
+// Import verification dialog
+import { VerificationDialog } from '@/features/auth/components/VerificationDialog';
+// Import auth hook
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 // List of countries for the dropdown
 const countries = [
@@ -61,13 +65,13 @@ type FormValues = z.infer<typeof formSchema>;
 function Register() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  // Initialize auth service using factory function
+  const { getAuthService } = useAuth();
   const [authService, setAuthService] = useState<AuthService | null>(null);
   
   // Load auth service on component mount
   useEffect(() => {
     setAuthService(getAuthService());
-  }, []);
+  }, [getAuthService]);
   const [formStep, setFormStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,10 +89,10 @@ function Register() {
     },
   });
 
-  // New state for verification dialog
+  // State for verification dialog and user registration
   const [showVerification, setShowVerification] = useState(false);
-  const [verificationCode, setVerificationCode] = useState('');
   const [registeredEmail, setRegisteredEmail] = useState('');
+  const [registeredUserId, setRegisteredUserId] = useState('');
   
   const onSubmit = async (data: FormValues) => {
     if (formStep < 1) {
@@ -123,41 +127,33 @@ function Register() {
         birthdate: data.birthdate.toISOString()
       };
       
-      // Register user through enhanced auth service with email verification status
+      // Register user through enhanced auth service
       const registrationResult = await authService.register(registerData);
       
-      // Store email for verification
-      setRegisteredEmail(data.email);
-      
-      // Show appropriate success message based on whether email confirmation is required
-      if (registrationResult.emailConfirmationRequired) {
-        toast({
-          title: "Registration successful",
-          description: "Please check your email for a verification link. You'll need to verify your email before logging in.",
-        });
-        
-        // Navigate to verification pending screen with clear instructions
-        navigate('/login', { 
-          state: { 
-            email: data.email,
-            verificationNeeded: true,
-            message: "A verification link has been sent to your email. Please check your inbox and click the link to verify your account before logging in." 
-          }
-        });
-      } else {
-        // In development or testing environments, email confirmation might be disabled
-        // So handle the case where the user is immediately registered without verification
-        toast({
-          title: "Registration successful",
-          description: "Your account has been created. You can now log in.",
-        });
-        
-        navigate('/login', {
-          state: {
-            message: "Your account has been created successfully. You can now log in."
-          }
-        });
+      if (!registrationResult.user) {
+        throw new Error('Registration failed - no user was created');
       }
+      
+      // Store user information for verification
+      setRegisteredEmail(data.email);
+      setRegisteredUserId(registrationResult.user.id);
+      
+      // Send verification code
+      const codeResult = await authService.sendVerificationCode(
+        registrationResult.user.id,
+        data.email
+      );
+      
+      if (!codeResult.success) {
+        throw new Error(codeResult.error || 'Failed to send verification code');
+      }
+      
+      // Show verification dialog
+      setShowVerification(true);
+      toast({
+        title: "Registration successful",
+        description: "Please check your email for a verification code to complete your registration.",
+      });
     } catch (err) {
       console.error('Registration error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Registration failed. Please try again.';
@@ -185,6 +181,28 @@ function Register() {
         {/* Digital grid pattern */}
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCA2MCBNIDYwIDMwIEwgMzAgNjAgTSAzMCAwIEwgMCAzMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDMiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-20"></div>
       </div>
+      
+      {/* Verification Dialog */}
+      <VerificationDialog
+        isOpen={showVerification}
+        onClose={() => setShowVerification(false)}
+        email={registeredEmail}
+        userId={registeredUserId}
+        onVerify={(success) => {
+          if (success) {
+            toast({
+              title: "Email verified successfully",
+              description: "Your account has been created. Redirecting to dashboard...",
+            });
+            navigate('/dashboard');
+          }
+        }}
+        onResend={async () => {
+          if (authService && registeredUserId && registeredEmail) {
+            await authService.sendVerificationCode(registeredUserId, registeredEmail);
+          }
+        }}
+      />
       
       <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
         {/* Logo with animation */}
