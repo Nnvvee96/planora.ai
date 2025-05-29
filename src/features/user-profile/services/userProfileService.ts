@@ -7,6 +7,7 @@
 
 import { supabase } from '@/database/databaseExports';
 import { UserProfile, DbUserProfile } from '../types/profileTypes';
+import { travelPreferencesService } from '@/features/travel-preferences/travelPreferencesApi';
 
 /**
  * Converts snake_case database profile to camelCase application profile
@@ -23,6 +24,10 @@ const mapDbProfileToUserProfile = (dbProfile: DbUserProfile): UserProfile => {
     avatarUrl: dbProfile.avatar_url,
     // Standard field for birth date information
     birthdate: dateValue,
+    // Location data
+    country: dbProfile.country || undefined,
+    city: dbProfile.city || undefined,
+    customCity: dbProfile.custom_city || undefined,
     hasCompletedOnboarding: dbProfile.has_completed_onboarding,
     emailVerified: dbProfile.email_verified,
     createdAt: dbProfile.created_at,
@@ -50,6 +55,11 @@ const mapUserProfileToDbProfile = (profile: Partial<UserProfile>): Partial<DbUse
   if (dateValue) {
     dbProfile.birthdate = dateValue;
   }
+  
+  // Location data
+  if (profile.country !== undefined) dbProfile.country = profile.country;
+  if (profile.city !== undefined) dbProfile.city = profile.city;
+  if (profile.customCity !== undefined) dbProfile.custom_city = profile.customCity;
   
   if (profile.hasCompletedOnboarding !== undefined) dbProfile.has_completed_onboarding = profile.hasCompletedOnboarding;
   if (profile.emailVerified !== undefined) dbProfile.email_verified = profile.emailVerified;
@@ -452,6 +462,13 @@ export const userProfileService = {
         profileUpdate.birthdate = formatDate(profileUpdate.birthdate);
       }
       
+      // Store location data for sync with travel preferences
+      const locationUpdated = profileUpdate.country !== undefined || profileUpdate.city !== undefined;
+      const locationData = {
+        country: profileUpdate.country,
+        city: profileUpdate.city === 'Other' ? profileUpdate.customCity : profileUpdate.city
+      };
+      
       // Convert profile data to database format
       const dbProfile = mapUserProfileToDbProfile(profileUpdate);
       
@@ -543,6 +560,31 @@ export const userProfileService = {
         return false;
       }
       
+      // Sync profile location with travel preferences if location was updated
+      if (locationUpdated && locationData.country) {
+        try {
+          // First check if travel preferences exist
+          const prefsExist = await travelPreferencesService.checkTravelPreferencesExist(userId);
+          
+          if (prefsExist) {
+            // Get current travel preferences
+            const currentPrefs = await travelPreferencesService.getUserTravelPreferences(userId);
+            
+            if (currentPrefs) {
+              // Update travel preferences with new location data
+              await travelPreferencesService.saveTravelPreferences(userId, {
+                departureCountry: locationData.country,
+                departureCity: locationData.city || currentPrefs.departureCity
+              });
+              console.log('Successfully synced profile location with travel preferences');
+            }
+          }
+        } catch (syncError) {
+          // Non-critical error, continue even if sync fails
+          console.warn('Failed to sync profile location with travel preferences:', syncError);
+        }
+      }
+      
       return true;
     } catch (error) {
       console.error('Unexpected error updating profile:', error);
@@ -577,9 +619,9 @@ export const userProfileService = {
    * Updates the profile status and creates a deletion request
    * @param userId User ID to mark for deletion
    * @param email User's email for recovery communication
-   * @returns Object with success status and optional error message
+   * @returns Object with success status, optional error message, and recovery token
    */
-  requestAccountDeletion: async (userId: string, email: string): Promise<{ success: boolean, error?: string }> => {
+  requestAccountDeletion: async (userId: string, email: string): Promise<{ success: boolean, error?: string, recoveryToken?: string }> => {
     try {
       if (!userId || !email) {
         console.error('User ID and email are required to request account deletion');

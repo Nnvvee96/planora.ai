@@ -9,6 +9,8 @@ Planora is an intelligent travel planning platform that helps users discover, pl
 - **Personalized Travel Recommendations**: AI-driven travel recommendations based on user preferences
 - **Budget Optimization**: Intelligent travel planning within user budget constraints
 - **User Profile Management**: Comprehensive user profile and preference management
+- **Location Intelligence**: Advanced country-city selection with customizable options
+- **Preference Synchronization**: Seamless synchronization between profile location and travel preferences
 - **Supabase Integration**: Secure authentication and data storage with Supabase
 
 ## Technology Stack

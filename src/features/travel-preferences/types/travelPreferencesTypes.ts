@@ -116,6 +116,7 @@ export interface TravelPreferencesFormValues {
   preferCheaperWithStopover: boolean;
   // 10. Departure Location
   departureCity: string;
+  departureCountry: string;
 }
 
 /**
@@ -154,6 +155,7 @@ export interface TravelPreferences {
   
   // 9. Departure location
   departureCity: string;
+  departureCountry: string;
   
   // Timestamps
   createdAt?: string;

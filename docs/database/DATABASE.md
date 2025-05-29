@@ -31,12 +31,20 @@ Stores user profile information:
 - `id`: UUID (Primary Key, references auth.users)
 - `first_name`: TEXT
 - `last_name`: TEXT
-- `email`: TEXT (UNIQUE)
-- `birthday`: DATE
+- `email`: TEXT
+- `birthdate`: DATE (Standard field for birth date information)
+- `country`: TEXT (User's country of residence)
+- `city`: TEXT (User's city of residence)
+- `custom_city`: TEXT (Custom city input when city is "Other")
 - `avatar_url`: TEXT
 - `created_at`: TIMESTAMP WITH TIME ZONE
 - `updated_at`: TIMESTAMP WITH TIME ZONE
 - `has_completed_onboarding`: BOOLEAN
+- `email_verified`: BOOLEAN
+- `account_status`: TEXT
+- `deletion_requested_at`: TIMESTAMP WITH TIME ZONE
+- `pending_email_change`: TEXT
+- `email_change_requested_at`: TIMESTAMP WITH TIME ZONE
 
 ### travel_preferences
 
@@ -55,7 +63,8 @@ Stores user travel preferences:
 - `location_preference`: TEXT
 - `flight_type`: TEXT
 - `prefer_cheaper_with_stopover`: BOOLEAN
-- `departure_city`: TEXT
+- `departure_country`: TEXT (User's country for departure)
+- `departure_city`: TEXT (User's city for departure)
 - `created_at`: TIMESTAMP WITH TIME ZONE
 - `updated_at`: TIMESTAMP WITH TIME ZONE
 
