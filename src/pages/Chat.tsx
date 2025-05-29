@@ -53,7 +53,16 @@ const Chat: React.FC = () => {
       return <div className="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>;
     }
     
-    return <UserProfileMenu userName={user?.firstName || ''} mini={true} />;
+    // Pass complete user data to ensure profile displays correctly
+    return (
+      <UserProfileMenu 
+        userName={user?.firstName || ''}
+        userEmail={user?.email || ''} 
+        firstName={user?.firstName || ''}
+        lastName={user?.lastName || ''}
+        mini={true} 
+      />
+    );
   };
   
   // Handle unauthorized access
