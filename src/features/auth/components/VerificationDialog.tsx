@@ -52,11 +52,27 @@ export function VerificationDialog({
       const result: VerificationCodeResponse = await authService.verifyCode(userId, code);
       
       if (result.success) {
-        toast({
-          title: "Email verified successfully",
-          description: "Your account has been verified. You can now proceed.",
-        });
-        onVerify(true);
+        // Refresh the session to ensure the user is logged in with updated verification status
+        try {
+          await authService.refreshSession();
+          console.log('Session refreshed after verification');
+          
+          // Check if onboarding is completed
+          const hasCompletedOnboarding = await authService.checkOnboardingStatus(userId);
+          
+          toast({
+            title: "Email verified successfully",
+            description: hasCompletedOnboarding 
+              ? "Your account has been verified. Redirecting to dashboard." 
+              : "Your account has been verified. Let's complete your profile.",
+          });
+          
+          onVerify(true);
+        } catch (refreshErr) {
+          console.warn('Error refreshing session after verification:', refreshErr);
+          // Still consider this a success - the verification worked
+          onVerify(true);
+        }
       } else {
         setError(result.error || 'Invalid verification code. Please try again.');
         onVerify(false);

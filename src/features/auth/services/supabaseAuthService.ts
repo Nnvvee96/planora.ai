@@ -277,9 +277,10 @@ export const supabaseAuthService = {
 
   /**
    * Determine the authentication provider used by a user
-   * @returns The detected authentication provider type based on the current user session
+   * @param userId Optional user ID to check (uses current user if not provided)
+   * @returns The detected authentication provider type based on the user session
    */
-  getAuthProvider: async (): Promise<AuthProviderType> => {
+  getAuthProvider: async (userId?: string): Promise<AuthProviderType> => {
     try {
       // Get the current user from the session
       const { data: { user }, error } = await supabase.auth.getUser();
@@ -795,21 +796,209 @@ export const supabaseAuthService = {
   /**
    * Refresh the current auth session
    * Ensures we have the latest session state
-   * @returns The refreshed session data
+   * @returns The refreshed session data with session and error properties
    */
   refreshSession: async () => {
     try {
-      const { data, error } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.refreshSession();
       
       if (error) {
         console.error('Error refreshing session:', error);
         return { session: null, error };
       }
       
-      return data;
+      return { session: data.session, error: null };
     } catch (err) {
       console.error('Failed to refresh session:', err);
       return { session: null, error: err as Error };
+    }
+  },
+  
+  /**
+   * Resend verification email
+   * @param email The email address to resend verification to
+   */
+  resendVerificationEmail: async (email: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      });
+      
+      if (error) {
+        console.error('Error resending verification email:', error);
+        return false;
+      }
+      
+      return true;
+    } catch (err) {
+      console.error('Failed to resend verification email:', err);
+      return false;
+    }
+  },
+  
+  /**
+   * Check if a user's email is verified
+   * @param userId The user ID to check verification status for
+   */
+  checkEmailVerificationStatus: async (userId: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('email_verified')
+        .eq('id', userId)
+        .single();
+        
+      if (error) {
+        console.error('Error checking email verification status:', error);
+        return false;
+      }
+      
+      return data?.email_verified || false;
+    } catch (err) {
+      console.error('Failed to check email verification status:', err);
+      return false;
+    }
+  },
+  
+  /**
+   * Send password reset email
+   * @param email The email address to send password reset to
+   */
+  sendPasswordResetEmail: async (email: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      
+      if (error) {
+        console.error('Error sending password reset email:', error);
+        return false;
+      }
+      
+      return true;
+    } catch (err) {
+      console.error('Failed to send password reset email:', err);
+      return false;
+    }
+  },
+  
+  /**
+   * Reset password with reset token
+   * @param newPassword The new password to set
+   */
+  resetPassword: async (newPassword: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      
+      if (error) {
+        console.error('Error resetting password:', error);
+        return false;
+      }
+      
+      return true;
+    } catch (err) {
+      console.error('Failed to reset password:', err);
+      return false;
+    }
+  },
+  
+  /**
+   * Check user registration status
+   * Comprehensive function that checks multiple sources to determine user status
+   * @param userId User ID to check
+   */
+  checkUserRegistrationStatus: async (userId: string) => {
+    try {
+      // Check if user exists in auth.users (managed by Supabase, can't query directly)
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
+      
+      if (userError) {
+        console.error('Error checking user registration:', userError);
+        return {
+          isNewUser: false,
+          hasProfile: false,
+          hasCompletedOnboarding: false,
+          hasTravelPreferences: false,
+          registrationStatus: UserRegistrationStatus.ERROR
+        };
+      }
+      
+      // Check if user has a profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('has_completed_onboarding')
+        .eq('id', userId)
+        .single();
+        
+      if (profileError && profileError.code !== 'PGRST116') { // Not found error
+        console.error('Error checking profile:', profileError);
+        return {
+          isNewUser: false,
+          hasProfile: false,
+          hasCompletedOnboarding: false,
+          hasTravelPreferences: false,
+          registrationStatus: 'error' as UserRegistrationStatus
+        };
+      }
+      
+      // Check if user has travel preferences
+      const { data: travelData, error: travelError } = await supabase
+        .from('travel_preferences')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+        
+      const hasProfile = !!profileData;
+      const hasCompletedOnboarding = hasProfile && profileData.has_completed_onboarding;
+      const hasTravelPreferences = !!travelData;
+      
+      // Determine registration status
+      let registrationStatus: UserRegistrationStatus = UserRegistrationStatus.RETURNING_USER;
+      
+      if (!hasProfile) {
+        registrationStatus = UserRegistrationStatus.NEW_USER;
+      } else if (!hasCompletedOnboarding) {
+        registrationStatus = UserRegistrationStatus.INCOMPLETE_ONBOARDING;
+      } else {
+        registrationStatus = UserRegistrationStatus.RETURNING_USER;
+      }
+      
+      return {
+        isNewUser: !hasProfile,
+        hasProfile,
+        hasCompletedOnboarding,
+        hasTravelPreferences,
+        registrationStatus
+      };
+    } catch (err) {
+      console.error('Failed to check user registration status:', err);
+      return {
+        isNewUser: false,
+        hasProfile: false,
+        hasCompletedOnboarding: false,
+        hasTravelPreferences: false,
+        registrationStatus: UserRegistrationStatus.ERROR
+      };
+    }
+  },
+  
+  /**
+   * Update user password
+   */
+  updatePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      
+      if (error) {
+        console.error('Error updating password:', error);
+        throw error;
+      }
+    } catch (err) {
+      console.error('Failed to update password:', err);
+      throw err;
     }
   },
   
