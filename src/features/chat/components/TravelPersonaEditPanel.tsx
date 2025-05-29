@@ -201,7 +201,7 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Settings className="h-5 w-5 text-planora-accent-purple" />
-          <h2 className="text-lg font-medium">Edit Travel Persona</h2>
+          <h2 className="text-lg font-medium">SmartTravel-Profile</h2>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="h-5 w-5" />
