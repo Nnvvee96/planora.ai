@@ -13,6 +13,9 @@ export interface UserProfile {
   email: string;
   avatarUrl?: string;
   birthdate?: string; // Standard field for birth date information
+  country?: string; // User's country
+  city?: string; // User's city
+  customCity?: string; // Custom city input when city is "Other"
   hasCompletedOnboarding: boolean;
   emailVerified?: boolean;
   createdAt?: string;
@@ -27,6 +30,9 @@ export interface DbUserProfile {
   email: string;
   avatar_url?: string;
   birthdate?: string; // Standard field for birth date information
+  country?: string; // User's country
+  city?: string; // User's city
+  custom_city?: string; // Custom city input when city is "Other"
   has_completed_onboarding: boolean;
   email_verified?: boolean;
   created_at?: string;
@@ -39,6 +45,9 @@ export interface ProfileFormData {
   lastName?: string;
   email?: string;
   birthdate?: string;
+  country?: string;
+  city?: string;
+  customCity?: string;
 }
 
 // Modal props interfaces

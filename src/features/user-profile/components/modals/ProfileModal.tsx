@@ -12,12 +12,17 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { getAuthService, AuthService } from '@/features/auth/authApi';
 import { userProfileService } from '@/features/user-profile/userProfileApi';
 import { useToast } from '@/components/ui/use-toast';
+import { Select } from '@/components/ui/select';
+import { countryOptions, getCityOptions } from '@/features/location-data/data/countryCityData';
 
 const profileSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required" }),
   lastName: z.string().min(1, { message: "Last name is required" }),
   email: z.string().email({ message: "Please enter a valid email" }),
   birthdate: z.string().optional(),
+  country: z.string().optional(),
+  city: z.string().optional(),
+  customCity: z.string().optional(),
 });
 
 export type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -69,8 +74,15 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
       lastName: '',
       email: '',
       birthdate: '',
+      country: '',
+      city: '',
+      customCity: '',
     },
   });
+  
+  // State for managing city options based on selected country
+  const [cityOptions, setCityOptions] = useState<Array<{value: string, label: string}>>([]);
+  const [showCustomCityInput, setShowCustomCityInput] = useState(false);
   
   // Fetch user data when the modal opens to ensure we have fresh data
   useEffect(() => {
@@ -101,8 +113,22 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
               lastName: lastName || profileData?.lastName || currentUser.lastName || 
                        (userName ? userName.split(' ').slice(1).join(' ') : '') || '',
               email: userEmail || profileData?.email || currentUser.email || '',
-              birthdate: formattedBirthdate
+              birthdate: formattedBirthdate,
+              country: profileData?.country || '',
+              city: profileData?.city || '',
+              customCity: profileData?.customCity || ''
             };
+            
+            // Update city options based on selected country
+            if (profileData?.country) {
+              const cities = getCityOptions(profileData.country);
+              setCityOptions(cities);
+              
+              // Check if we need to show custom city input
+              if (profileData.city === 'Other') {
+                setShowCustomCityInput(true);
+              }
+            }
             
             console.log('Setting form data:', combinedData);
             
@@ -155,6 +181,9 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
         lastName: data.lastName,
         email: data.email,
         birthdate: data.birthdate || undefined,
+        country: data.country || undefined,
+        city: data.city || undefined,
+        customCity: data.city === 'Other' ? data.customCity || undefined : undefined,
       };
       
       console.log('Data being sent to updateUserProfile:', JSON.stringify(updateData, null, 2));
@@ -212,6 +241,12 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
         ...(emailChanged ? {} : { email: data.email }),
         
         birthdate: data.birthdate || undefined,
+        
+        country: data.country || undefined,
+        
+        city: data.city || undefined,
+        
+        customCity: data.city === 'Other' ? data.customCity || undefined : undefined,
       
       });
       
@@ -246,7 +281,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
           firstName: data.firstName,
           lastName: data.lastName,
           email: data.email,
-          birthdate: data.birthdate
+          birthdate: data.birthdate,
+          country: data.country,
+          city: data.city,
+          customCity: data.city === 'Other' ? data.customCity : undefined
         });
       }
       
@@ -349,7 +387,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
                           field.onChange(date ? date.toISOString().split('T')[0] : '');
                         }}
                         placeholder="MM / DD / YYYY"
-                        className="flex-1"
                       />
                     </div>
                   </FormControl>
@@ -357,15 +394,75 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
                 </FormItem>
               )}
             />
-
-            <div className="py-2">
-              <Label htmlFor="profileImage">Profile Picture</Label>
-              <div className="mt-1 flex items-center">
-                <Button type="button" variant="outline" className="w-full">
-                  Change Picture
-                </Button>
-              </div>
-            </div>
+            
+            <FormField
+              control={form.control}
+              name="country"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Country</FormLabel>
+                  <FormControl>
+                    <Select
+                      options={countryOptions}
+                      value={field.value}
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        // Reset city when country changes
+                        form.setValue('city', '');
+                        form.setValue('customCity', '');
+                        setShowCustomCityInput(false);
+                        // Update city options
+                        setCityOptions(getCityOptions(value));
+                      }}
+                      placeholder="Select your country"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>City</FormLabel>
+                  <FormControl>
+                    <Select
+                      options={cityOptions}
+                      value={field.value}
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        // Show custom city input if 'Other' is selected
+                        setShowCustomCityInput(value === 'Other');
+                        if (value !== 'Other') {
+                          form.setValue('customCity', '');
+                        }
+                      }}
+                      placeholder="Select your city"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {showCustomCityInput && (
+              <FormField
+                control={form.control}
+                name="customCity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Specify City</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Enter your city" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <DialogFooter className="pt-4">
               <Button 

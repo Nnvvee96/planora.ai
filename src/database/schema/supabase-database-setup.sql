@@ -97,6 +97,57 @@ BEGIN
     END;
     RAISE NOTICE 'email_change_requested_at column already exists';
   END;
+  
+  -- Handle country column
+  BEGIN
+    -- Check if column exists, add it if not
+    ALTER TABLE public.profiles ADD COLUMN country TEXT;
+    -- Add comment once we know the column exists
+    COMMENT ON COLUMN public.profiles.country IS 'User\'s country of residence';
+    RAISE NOTICE 'Added country column';
+  EXCEPTION WHEN duplicate_column THEN
+    -- Column already exists, still try to add comment
+    BEGIN
+      COMMENT ON COLUMN public.profiles.country IS 'User\'s country of residence';
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Could not add comment to country column: %', SQLERRM;
+    END;
+    RAISE NOTICE 'country column already exists';
+  END;
+  
+  -- Handle city column
+  BEGIN
+    -- Check if column exists, add it if not
+    ALTER TABLE public.profiles ADD COLUMN city TEXT;
+    -- Add comment once we know the column exists
+    COMMENT ON COLUMN public.profiles.city IS 'User\'s city of residence';
+    RAISE NOTICE 'Added city column';
+  EXCEPTION WHEN duplicate_column THEN
+    -- Column already exists, still try to add comment
+    BEGIN
+      COMMENT ON COLUMN public.profiles.city IS 'User\'s city of residence';
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Could not add comment to city column: %', SQLERRM;
+    END;
+    RAISE NOTICE 'city column already exists';
+  END;
+  
+  -- Handle custom_city column
+  BEGIN
+    -- Check if column exists, add it if not
+    ALTER TABLE public.profiles ADD COLUMN custom_city TEXT;
+    -- Add comment once we know the column exists
+    COMMENT ON COLUMN public.profiles.custom_city IS 'User\'s custom city input when city is "Other"';
+    RAISE NOTICE 'Added custom_city column';
+  EXCEPTION WHEN duplicate_column THEN
+    -- Column already exists, still try to add comment
+    BEGIN
+      COMMENT ON COLUMN public.profiles.custom_city IS 'User\'s custom city input when city is "Other"';
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Could not add comment to custom_city column: %', SQLERRM;
+    END;
+    RAISE NOTICE 'custom_city column already exists';
+  END;
 END$$;
 
 -- Email Change Tracking Table
@@ -127,6 +178,7 @@ CREATE TABLE IF NOT EXISTS public.travel_preferences (
   location_preference TEXT DEFAULT 'center',
   flight_type TEXT DEFAULT 'direct',
   prefer_cheaper_with_stopover BOOLEAN DEFAULT false,
+  departure_country TEXT DEFAULT 'Germany',
   departure_city TEXT DEFAULT 'Berlin',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
