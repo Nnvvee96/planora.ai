@@ -142,10 +142,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   React.useEffect(() => {
     // Flag to prevent multiple initializations
     let isInitializing = true;
+    let authInitializationTimer: NodeJS.Timeout | null = null;
     
     const checkAuth = async () => {
       try {
         console.log('Initializing auth service...');
+        
+        // Start a safety timeout to ensure we don't hang indefinitely
+        // This guarantees we exit loading state even if Supabase calls hang
+        authInitializationTimer = setTimeout(() => {
+          if (isInitializing) {
+            console.warn('Auth initialization safety timeout triggered');
+            setIsAuthServiceInitialized(true);
+            setAuthState(prev => ({ ...prev, loading: false }));
+            isInitializing = false;
+          }
+        }, 5000); // 5 second safety timeout
         
         // Force session check to ensure we have the latest session state
         await supabaseAuthService.refreshSession();
@@ -159,6 +171,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.error('Error loading user data:', loadError);
         }
         
+        // Cancel the safety timeout since we've completed initialization
+        if (authInitializationTimer) {
+          clearTimeout(authInitializationTimer);
+          authInitializationTimer = null;
+        }
+        
         // Mark auth service as initialized before updating state
         if (isInitializing) {
           setIsAuthServiceInitialized(true);
@@ -169,14 +187,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Use safe mapping function even if user is null
         const mappedUser = supabaseUser ? mapSupabaseUser(supabaseUser) : null;
         
-        setAuthState({
+        // Use functional state update to guarantee latest state
+        setAuthState(prevState => ({
           isAuthenticated: !!supabaseUser,
           user: mappedUser,
           loading: false,
           error: null
-        });
+        }));
       } catch (error) {
         console.error('Error initializing auth service:', error);
+        
+        // Cancel the safety timeout
+        if (authInitializationTimer) {
+          clearTimeout(authInitializationTimer);
+          authInitializationTimer = null;
+        }
         
         // Even on error, mark as initialized to prevent hanging
         if (isInitializing) {
@@ -185,17 +210,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           isInitializing = false;
         }
         
-        setAuthState({
+        // Use functional state update
+        setAuthState(prevState => ({
           isAuthenticated: false,
           user: null,
           loading: false,
           error: 'Error checking authentication status'
-        });
+        }));
       }
     };
     
     // Initialize immediately
     checkAuth();
+    
+    // Cleanup function to clear any hanging timeouts
+    return () => {
+      if (authInitializationTimer) {
+        clearTimeout(authInitializationTimer);
+      }
+    };
     
     // Set up Supabase auth listener to handle auth changes
     const { data: { subscription } } = supabaseAuthService.subscribeToAuthChanges((event, session) => {
@@ -244,11 +277,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
   
   // Auth methods
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (): Promise<void> => {
     try {
+      // Set loading state before auth action
+      setAuthState(prevState => ({
+        ...prevState,
+        loading: true,
+        error: null
+      }));
+      
       await supabaseAuthService.signInWithGoogle();
     } catch (error) {
-      console.error('Google sign-in error:', error);
+      console.error('Error signing in with Google:', error);
+      setAuthState(prevState => ({
+        ...prevState,
+        loading: false,
+        error: 'Error signing in with Google'
+      }));
     }
   };
   
@@ -268,14 +313,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   
   const handleAuthCallback = async (): Promise<AuthResponse> => {
     try {
+      // Directly use the supabaseAuthService to handle the callback
+      // This prevents duplicating logic and ensures consistent behavior
       return await supabaseAuthService.handleAuthCallback();
     } catch (error) {
-      console.error('Auth callback error:', error);
-      return {
-        success: false,
-        user: null,
-        error: 'Error handling authentication callback',
-        registrationStatus: UserRegistrationStatus.ERROR
+      console.error('Exception in handleAuthCallback:', error);
+      return { 
+        success: false, 
+        user: null, 
+        registrationStatus: UserRegistrationStatus.ERROR, 
+        error: error instanceof Error ? error.message : 'Unknown error during auth callback' 
       };
     }
   };
@@ -300,8 +347,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     updateOnboardingStatus
   };
   
+  // Render null during initial auth loading to prevent invalid renders
+  // This is critical to prevent the React Error #310 by ensuring no rendering
+  // occurs until auth is fully initialized
+  if (authState.loading && !isAuthServiceInitialized) {
+    return null;
+  }
+  
   return (
-    <AuthContext.Provider value={authContextValue}>
+    <AuthContext.Provider value={{
+      isAuthenticated: authState.isAuthenticated,
+      user: authState.user,
+      loading: authState.loading,
+      error: authState.error,
+      signInWithGoogle,
+      logout,
+      handleAuthCallback,
+      updateOnboardingStatus
+    }}>
       {children}
     </AuthContext.Provider>
   );
