@@ -12,7 +12,8 @@ import {
   DropdownMenuGroup,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { TravelAvatar } from '@/ui/atoms/TravelAvatar';
 import {
   User,
   Settings, 
@@ -223,8 +224,12 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
           <Button variant="ghost" size="icon" className="rounded-full bg-white/10 hover:bg-white/20">
             <span className="sr-only">Open user menu</span>
             <Avatar className={mini ? "h-8 w-8" : "h-10 w-10"}>
-              <AvatarFallback className="bg-planora-accent-purple text-white">
-                {nameInitial}
+              <AvatarImage src="" alt={userName} />
+              <AvatarFallback className="p-0">
+                <TravelAvatar 
+                  userName={userName} 
+                  size={mini ? 'sm' : 'md'} 
+                />
               </AvatarFallback>
             </Avatar>
           </Button>

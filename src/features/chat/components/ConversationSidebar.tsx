@@ -67,7 +67,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     <aside 
       className={cn(
         "w-80 bg-black/20 border-r border-white/10 flex flex-col h-full transition-all duration-300 ease-in-out",
-        isMobile ? "fixed inset-y-0 left-0 z-50" : ""
+        isMobile ? "fixed inset-y-0 left-0 z-50" : "flex"
       )}
     >
       <div className="p-4 border-b border-white/10 flex items-center">
