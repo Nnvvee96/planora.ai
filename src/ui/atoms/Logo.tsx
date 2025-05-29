@@ -19,10 +19,21 @@ const Logo: React.FC<LogoProps> = ({
   // Use the AuthContext directly to get real-time auth state
   const { isAuthenticated } = useAuthContext();
   
-  // Determine correct href based on auth state
+  // Determine correct href based on auth state and explicit props
+  // Always prioritize explicit href if provided
   const getDestination = () => {
-    if (href) return href; // Use provided href if specified
-    return isAuthenticated ? '/dashboard' : '/';
+    // First priority: explicitly provided href from props
+    if (href) return href;
+    
+    try {
+      // Second priority: auth-based navigation (with safety checks)
+      // Note: if auth context throws an error or is undefined, default to landing page
+      return isAuthenticated ? '/dashboard' : '/';
+    } catch (error) {
+      // If there's any error accessing auth state, default to landing page
+      console.warn('Auth state error in Logo component, defaulting to landing page');
+      return '/';
+    }
   };
   
   const sizeClasses = {

@@ -434,7 +434,9 @@ export function Login() {
                 <div className="text-center mb-6">
                   {/* Integrated logo with enhanced styling */}
                   <div className="flex flex-col items-center">
-                    <Logo className="h-16 w-auto mb-5" href="/" variant="full" />
+                    <Link to="/" className="block mb-5">
+                      <Logo className="h-16 w-auto" variant="full" href="/" />
+                    </Link>
                     <h1 className="text-2xl font-bold tracking-tight text-white">
                       Welcome Back
                     </h1>
