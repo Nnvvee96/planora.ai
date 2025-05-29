@@ -339,18 +339,19 @@ function Register() {
                         <MapPin className="h-3.5 w-3.5 text-planora-accent-purple/80" />
                         Location Information
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4">
+                        {/* Country and City fields in full width layout for consistency */}
                         <FormField
                           control={form.control}
                           name="country"
                           render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="w-full">
                               <FormLabel className="text-white/80">Country</FormLabel>
                               <Select
                                 value={field.value}
                                 onValueChange={field.onChange}
                                 options={countryOptions}
-                                className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50"
+                                className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 w-full"
                               />
                               <FormMessage className="text-planora-accent-pink" />
                             </FormItem>
@@ -361,13 +362,13 @@ function Register() {
                           control={form.control}
                           name="city"
                           render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="w-full">
                               <FormLabel className="text-white/80">City</FormLabel>
                               <FormControl>
                                 <Input 
                                   placeholder="New York" 
                                   {...field} 
-                                  className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"
+                                  className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300 w-full"
                                 />
                               </FormControl>
                               <FormMessage className="text-planora-accent-pink" />
@@ -441,9 +442,12 @@ function Register() {
                 
                 <div className="pt-4">
                   {formStep === 0 ? (
-                    <GradientButton className="w-full" type="submit">
+                    <Button 
+                      className="w-full bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90 text-white font-medium py-5" 
+                      type="submit"
+                    >
                       Continue
-                    </GradientButton>
+                    </Button>
                   ) : (
                     <div className="flex space-x-2">
                       <Button 
@@ -455,14 +459,18 @@ function Register() {
                       >
                         Back
                       </Button>
-                      <GradientButton className="flex-1" type="submit" disabled={isSubmitting}>
+                      <Button 
+                        className="flex-1 bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90 text-white font-medium" 
+                        type="submit" 
+                        disabled={isSubmitting}
+                      >
                         {isSubmitting ? (
                           <>
                             <Loader2 className="animate-spin mr-2 h-4 w-4" />
                             Processing...
                           </>
                         ) : "Create Account"}
-                      </GradientButton>
+                      </Button>
                     </div>
                   )}
                 </div>
