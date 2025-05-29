@@ -5,7 +5,7 @@
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from './AuthProvider';
 import type { AppUser } from '../types/authTypes';
@@ -24,6 +24,46 @@ interface ProtectedRouteProps {
  * Protected route component that redirects unauthenticated users
  * Can also check if onboarding is completed when requireOnboarding is true
  */
+/**
+ * Safe access to localStorage that works in both server and client environments
+ */
+const safeGetLocalStorage = (key: string): string | null => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem(key);
+  }
+  return null;
+};
+
+/**
+ * Safe access to localStorage.setItem that works in both server and client environments
+ */
+const safeSetLocalStorage = (key: string, value: string): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(key, value);
+  }
+};
+
+/**
+ * ClientOnly component to safely render content only on the client side
+ * This prevents hydration mismatches between server and client
+ */
+const ClientOnly: React.FC<{children: React.ReactNode, fallback?: React.ReactNode}> = ({ 
+  children, 
+  fallback = null 
+}) => {
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  if (!mounted) {
+    return <>{fallback}</>;
+  }
+  
+  return <>{children}</>;
+};
+
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
   requireOnboarding = false,
@@ -32,11 +72,20 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const { isAuthenticated, user, loading } = useAuthContext();
   const location = useLocation();
-  const [isVerifying, setIsVerifying] = React.useState(true);
-  const [hasCompletedInitialCheck, setHasCompletedInitialCheck] = React.useState(false);
+  const [isVerifying, setIsVerifying] = useState(true);
+  const [hasCompletedInitialCheck, setHasCompletedInitialCheck] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  
+  // Client-side only effect to track component mounting
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
   
   // Enhanced check for authentication and onboarding status using multiple sources
-  React.useEffect(() => {
+  useEffect(() => {
+    // Skip verification entirely during server-side rendering
+    if (!isMounted) return;
     const verifyAuthAndOnboardingStatus = async () => {
       // Always reset to verifying state when dependencies change
       setIsVerifying(true);
@@ -82,8 +131,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           // Use multiple sources to verify onboarding status (most reliable first)
           
           // 1. Check local storage first (fastest client-side state)
-          const localStorageOnboarding = localStorage.getItem('has_completed_onboarding') === 'true' || 
-                                        localStorage.getItem('hasCompletedInitialFlow') === 'true';
+          const localStorageOnboarding = 
+            safeGetLocalStorage('has_completed_onboarding') === 'true' || 
+            safeGetLocalStorage('hasCompletedInitialFlow') === 'true';
           
           if (localStorageOnboarding) {
             console.log('Onboarding verified via localStorage');
@@ -104,7 +154,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
               console.warn('Error checking profile data:', profileError.message);
             } else if (profileData?.has_completed_onboarding) {
               console.log('Onboarding verified via profile record');
-              localStorage.setItem('has_completed_onboarding', 'true');
+              safeSetLocalStorage('has_completed_onboarding', 'true');
               setIsVerifying(false);
               setHasCompletedInitialCheck(true);
               return;
@@ -121,7 +171,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
               console.warn('Error getting user data:', userError.message);
             } else if (userData?.user?.user_metadata?.has_completed_onboarding === true) {
               console.log('Onboarding verified via user metadata');
-              localStorage.setItem('has_completed_onboarding', 'true');
+              safeSetLocalStorage('has_completed_onboarding', 'true');
               setIsVerifying(false);
               setHasCompletedInitialCheck(true);
               return;
@@ -142,7 +192,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
               console.warn('Error checking travel preferences:', prefsError.message);
             } else if (travelPrefs && travelPrefs.length > 0) {
               console.log('Onboarding verified via travel preferences existence');
-              localStorage.setItem('has_completed_onboarding', 'true');
+              safeSetLocalStorage('has_completed_onboarding', 'true');
               setIsVerifying(false);
               setHasCompletedInitialCheck(true);
               return;
@@ -166,8 +216,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     verifyAuthAndOnboardingStatus();
   }, [isAuthenticated, loading, requireAuth, requireOnboarding, user?.id]);
 
-  // Show loading state while checking authentication or verifying status
-  if (loading || isVerifying) {
+  // Don't attempt to render protected content during server-side rendering
+  // or while still verifying authentication status
+  if (!isMounted || loading || isVerifying) {
     return (
       <div className="flex items-center justify-center h-screen bg-planora-background">
         <Loader2 className="h-8 w-8 animate-spin text-planora-accent-purple" />
@@ -189,7 +240,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // If onboarding is required and not completed
   const onboardingCompleted = (
     user?.hasCompletedOnboarding === true || 
-    localStorage.getItem('hasCompletedInitialFlow') === 'true'
+    safeGetLocalStorage('hasCompletedInitialFlow') === 'true'
   );
   
   if (requireOnboarding && !onboardingCompleted) {
@@ -197,15 +248,23 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // User is authenticated and meets onboarding requirements
-  // Wrap children in Suspense to handle any lazy-loaded components
+  // Use ClientOnly to prevent hydration mismatches, then wrap in Suspense
   return (
-    <Suspense fallback={
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-        <p className="mt-4 text-lg">Loading application...</p>
-      </div>
-    }>
-      {children}
-    </Suspense>
+    <ClientOnly
+      fallback={
+        <div className="flex flex-col items-center justify-center min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin text-planora-accent-purple" />
+        </div>
+      }
+    >
+      <Suspense fallback={
+        <div className="flex flex-col items-center justify-center min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin text-planora-accent-purple" />
+          <p className="mt-4 text-lg">Loading application...</p>
+        </div>
+      }>
+        {children}
+      </Suspense>
+    </ClientOnly>
   );
 };
