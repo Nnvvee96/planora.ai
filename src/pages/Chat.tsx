@@ -6,9 +6,9 @@
  * components. It follows Planora's architectural principles of separation of concerns.
  */
 
-import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAuthService } from '@/features/auth/authApi';
+import { useAuthContext } from '@/features/auth/components/AuthProvider';
 import { getUserProfileMenuComponent } from '@/features/user-profile/userProfileApi';
 
 // Import our chat components
@@ -31,9 +31,11 @@ const Chat: React.FC = () => {
   // Navigation
   const navigate = useNavigate();
   
-  // Auth state
-  const [userId, setUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Get auth state from context instead of direct API calls
+  const { user, loading: authLoading } = useAuthContext();
+  
+  // Extract userId from auth context
+  const userId = user?.id || null;
   
   // UI state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -51,37 +53,16 @@ const Chat: React.FC = () => {
       return <div className="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>;
     }
     
-    return <UserProfileMenu userName="" mini={true} />;
+    return <UserProfileMenu userName={user?.firstName || ''} mini={true} />;
   };
   
-  // Load user data
+  // Handle unauthorized access
   useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        setLoading(true);
-        
-        // Get auth service
-        const authService = getAuthService();
-        
-        // Check if user is authenticated
-        const user = await authService.getCurrentUser();
-        
-        if (user) {
-          setUserId(user.id);
-        } else {
-          // Redirect to login if not authenticated
-          navigate('/login');
-        }
-      } catch (error) {
-        console.error('Error loading user data:', error);
-        navigate('/login');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadUserData();
-  }, [navigate]);
+    // Only redirect if auth is done loading and no user is found
+    if (!authLoading && !userId) {
+      navigate('/login');
+    }
+  }, [userId, authLoading, navigate]);
   
   // Initialize chat state using our custom hook
   const chatState = useChatState(userId || '');
@@ -120,7 +101,7 @@ const Chat: React.FC = () => {
   }, []);
   
   // Loading state
-  if (loading) {
+  if (authLoading || !userId) {
     return (
       <div className="flex items-center justify-center h-screen bg-planora-purple-dark">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-planora-accent-purple"></div>
