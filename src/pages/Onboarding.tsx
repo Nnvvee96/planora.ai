@@ -21,7 +21,8 @@ import {
   Coffee,
   Edit,
   Star,
-  Check
+  Check,
+  MapPin
 } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Progress } from '@/components/ui/progress';
@@ -44,6 +45,8 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { getAuthService, AuthService } from '@/features/auth/authApi';
 import * as z from 'zod';
 import { supabase } from '@/database/databaseExports';
+// Import location data for country-city selection
+import { countryOptions, getCityOptions, isCustomCityNeeded, CountryOption, CityOption } from '@/features/location-data/locationDataApi';
 
 // Extended User type to handle user metadata
 interface ExtendedUser {
@@ -57,7 +60,9 @@ interface ExtendedUser {
 }
 
 interface OnboardingFormData {
-  departureLocation: string;
+  departureCountry: string;
+  departureCity: string;
+  customDepartureCity?: string;
   budgetRange: {min: number, max: number};
   budgetTolerance: number;
   travelDuration: string;
@@ -85,9 +90,15 @@ const Onboarding = () => {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   
+  // State for city selection
+  const [cityOptions, setCityOptions] = useState<CityOption[]>([]);
+  const [showCustomCityInput, setShowCustomCityInput] = useState(false);
+  
   const form = useForm<OnboardingFormData>({
     defaultValues: {
-      departureLocation: '', // Will be filled from user metadata if available
+      departureCountry: '', // Will be filled from user metadata if available
+      departureCity: '', // Will be filled from user metadata if available
+      customDepartureCity: '',
       budgetRange: { min: 1000, max: 2000 },
       budgetTolerance: 10,
       travelDuration: 'week', // Set a default value to avoid validation errors
@@ -99,8 +110,42 @@ const Onboarding = () => {
       locationPreference: 'anywhere',
       flightType: 'direct',
       preferCheaperWithStopover: true,
-    },
+    }
   });
+  
+  // Watch country to update city options
+  const selectedCountry = form.watch('departureCountry');
+  const selectedCity = form.watch('departureCity');
+  
+  // Update city options when country changes
+  useEffect(() => {
+    if (selectedCountry) {
+      const options = getCityOptions(selectedCountry);
+      setCityOptions(options);
+      
+      // Reset city selection when country changes
+      if (form.getValues('departureCity')) {
+        // Only reset if we already had a value and it's not in the new options
+        const currentCity = form.getValues('departureCity');
+        const cityExists = options.some(option => option.value === currentCity);
+        if (!cityExists) {
+          form.setValue('departureCity', '');
+          form.setValue('customDepartureCity', '');
+        }
+      }
+      setShowCustomCityInput(isCustomCityNeeded(form.getValues('departureCity')));
+    }
+  }, [selectedCountry, form]);
+  
+  // Show custom city input when "Other" is selected
+  useEffect(() => {
+    if (selectedCity) {
+      setShowCustomCityInput(isCustomCityNeeded(selectedCity));
+      if (!isCustomCityNeeded(selectedCity)) {
+        form.setValue('customDepartureCity', '');
+      }
+    }
+  }, [selectedCity, form]);
 
   const totalSteps = 7;
 
@@ -126,10 +171,23 @@ const Onboarding = () => {
         const user = await authService.getCurrentUser() as ExtendedUser;
         if (user) {
           // Pre-fill the form with user data if available
-          // Safely extract city information from user object
-          const userCity = user.user_metadata?.city || 'Berlin, Germany';
-            
-          form.setValue('departureLocation', userCity);
+          // Extract country and city from user metadata
+          const userCountry = user.user_metadata?.country || '';
+          const userCity = user.user_metadata?.city || '';
+          const userCustomCity = user.user_metadata?.customCity || '';
+          
+          // Set form values for country and city
+          if (typeof userCountry === 'string') {
+            form.setValue('departureCountry', userCountry);
+          }
+          
+          if (typeof userCity === 'string') {
+            form.setValue('departureCity', userCity);
+            // Check if we need to show custom city input
+            if (typeof userCity === 'string' && isCustomCityNeeded(userCity) && typeof userCustomCity === 'string') {
+              form.setValue('customDepartureCity', userCustomCity);
+            }
+          }
         }
       } catch (error) {
         console.error('Error loading user data:', error);
@@ -181,11 +239,33 @@ const Onboarding = () => {
         return false;
       }
     } else if (step === 6) { // Last step (Departure Location)
-      const departureLocation = form.getValues('departureLocation');
-      if (!departureLocation) {
+      const departureCountry = form.getValues('departureCountry');
+      const departureCity = form.getValues('departureCity');
+      const customDepartureCity = form.getValues('customDepartureCity');
+      
+      if (!departureCountry) {
         toast({
           title: "Validation Error",
-          description: "Please enter your departure location",
+          description: "Please select a departure country",
+          variant: "destructive"
+        });
+        return false;
+      }
+      
+      if (!departureCity) {
+        toast({
+          title: "Validation Error",
+          description: "Please select a departure city",
+          variant: "destructive"
+        });
+        return false;
+      }
+      
+      // If custom city is needed but not provided
+      if (isCustomCityNeeded(departureCity) && !customDepartureCity) {
+        toast({
+          title: "Validation Error",
+          description: "Please enter your custom city name",
           variant: "destructive"
         });
         return false;
@@ -272,6 +352,13 @@ const Onboarding = () => {
       console.log('Current session:', sessionData?.session ? 'Active' : 'None');
       
       // Prepare travel preferences data
+      // Format departure location with both country and city
+      let departureCity = formData.departureCity;
+      // If it's a custom city entry, use that instead
+      if (isCustomCityNeeded(formData.departureCity) && formData.customDepartureCity) {
+        departureCity = formData.customDepartureCity;
+      }
+      
       const prefData = {
         user_id: currentUser.id,
         budget_min: budgetRangeData.min,
@@ -286,7 +373,8 @@ const Onboarding = () => {
         location_preference: formData.locationPreference || 'center',
         flight_type: formData.flightType || 'direct',
         prefer_cheaper_with_stopover: Boolean(formData.preferCheaperWithStopover),
-        departure_city: formData.departureLocation || 'Berlin',
+        departure_country: formData.departureCountry || '',
+        departure_city: departureCity || '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -354,7 +442,13 @@ const Onboarding = () => {
       }
       
       // STEP 4: Format data for travel preferences service (secondary approach)
-      const travelPreferencesData = {
+      // Format departure city for the travel preferences
+      let finalDepartureCity = formData.departureCity;
+      if (isCustomCityNeeded(formData.departureCity) && formData.customDepartureCity) {
+        finalDepartureCity = formData.customDepartureCity;
+      }
+
+      const travelPreferencesData: TravelPreferencesFormValues = {
         budgetRange: budgetRangeData,
         budgetFlexibility: Number(formData.budgetTolerance || 10),
         travelDuration: (formData.travelDuration || 'week') as TravelDurationType,
@@ -366,7 +460,8 @@ const Onboarding = () => {
         locationPreference: (formData.locationPreference || 'center') as LocationPreference,
         flightType: (formData.flightType || 'direct') as FlightType,
         preferCheaperWithStopover: Boolean(formData.preferCheaperWithStopover),
-        departureCity: formData.departureLocation || 'Berlin'
+        departureCity: finalDepartureCity || '',
+        departureCountry: formData.departureCountry || ''
       };
       
       console.log('Regular travel preferences data:', travelPreferencesData);
@@ -380,8 +475,12 @@ const Onboarding = () => {
       }
       
       // STEP 6: Update local storage BEFORE updating metadata (which triggers auth state change)
-      localStorage.setItem('hasCompletedInitialFlow', 'true');
-      localStorage.setItem('has_completed_onboarding', 'true');
+      localStorage.setItem('hasCompletedOnboarding', 'true');
+      localStorage.setItem('departureCountry', formData.departureCountry || '');
+      localStorage.setItem('departureCity', departureCity || '');
+      if (isCustomCityNeeded(formData.departureCity) && formData.customDepartureCity) {
+        localStorage.setItem('customDepartureCity', formData.customDepartureCity);
+      }
       localStorage.setItem('userTravelPreferences', JSON.stringify(travelPreferencesData));
       
       // STEP 7: Call the official onboarding status update function
@@ -393,20 +492,25 @@ const Onboarding = () => {
         console.error('Failed to update onboarding status via API:', onboardingError);
       }
       
-      // STEP 8: Update user metadata as the LAST step since it triggers auth state change
+      // STEP 8: Update user metadata in Supabase Auth
       try {
-        console.log('Updating user metadata (final step)...');
-        await authService.updateUserMetadata({
-          has_completed_onboarding: true,
-          onboarding_complete_date: new Date().toISOString(),
-          city: formData.departureLocation || 'Berlin',
-          travel_preferences: {
-            accommodation_types: formData.accommodationTypes || ['hotel'],
-            accommodation_comfort: formData.accommodationComfort || ['private-room'],
-            budget_range: budgetRangeData,
-            budget_tolerance: formData.budgetTolerance || 10,
-            travel_duration: formData.travelDuration || 'week',
-            date_flexibility: formData.dateFlexibility || 'flexible-few',
+        // STEP 4: Update user metadata to mark onboarding as complete
+        // Include country and city in the metadata for profile display
+        console.log('Updating user metadata with onboarding status');
+        
+        // Format departure location with both country and city
+        let departureCity = formData.departureCity;
+        // If it's a custom city entry, use that instead
+        if (isCustomCityNeeded(formData.departureCity) && formData.customDepartureCity) {
+          departureCity = formData.customDepartureCity;
+        }
+        
+        await supabase.auth.updateUser({
+          data: {
+            has_completed_onboarding: true,
+            country: formData.departureCountry || '',
+            city: departureCity || '',
+            customCity: isCustomCityNeeded(formData.departureCity) ? formData.customDepartureCity : '',
             planning_intent: formData.planningIntent || 'exploring',
             location_preference: formData.locationPreference || 'center',
             flight_type: formData.flightType || 'direct',
@@ -1075,32 +1179,83 @@ const Onboarding = () => {
                   <h3 className="text-lg font-medium">Your Departure Location</h3>
                   <p className="text-sm text-white/60">This helps us find suitable routes for your trips.</p>
                   
+                  {/* Country Selection */}
                   <FormField
                     control={form.control}
-                    name="departureLocation"
+                    name="departureCountry"
                     render={({ field }) => (
                       <FormItem className="pt-4">
+                        <div className="flex items-center mb-1">
+                          <MapPin className="mr-2 h-4 w-4 text-planora-accent-purple" />
+                          <FormLabel>Country</FormLabel>
+                        </div>
                         <FormControl>
-                          <div className="space-y-2">
-                            <div className="flex items-center">
-                              <Plane className="mr-2 h-4 w-4 text-planora-accent-purple" />
-                              <FormLabel>Departure City</FormLabel>
-                            </div>
-                            <div className="flex items-center">
-                              <Input 
-                                placeholder="e.g., London" 
-                                {...field} 
-                                className="bg-white/5 border-white/10 text-white"
-                              />
-                            </div>
-                            <p className="text-xs text-white/60 mt-1">
-                              Pre-filled from your profile. You can change it here for your travel preferences.
-                            </p>
-                          </div>
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            options={countryOptions}
+                            className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 w-full"
+                            placeholder="Select your country"
+                          />
                         </FormControl>
+                        <FormMessage className="text-planora-accent-pink" />
                       </FormItem>
                     )}
                   />
+                  
+                  {/* City Selection */}
+                  <FormField
+                    control={form.control}
+                    name="departureCity"
+                    render={({ field }) => (
+                      <FormItem className="pt-2">
+                        <div className="flex items-center mb-1">
+                          <Plane className="mr-2 h-4 w-4 text-planora-accent-purple" />
+                          <FormLabel>City</FormLabel>
+                        </div>
+                        <FormControl>
+                          {selectedCountry ? (
+                            <Select
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              options={cityOptions}
+                              className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 w-full"
+                              placeholder="Select your city"
+                            />
+                          ) : (
+                            <div className="h-10 flex items-center px-3 bg-white/5 border border-white/10 text-white/50 rounded-md cursor-not-allowed">
+                              Select your city
+                            </div>
+                          )}
+                        </FormControl>
+                        {!selectedCountry && (
+                          <p className="text-xs text-white/50 mt-1">Please select a country first</p>
+                        )}
+                        <FormMessage className="text-planora-accent-pink" />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Custom City Input (shown only when needed) */}
+                  {showCustomCityInput && (
+                    <FormField
+                      control={form.control}
+                      name="customDepartureCity"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white/80">Custom City Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Enter your city"
+                              className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 w-full"
+                            />
+                          </FormControl>
+                          <FormMessage className="text-planora-accent-pink" />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                 </div>
               )}
               

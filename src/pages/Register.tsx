@@ -23,14 +23,10 @@ import { getAuthService, AuthService } from "@/features/auth/authApi";
 import { VerificationDialog } from '@/features/auth/components/VerificationDialog';
 // Import auth hook
 import { useAuth } from '@/features/auth/hooks/useAuth';
+// Import location data for country-city selection
+import { countryOptions, getCityOptions, isCustomCityNeeded, CountryOption, CityOption } from '@/features/location-data/locationDataApi';
 
-// List of countries for the dropdown
-const countries = [
-  "United States", "United Kingdom", "Canada", "Germany", "France", 
-  "Spain", "Italy", "Australia", "Japan", "India", "Brazil"
-];
-
-const countryOptions = countries.map(country => ({ value: country, label: country }));
+// Country and city options are imported from location-data feature
 
 // Calculate minimum birthdate (16 years ago from today)
 const today = new Date();
@@ -43,7 +39,8 @@ const formSchema = z.object({
   password: z.string().min(8, { message: 'Password must be at least 8 characters' }),
   confirmPassword: z.string(),
   country: z.string().min(1, { message: 'Please select your country' }),
-  city: z.string().min(2, { message: 'Please enter your city' }),
+  city: z.string().min(1, { message: 'Please select your city' }),
+  customCity: z.string().optional(),
   birthdate: z.date({
     required_error: "Please select your birthdate.",
   }),
@@ -76,6 +73,10 @@ function Register() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // State for city selection
+  const [cityOptions, setCityOptions] = useState<CityOption[]>([]);
+  const [showCustomCityInput, setShowCustomCityInput] = useState(false);
+  
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -86,8 +87,35 @@ function Register() {
       confirmPassword: '',
       country: '',
       city: '',
+      customCity: '',
     },
   });
+
+  // Watch country to update city options
+  const selectedCountry = form.watch('country');
+  const selectedCity = form.watch('city');
+  
+  // Update city options when country changes
+  useEffect(() => {
+    if (selectedCountry) {
+      const options = getCityOptions(selectedCountry);
+      setCityOptions(options);
+      
+      // Reset city selection when country changes
+      form.setValue('city', '');
+      setShowCustomCityInput(false);
+    }
+  }, [selectedCountry, form]);
+  
+  // Show custom city input when "Other" is selected
+  useEffect(() => {
+    if (selectedCity) {
+      setShowCustomCityInput(isCustomCityNeeded(selectedCity));
+      if (!isCustomCityNeeded(selectedCity)) {
+        form.setValue('customCity', '');
+      }
+    }
+  }, [selectedCity, form]);
 
   // State for verification dialog and user registration
   const [showVerification, setShowVerification] = useState(false);
@@ -120,9 +148,14 @@ function Register() {
         lastName: data.lastName
       };
       
+      // Determine the actual city (from dropdown or custom input)
+      const actualCity = isCustomCityNeeded(data.city) && data.customCity 
+        ? data.customCity
+        : data.city;
+        
       // Add metadata for city, country, and birthdate
       registerData.metadata = {
-        city: data.city,
+        city: actualCity,
         country: data.country,
         birthdate: data.birthdate.toISOString()
       };
@@ -370,6 +403,7 @@ function Register() {
                                 onValueChange={field.onChange}
                                 options={countryOptions}
                                 className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 w-full"
+                                placeholder="Select your country"
                               />
                               <FormMessage className="text-planora-accent-pink" />
                             </FormItem>
@@ -382,17 +416,49 @@ function Register() {
                           render={({ field }) => (
                             <FormItem className="w-full">
                               <FormLabel className="text-white/80">City</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  placeholder="New York" 
-                                  {...field} 
-                                  className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300 w-full"
-                                />
-                              </FormControl>
-                              <FormMessage className="text-planora-accent-pink" />
+                              {selectedCountry ? (
+                                <>
+                                  <Select
+                                    value={field.value}
+                                    onValueChange={field.onChange}
+                                    options={cityOptions}
+                                    className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 w-full"
+                                    placeholder="Select your city"
+                                  />
+                                  <FormMessage className="text-planora-accent-pink" />
+                                </>
+                              ) : (
+                                <>
+                                  <div className="h-10 flex items-center px-3 bg-white/5 border border-white/10 text-white/50 rounded-md cursor-not-allowed">
+                                    Select your city
+                                  </div>
+                                  <p className="text-xs text-white/50 mt-1">Please select a country first</p>
+                                </>
+                              )}
                             </FormItem>
                           )}
                         />
+                        
+                        {/* Custom city input field (shown only when "Other" is selected) */}
+                        {showCustomCityInput && (
+                          <FormField
+                            control={form.control}
+                            name="customCity"
+                            render={({ field }) => (
+                              <FormItem className="w-full">
+                                <FormLabel className="text-white/80">Specify City</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="Enter your city name" 
+                                    {...field} 
+                                    className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300 w-full"
+                                  />
+                                </FormControl>
+                                <FormMessage className="text-planora-accent-pink" />
+                              </FormItem>
+                            )}
+                          />
+                        )}
                       </div>
                     </div>
                     

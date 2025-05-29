@@ -100,6 +100,7 @@ export interface AuthService {
   sendVerificationCode(userId: string, email: string): Promise<VerificationCodeResponse>;
   verifyCode(userId: string, code: string): Promise<VerificationCodeResponse>;
   checkCodeStatus(userId: string, code: string): Promise<VerificationCodeStatus>;
+  refreshSession(): Promise<{session: any, error: Error | null}>;
   /**
    * Determine the authentication provider used by a user
    * @param userId Optional user ID to check (uses current user if not provided)
@@ -308,7 +309,12 @@ const authService = {
    * @returns The detected authentication provider type
    */
   getAuthProvider: async (userId?: string): Promise<AuthProviderType> => {
-    return supabaseAuthService.getAuthProvider(userId);
+    // Check if userId is provided, if not, pass undefined to the service
+    if (userId) {
+      return supabaseAuthService.getAuthProvider(userId);
+    } else {
+      return supabaseAuthService.getAuthProvider();
+    }
   },
   
   /**
@@ -339,5 +345,14 @@ const authService = {
    */
   checkCodeStatus: async (userId: string, code: string): Promise<VerificationCodeStatus> => {
     return supabaseAuthService.checkCodeStatus(userId, code);
+  },
+  
+  /**
+   * Refresh the current session
+   * Ensures we have the latest session data after auth changes
+   * @returns Updated session data
+   */
+  refreshSession: async () => {
+    return supabaseAuthService.refreshSession();
   }
 };
