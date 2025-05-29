@@ -12,7 +12,9 @@ import {
   UserRegistrationStatus, 
   GoogleAuthCredentials,
   RegisterData,
-  AuthProviderType
+  AuthProviderType,
+  VerificationCodeResponse,
+  VerificationCodeStatus
 } from '../types/authTypes';
 
 /**
@@ -894,6 +896,181 @@ export const supabaseAuthService = {
       console.error('Failed to update onboarding status:', err);
       // Even if we fail here, local storage should still be updated
       return localStorage.getItem('has_completed_onboarding') === 'true';
+    }
+  },
+  
+  /**
+   * Register a new user
+   * @param data Registration data
+   * @returns Registration result with user data and email confirmation status
+   */
+  register: async (data: RegisterData): Promise<{ user: User | null, emailConfirmationRequired: boolean }> => {
+    try {
+      console.log('Registering new user:', data.email);
+      
+      // Extract metadata from registration data
+      const metadata = {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        username: data.username || data.email.split('@')[0],
+        ...data.metadata
+      };
+      
+      // Register user with Supabase
+      const { data: authData, error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: metadata,
+          emailRedirectTo: supabaseAuthService.getEmailVerificationRedirectUrl('verification')
+        }
+      });
+      
+      if (error) {
+        console.error('Registration error:', error);
+        throw error;
+      }
+      
+      // Determine if email confirmation is required
+      const emailConfirmationRequired = !!authData?.user && !authData?.user?.email_confirmed_at;
+      
+      return {
+        user: authData?.user || null,
+        emailConfirmationRequired
+      };
+    } catch (err) {
+      console.error('Error during registration:', err);
+      throw err;
+    }
+  },
+  
+  /**
+   * Send verification code to user's email
+   * @param userId User ID
+   * @param email Email address to send code to
+   * @returns Response indicating success or failure
+   */
+  sendVerificationCode: async (userId: string, email: string): Promise<VerificationCodeResponse> => {
+    try {
+      console.log('Sending verification code to:', email);
+      
+      // Call the verification-code-handler edge function
+      const { data, error } = await supabase.functions.invoke('verification-code-handler', {
+        body: { action: 'send', userId, email }
+      });
+      
+      if (error) {
+        console.error('Error sending verification code:', error);
+        return { success: false, error: error.message || 'Failed to send verification code' };
+      }
+      
+      return data as VerificationCodeResponse;
+    } catch (err) {
+      console.error('Error in sendVerificationCode:', err);
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'An unexpected error occurred'
+      };
+    }
+  },
+  
+  /**
+   * Verify a code entered by the user
+   * @param userId User ID
+   * @param code Verification code
+   * @returns Response indicating success or failure
+   */
+  verifyCode: async (userId: string, code: string): Promise<VerificationCodeResponse> => {
+    try {
+      console.log('Verifying code for user:', userId);
+      
+      // Call the verification-code-handler edge function
+      const { data, error } = await supabase.functions.invoke('verification-code-handler', {
+        body: { action: 'verify', userId, code }
+      });
+      
+      if (error) {
+        console.error('Error verifying code:', error);
+        return { success: false, error: error.message || 'Failed to verify code' };
+      }
+      
+      // If verification was successful, update the user's profile
+      if (data?.success) {
+        // Update the profile to mark email as verified
+        try {
+          await supabase
+            .from('profiles')
+            .update({
+              email_verified: true,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', userId);
+          
+          // Also update user metadata
+          await supabase.auth.updateUser({
+            data: {
+              email_verified: true,
+              email_verified_at: new Date().toISOString()
+            }
+          });
+        } catch (updateErr) {
+          console.warn('Non-critical error updating profile after verification:', updateErr);
+          // Continue despite error - the verification itself succeeded
+        }
+      }
+      
+      return data as VerificationCodeResponse;
+    } catch (err) {
+      console.error('Error in verifyCode:', err);
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'An unexpected error occurred'
+      };
+    }
+  },
+  
+  /**
+   * Check verification code status
+   * @param userId User ID
+   * @param code Verification code
+   * @returns Status of the verification code
+   */
+  checkCodeStatus: async (userId: string, code: string): Promise<VerificationCodeStatus> => {
+    try {
+      // Query the verification_codes table to check status
+      const { data, error } = await supabase
+        .from('verification_codes')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('code', code)
+        .eq('used', false)
+        .single();
+      
+      if (error) {
+        return {
+          isValid: false,
+          isExpired: true,
+          message: 'Invalid verification code'
+        };
+      }
+      
+      // Check if code is expired
+      const now = new Date();
+      const expiresAt = new Date(data.expires_at);
+      const isExpired = now > expiresAt;
+      
+      return {
+        isValid: true,
+        isExpired,
+        message: isExpired ? 'Verification code has expired' : 'Verification code is valid'
+      };
+    } catch (err) {
+      console.error('Error checking code status:', err);
+      return {
+        isValid: false,
+        isExpired: false,
+        message: 'Error checking verification code status'
+      };
     }
   }
 };

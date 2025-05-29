@@ -15,7 +15,9 @@ import type {
   UserRegistrationStatus,
   GoogleAuthCredentials,
   SessionInfo,
-  RegisterData
+  RegisterData,
+  VerificationCodeResponse,
+  VerificationCodeStatus
 } from './types/authTypes';
 
 // Import the auth service directly to prevent circular dependencies
@@ -95,6 +97,9 @@ export interface AuthService {
   checkOnboardingStatus(userId: string): Promise<boolean>;
   updateOnboardingStatus(userId: string, hasCompleted?: boolean): Promise<boolean>;
   checkEmailVerificationStatus(userId: string): Promise<boolean>;
+  sendVerificationCode(userId: string, email: string): Promise<VerificationCodeResponse>;
+  verifyCode(userId: string, code: string): Promise<VerificationCodeResponse>;
+  checkCodeStatus(userId: string, code: string): Promise<VerificationCodeStatus>;
   /**
    * Determine the authentication provider used by a user
    * @param userId Optional user ID to check (uses current user if not provided)
@@ -304,5 +309,35 @@ const authService = {
    */
   getAuthProvider: async (userId?: string): Promise<AuthProviderType> => {
     return supabaseAuthService.getAuthProvider(userId);
+  },
+  
+  /**
+   * Send verification code to user's email
+   * @param userId User ID
+   * @param email Email address to send code to
+   * @returns Response indicating success or failure
+   */
+  sendVerificationCode: async (userId: string, email: string): Promise<VerificationCodeResponse> => {
+    return supabaseAuthService.sendVerificationCode(userId, email);
+  },
+  
+  /**
+   * Verify a code entered by the user
+   * @param userId User ID
+   * @param code Verification code
+   * @returns Response indicating success or failure
+   */
+  verifyCode: async (userId: string, code: string): Promise<VerificationCodeResponse> => {
+    return supabaseAuthService.verifyCode(userId, code);
+  },
+  
+  /**
+   * Check verification code status
+   * @param userId User ID
+   * @param code Verification code
+   * @returns Status of the verification code
+   */
+  checkCodeStatus: async (userId: string, code: string): Promise<VerificationCodeStatus> => {
+    return supabaseAuthService.checkCodeStatus(userId, code);
   }
 };

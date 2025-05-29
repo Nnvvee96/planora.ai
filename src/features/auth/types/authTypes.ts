@@ -97,3 +97,23 @@ export interface RegisterData {
     [key: string]: unknown;
   };
 }
+
+/**
+ * Verification code response interface
+ * Used for email verification code process
+ */
+export interface VerificationCodeResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Verification code status interface
+ * Used to check the status of a verification code
+ */
+export interface VerificationCodeStatus {
+  isValid: boolean;
+  isExpired: boolean;
+  message?: string;
+}
