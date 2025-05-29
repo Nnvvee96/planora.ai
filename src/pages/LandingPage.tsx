@@ -557,7 +557,7 @@ const LandingPage = () => {
                     </h3>
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-planora-accent-pink animate-pulse"></div>
-                      <span className="text-white/70 text-sm">AI Active</span>
+                      <span className="text-white/70 text-sm">Planora.ai</span>
                     </div>
                   </div>
                   
