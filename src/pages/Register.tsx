@@ -11,7 +11,7 @@ import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { GradientButton } from '@/ui/atoms/GradientButton';
-import { Apple } from 'lucide-react';
+import { Apple, Shield, CheckCircle, User, Mail, Lock, MapPin, Calendar, Loader2 } from 'lucide-react';
 import { DatePickerInput } from "@/components/ui/DatePickerInput";
 import { Footer } from '@/ui/organisms/Footer';
 import { useToast } from "@/components/ui/use-toast";
@@ -33,7 +33,8 @@ const today = new Date();
 const sixteenYearsAgo = new Date(today.getFullYear() - 16, today.getMonth(), today.getDate());
 
 const formSchema = z.object({
-  name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
+  firstName: z.string().min(2, { message: 'First name must be at least 2 characters' }),
+  lastName: z.string().min(2, { message: 'Last name must be at least 2 characters' }),
   email: z.string().email({ message: 'Please enter a valid email address' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters' }),
   confirmPassword: z.string(),
@@ -74,7 +75,8 @@ function Register() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: '',
+      firstName: '',
+      lastName: '',
       email: '',
       password: '',
       confirmPassword: '',
@@ -104,18 +106,14 @@ function Register() {
         throw new Error('You must be at least 16 years old to use Planora');
       }
       
-      // Extract first and last name from full name
-      const nameParts = data.name.split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-      
+      // Use the provided first and last name directly
       // Prepare registration data following our auth feature type
       const registerData: RegisterData = {
         email: data.email,
         password: data.password,
         username: data.email.split('@')[0], // Default username from email
-        firstName,
-        lastName
+        firstName: data.firstName,
+        lastName: data.lastName
       };
       
       // Add metadata for city, country, and birthdate
@@ -176,25 +174,36 @@ function Register() {
 
   return (
     <div className="min-h-screen bg-planora-purple-dark flex flex-col">
-      {/* Clean background with subtle gradient and no text */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-planora-accent-purple/20 via-background to-background"></div>
+      {/* Enhanced background with interactive elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-planora-accent-purple/30 via-background to-background"></div>
+        
+        {/* Animated circles for visual interest */}
+        <div className="absolute top-[20%] left-[15%] w-64 h-64 rounded-full bg-planora-accent-purple/10 blur-3xl animate-pulse-slow"></div>
+        <div className="absolute bottom-[20%] right-[15%] w-80 h-80 rounded-full bg-planora-accent-blue/10 blur-3xl animate-pulse-slow-reverse"></div>
+        
+        {/* Digital grid pattern */}
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCA2MCBNIDYwIDMwIEwgMzAgNjAgTSAzMCAwIEwgMCAzMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDMiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-20"></div>
+      </div>
       
-      <div className="flex-grow flex flex-col items-center justify-center p-4">
-        {/* Logo */}
-        <div className="mb-6 z-10">
-          <Logo href="/" />
+      <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
+        {/* Logo with animation */}
+        <div className="mb-8 z-10 transform transition-all duration-700 hover:scale-105">
+          <Logo href="/" className="h-14 w-auto" />
         </div>
         
-        <Card className="w-full max-w-md z-10 bg-card/50 backdrop-blur-lg border-white/10">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">Create your account</CardTitle>
-            <CardDescription className="text-center text-white/60">
-              Enter your information to get started
+        <Card className="w-full max-w-md z-10 bg-card/40 backdrop-blur-xl border border-white/10 shadow-xl transition-all duration-300 hover:border-white/20 hover:shadow-planora-accent-purple/10">
+          <CardHeader className="space-y-3 pb-6">
+            <CardTitle className="text-2xl md:text-3xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-white to-white/80">
+              Create your account
+            </CardTitle>
+            <CardDescription className="text-center text-white/70 text-base">
+              Join Planora and start planning your intelligent journeys
             </CardDescription>
-            {/* Step indicators */}
-            <div className="flex justify-center space-x-2 pt-2">
-              <div className={`h-2 w-16 rounded-full ${formStep === 0 ? 'bg-planora-accent-purple' : 'bg-planora-accent-purple/30'}`}></div>
-              <div className={`h-2 w-16 rounded-full ${formStep === 1 ? 'bg-planora-accent-purple' : 'bg-planora-accent-purple/30'}`}></div>
+            {/* Modern step indicators */}
+            <div className="flex justify-center space-x-3 pt-2">
+              <div className={`h-1.5 w-20 rounded-full transition-all duration-300 ${formStep === 0 ? 'bg-gradient-to-r from-planora-accent-purple to-planora-accent-blue' : 'bg-white/20'}`}></div>
+              <div className={`h-1.5 w-20 rounded-full transition-all duration-300 ${formStep === 1 ? 'bg-gradient-to-r from-planora-accent-purple to-planora-accent-blue' : 'bg-white/20'}`}></div>
             </div>
           </CardHeader>
           
@@ -208,145 +217,231 @@ function Register() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 {formStep === 0 ? (
                   <>
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Full Name</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="John Doe" 
-                              {...field} 
-                              className="bg-white/5 border-white/10 text-white"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    {/* Split into Last Name and First Name fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="lastName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white/80 flex items-center gap-1">
+                              <User className="h-3.5 w-3.5 text-planora-accent-purple/80" />
+                              Last Name
+                            </FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Doe" 
+                                {...field} 
+                                className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"
+                              />
+                            </FormControl>
+                            <FormMessage className="text-planora-accent-pink" />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="firstName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white/80 flex items-center gap-1">
+                              <User className="h-3.5 w-3.5 text-planora-accent-purple/80" />
+                              First Name
+                            </FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="John" 
+                                {...field} 
+                                className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"
+                              />
+                            </FormControl>
+                            <FormMessage className="text-planora-accent-pink" />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                     
                     <FormField
                       control={form.control}
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email</FormLabel>
+                          <FormLabel className="text-white/80 flex items-center gap-1">
+                            <Mail className="h-3.5 w-3.5 text-planora-accent-purple/80" />
+                            Email
+                          </FormLabel>
                           <FormControl>
                             <Input 
                               placeholder="your@email.com" 
                               {...field} 
-                              className="bg-white/5 border-white/10 text-white"
+                              className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"
+                              autoComplete="email"
                             />
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="password" 
-                              placeholder="••••••••" 
-                              {...field} 
-                              className="bg-white/5 border-white/10 text-white"
-                            />
-                          </FormControl>
-                          <FormMessage />
+                          <FormMessage className="text-planora-accent-pink" />
                         </FormItem>
                       )}
                     />
                     
-                    <FormField
-                      control={form.control}
-                      name="confirmPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Confirm Password</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="password" 
-                              placeholder="••••••••" 
-                              {...field} 
-                              className="bg-white/5 border-white/10 text-white"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    {/* Security Information Section */}
+                    <div className="space-y-4 pt-2">
+                      <div className="text-sm text-white/70 font-medium flex items-center gap-1">
+                        <Lock className="h-3.5 w-3.5 text-planora-accent-purple/80" />
+                        Security Information
+                      </div>
+                      <div className="space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="password"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white/80">Password</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="password" 
+                                  placeholder="••••••••" 
+                                  {...field} 
+                                  className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"
+                                  autoComplete="new-password"
+                                />
+                              </FormControl>
+                              <FormMessage className="text-planora-accent-pink" />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="confirmPassword"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white/80">Confirm Password</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="password" 
+                                  placeholder="••••••••" 
+                                  {...field} 
+                                  className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"
+                                  autoComplete="new-password"
+                                />
+                              </FormControl>
+                              <FormMessage className="text-planora-accent-pink" />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
                     
-                    <FormField
-                      control={form.control}
-                      name="country"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Country</FormLabel>
-                          <Select
-                            value={field.value}
-                            onValueChange={field.onChange}
-                            options={countryOptions}
-                            className="bg-white/5 border-white/10 text-white"
-                          />
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="city"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>City</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="New York" 
-                              {...field} 
-                              className="bg-white/5 border-white/10 text-white"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    {/* Location Information Section */}
+                    <div className="space-y-4 pt-2">
+                      <div className="text-sm text-white/70 font-medium flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5 text-planora-accent-purple/80" />
+                        Location Information
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="country"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white/80">Country</FormLabel>
+                              <Select
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                options={countryOptions}
+                                className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50"
+                              />
+                              <FormMessage className="text-planora-accent-pink" />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="city"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white/80">City</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="New York" 
+                                  {...field} 
+                                  className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"
+                                />
+                              </FormControl>
+                              <FormMessage className="text-planora-accent-pink" />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
                     
                     {/* Date of Birth field with DatePickerInput */}
-                    <FormField
-                      control={form.control}
-                      name="birthdate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Date of Birth</FormLabel>
-                          <FormControl>
-                            <DatePickerInput
-                              value={field.value}
-                              onChange={field.onChange}
-                              placeholder="MM / DD / YYYY"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="space-y-4 pt-2">
+                      <div className="text-sm text-white/70 font-medium flex items-center gap-1">
+                        <Calendar className="h-3.5 w-3.5 text-planora-accent-purple/80" />
+                        Date of Birth
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="birthdate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white/80">Date of Birth</FormLabel>
+                            <FormControl>
+                              <DatePickerInput
+                                value={field.value}
+                                onChange={field.onChange}
+                                placeholder="MM / DD / YYYY"
+                                className="w-full bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"
+                              />
+                            </FormControl>
+                            <FormMessage className="text-planora-accent-pink" />
+                            <div className="text-xs text-white/50 mt-1">You must be at least 16 years old to use Planora</div>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </>
                 ) : (
                   <>
-                    <div className="text-sm text-white/60 pt-2">
-                      <p>By signing up, you agree to our <Link to="#" className="text-planora-accent-purple hover:underline">Terms of Service</Link> and <Link to="#" className="text-planora-accent-purple hover:underline">Privacy Policy</Link>.</p>
+                    {/* Review Information Section */}
+                    <div className="bg-planora-accent-purple/10 border border-planora-accent-purple/20 rounded-xl p-4 text-white/80 mt-4">
+                      <h3 className="text-base font-medium mb-2 flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-planora-accent-purple" />
+                        Review Your Information
+                      </h3>
+                      <p className="text-sm mb-3">Please confirm your account details before creating your account.</p>
+                      
+                      {/* Account Summary */}
+                      <div className="mb-4 p-3 bg-white/5 rounded-md">
+                        <div className="grid grid-cols-2 gap-2 text-xs text-white/80">
+                          <div>
+                            <div className="text-white/50 mb-1">Name</div>
+                            <div>{form.getValues().firstName} {form.getValues().lastName}</div>
+                          </div>
+                          <div>
+                            <div className="text-white/50 mb-1">Email</div>
+                            <div>{form.getValues().email}</div>
+                          </div>
+                          <div>
+                            <div className="text-white/50 mb-1">Location</div>
+                            <div>{form.getValues().city}, {form.getValues().country}</div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="text-sm text-white/70">
+                        <p>By signing up, you agree to our <Link to="#" className="text-planora-accent-purple hover:underline transition-colors">Terms of Service</Link> and <Link to="#" className="text-planora-accent-purple hover:underline transition-colors">Privacy Policy</Link>.</p>
+                      </div>
                     </div>
                   </>
                 )}
                 
-                <div className="pt-2">
+                <div className="pt-4">
                   {formStep === 0 ? (
-                    <GradientButton className="w-full">
+                    <GradientButton className="w-full" type="submit">
                       Continue
                     </GradientButton>
                   ) : (
@@ -354,7 +449,7 @@ function Register() {
                       <Button 
                         type="button" 
                         variant="outline" 
-                        className="flex-1 border-white/10 bg-white/5 text-white"
+                        className="flex-1 border-white/10 bg-white/5 text-white hover:bg-white/10 transition-colors"
                         onClick={() => setFormStep(0)}
                         disabled={isSubmitting}
                       >
@@ -363,15 +458,10 @@ function Register() {
                       <GradientButton className="flex-1" type="submit" disabled={isSubmitting}>
                         {isSubmitting ? (
                           <>
-                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
+                            <Loader2 className="animate-spin mr-2 h-4 w-4" />
                             Processing...
                           </>
-                        ) : (
-                          "Create Account"
-                        )}
+                        ) : "Create Account"}
                       </GradientButton>
                     </div>
                   )}
@@ -380,21 +470,18 @@ function Register() {
             </Form>
           </CardContent>
           
-          <CardFooter className="flex flex-col space-y-4">
-            <div className="relative w-full">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-white/10" />
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="px-2 bg-card/50 text-white/60">or continue with</span>
-              </div>
+          <CardFooter className="flex flex-col gap-4 pt-2 pb-6">
+            <div className="w-full flex items-center gap-3">
+              <div className="h-px bg-white/10 flex-grow"></div>
+              <span className="text-xs text-white/40">or continue with</span>
+              <div className="h-px bg-white/10 flex-grow"></div>
             </div>
             
             <div className="grid grid-cols-2 gap-3 w-full">
               {/* Google authentication button */}
               <Button 
                 variant="outline" 
-                className="border-white/10 bg-white/5 hover:bg-white/10 text-white flex items-center gap-2 justify-center"
+                className="border-white/10 bg-white/5 hover:bg-white/10 text-white flex items-center gap-2 justify-center transition-colors"
                 disabled={isSubmitting}
                 onClick={async () => {
                   try {
@@ -422,7 +509,7 @@ function Register() {
               {/* Apple authentication button (coming soon) */}
               <Button 
                 variant="outline" 
-                className="border-white/10 bg-white/5 hover:bg-white/10 text-white flex items-center gap-2 justify-center"
+                className="border-white/10 bg-white/5 hover:bg-white/10 text-white flex items-center gap-2 justify-center transition-colors"
                 disabled={isSubmitting || import.meta.env.VITE_ENABLE_APPLE_AUTH !== 'true'}
                 onClick={() => {
                   toast({
@@ -436,9 +523,9 @@ function Register() {
               </Button>
             </div>
             
-            <div className="text-center text-sm">
+            <div className="text-center text-sm text-white/60 mt-2">
               Already have an account?{" "}
-              <Link to="/login" className="text-planora-accent-purple hover:text-planora-accent-pink">
+              <Link to="/login" className="text-planora-accent-purple hover:underline transition-colors">
                 Sign in
               </Link>
             </div>
