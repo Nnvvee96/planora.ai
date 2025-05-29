@@ -265,14 +265,6 @@ const LandingPage = () => {
               <p className="text-xl text-white/80 max-w-2xl mx-auto leading-relaxed">
                 Our intelligent travel assistant makes planning your trips effortless, personalized, and enjoyable with cutting-edge AI technology.
               </p>
-              
-              <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-16 h-16">
-                <div className="relative w-full h-full">
-                  <div className="absolute inset-0 border border-planora-accent-purple/20 rounded-full"></div>
-                  <div className="absolute inset-3 border border-planora-accent-blue/30 rounded-full"></div>
-                  <div className="absolute inset-6 border border-planora-accent-pink/40 rounded-full"></div>
-                </div>
-              </div>
             </div>
             
             {/* Modern feature cards with tech-inspired design */}
