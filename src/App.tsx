@@ -102,6 +102,11 @@ const App = () => {
                     <EmailConfirmation />
                   </Suspense>
                 } />
+                <Route path="/auth/verification" element={
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Verifying your account...</div>}>
+                    <EmailConfirmation />
+                  </Suspense>
+                } />
                 <Route path="/auth/email-change-verification" element={
                   <Suspense fallback={<div className="flex items-center justify-center h-screen">Verifying your email change...</div>}>
                     <EmailChangeVerification />

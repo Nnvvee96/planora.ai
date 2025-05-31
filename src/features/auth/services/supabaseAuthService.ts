@@ -255,24 +255,27 @@ export const supabaseAuthService = {
    */
   getEmailVerificationRedirectUrl: (route: string): string => {
     let baseUrl = '';
+    const standardizedRoute = route === 'verification' ? 'verification' : route;
     
-    // First, check for production Vercel URL
-    if (import.meta.env.VITE_PRODUCTION_URL) {
-      baseUrl = import.meta.env.VITE_PRODUCTION_URL;
-    }
-    // Fall back to current origin if available
-    else if (typeof window !== 'undefined' && window.location.origin) {
+    // Use environment variables for consistent URLs across environments
+    if (import.meta.env.MODE === 'production' || import.meta.env.PROD) {
+      // Production environment - use main production URL
+      baseUrl = import.meta.env.VITE_PRODUCTION_URL || 'https://planora-ai-plum.vercel.app';
+    } else if (import.meta.env.MODE === 'development' || import.meta.env.DEV) {
+      // Development environment - use consistent localhost URL
+      baseUrl = 'http://localhost:5173';
+    } else if (typeof window !== 'undefined' && window.location.origin) {
+      // Fall back to current origin if available and not in recognized environment
       baseUrl = window.location.origin;
-    } 
-    // If all else fails, use the Vercel production URL
-    else {
+    } else {
+      // Default fallback to production URL
       baseUrl = 'https://planora-ai-plum.vercel.app';
     }
     
     // Log the redirect URL for debugging
-    console.log(`Setting email verification redirect URL: ${baseUrl}/auth/${route}`);
+    console.log(`Setting email verification redirect URL: ${baseUrl}/auth/${standardizedRoute}`);
     
-    return `${baseUrl}/auth/${route}`;
+    return `${baseUrl}/auth/${standardizedRoute}`;
   },
 
   /**
