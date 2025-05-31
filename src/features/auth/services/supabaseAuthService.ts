@@ -800,16 +800,30 @@ export const supabaseAuthService = {
    */
   refreshSession: async () => {
     try {
-      const { data, error } = await supabase.auth.refreshSession();
+      // Check if we have a session before trying to refresh it
+      const { data: sessionData } = await supabase.auth.getSession();
       
-      if (error) {
-        console.error('Error refreshing session:', error);
-        return { session: null, error };
+      // Only try to refresh if we have an existing session
+      if (sessionData?.session) {
+        const { data, error } = await supabase.auth.refreshSession();
+        
+        if (error) {
+          console.error('Error refreshing session:', error);
+          return { session: null, error };
+        }
+        
+        return { session: data.session, error: null };
+      } else {
+        // No session to refresh, return gracefully without error
+        return { session: null, error: null };
       }
-      
-      return { session: data.session, error: null };
     } catch (err) {
-      console.error('Failed to refresh session:', err);
+      // If error is AuthSessionMissingError, don't log it as an error
+      if (err instanceof Error && err.message.includes('Auth session missing')) {
+        console.log('No auth session to refresh, user is not logged in');
+      } else {
+        console.error('Failed to refresh session:', err);
+      }
       return { session: null, error: err as Error };
     }
   },
