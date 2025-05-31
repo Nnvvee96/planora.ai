@@ -213,8 +213,9 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
       console.error('Error during logout:', error);
     }
     
-    // Navigate to login page
-    navigate('/login');
+    // Navigate to landing page instead of login page
+    // This ensures users land on the public home page after logout
+    navigate('/');
   };
   
   return (

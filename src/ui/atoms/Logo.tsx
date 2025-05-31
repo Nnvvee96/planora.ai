@@ -27,8 +27,15 @@ const Logo: React.FC<LogoProps> = ({
     
     try {
       // Second priority: auth-based navigation (with safety checks)
-      // Note: if auth context throws an error or is undefined, default to landing page
-      return isAuthenticated ? '/dashboard' : '/';
+      // Force a re-check of authentication status to ensure accuracy
+      // This is important for correct navigation after logout
+      if (!isAuthenticated) {
+        // If not authenticated, always go to landing page
+        return '/';
+      }
+      
+      // If authenticated, go to dashboard
+      return '/dashboard';
     } catch (error) {
       // If there's any error accessing auth state, default to landing page
       console.warn('Auth state error in Logo component, defaulting to landing page');
