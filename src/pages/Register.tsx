@@ -514,6 +514,10 @@ function Register() {
                             <div className="text-white/50 mb-1">Location</div>
                             <div>{form.getValues().city}, {form.getValues().country}</div>
                           </div>
+                          <div>
+                            <div className="text-white/50 mb-1">Date of Birth</div>
+                            <div>{form.getValues().birthdate ? form.getValues().birthdate.toLocaleDateString() : 'Not provided'}</div>
+                          </div>
                         </div>
                       </div>
                       
