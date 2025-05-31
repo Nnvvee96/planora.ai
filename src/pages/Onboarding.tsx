@@ -515,7 +515,8 @@ const Onboarding = () => {
             location_preference: formData.locationPreference || 'center',
             flight_type: formData.flightType || 'direct',
             prefer_cheaper_with_stopover: Boolean(formData.preferCheaperWithStopover),
-            departure_location: formData.departureLocation || 'Berlin'
+            departure_country: formData.departureCountry || '',
+            departure_city: isCustomCityNeeded(formData.departureCity) ? formData.customDepartureCity : formData.departureCity || ''
           }
         });
       } catch (metadataError) {
