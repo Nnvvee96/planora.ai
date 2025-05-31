@@ -113,14 +113,17 @@ export function DatePickerInput({ value, onChange, placeholder = "MM / DD / YYYY
     }
   };
 
-  // Handle backspace/delete to clear the entire field
+  // Improved keyboard handling to allow normal editing
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if ((e.key === 'Backspace' || e.key === 'Delete')) {
-      // Clear the input completely
+    // Only clear if Escape is pressed or Ctrl+Backspace/Delete
+    if (e.key === 'Escape') {
       setInputValue("");
       onChange(undefined);
-      e.preventDefault(); // Prevent default backspace behavior
+      e.preventDefault();
     }
+    
+    // Allow normal backspace and delete functionality
+    // Do not prevent default behavior
   };
 
   return (
