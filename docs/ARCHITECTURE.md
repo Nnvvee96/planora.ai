@@ -310,7 +310,7 @@ Custom ESLint rules are implemented to enforce architectural principles:
 
 ### Code Generation with Plop.js
 
-Planora uses Plop.js for code generation that follows our architectural principles. All templates and configuration are located in the `tools/plop/` directory:
+Planora uses Plop.js for code generation that follows our architectural principles. All templates and configuration are located in the `config/plop/` directory:
 
 - Generate new features with proper structure (`npm run scaffold:feature`)
 - Create UI components following atomic design (`npm run scaffold:component`)
@@ -330,24 +330,28 @@ Planora's architecture is supported by various configuration files that maintain
 config/
 ├── dependencies/       # Dependency management configuration
 │   ├── .dependency-cruiser.cjs  # Architecture validation rules
-│   └── .npmrc          # NPM configuration
+│   ├── .npmrc          # NPM configuration
+│   └── reports/        # Architecture validation reports
+│       └── dependency-violations.html  # Generated dependency violation reports
 │
 ├── deployment/         # Deployment configuration
 │   ├── vercel.json     # Vercel configuration
 │   ├── vercel.build.json  # Vercel build settings
 │   └── vercel-deploy.sh   # Deployment script
 │
-└── linting/            # Code quality tools
-    └── .lintstagedrc.json  # Pre-commit lint configuration
-```
-
-### Tools Directory Structure
-
-```
-tools/
-└── plop/              # Code generation
+├── linting/            # Code quality tools
+│   └── .lintstagedrc.json  # Pre-commit lint configuration
+│
+└── plop/              # Code generation templates and configuration
     ├── plopfile.js    # Code generator configuration
-    └── templates/     # Code templates (feature, service, hook, etc.)
+    ├── ai-feature.hbs # AI feature template
+    ├── api-client.hbs # API client template
+    ├── component.hbs  # UI component template
+    ├── feature-api.hbs # Feature API boundary template
+    ├── feature-types.hbs # Feature types template
+    ├── hook.hbs      # React hook template
+    ├── integration-hook.hbs # Cross-feature integration hook template
+    └── service.hbs   # Service template
 ```
 
 ### Configuration Files Reference
@@ -355,10 +359,12 @@ tools/
 | File | Location | Purpose |
 |------|----------|--------|
 | `.dependency-cruiser.cjs` | `config/dependencies/` | Enforces architectural boundaries |
+| `dependency-violations.html` | `config/dependencies/reports/` | Generated dependency violation reports |
 | `.lintstagedrc.json` | `config/linting/` | Configures pre-commit linting for TypeScript and JavaScript files |
 | `.npmrc` | `config/dependencies/` | Sets npm configuration (legacy-peer-deps=true) |
 | `components.json` | `config/` | shadcn/ui component library configuration |
-| `plopfile.js` | `tools/plop/` | Code generator for architectural compliance |
+| `plopfile.js` | `config/plop/` | Code generator configuration (symlinked to root) |
+| `*.hbs templates` | `config/plop/` | Code generation templates for features, components, etc. |
 | `vercel.build.json` | `config/deployment/` | Vercel deployment configuration with legacy-peer-deps support |
 | `vercel.json` | `config/deployment/` | Vercel routing and headers configuration |
 | `check-secrets.sh` | `config/deployment/` | Security script to prevent credential leakage |

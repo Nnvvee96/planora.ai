@@ -10,37 +10,37 @@ Planora.ai now organizes all configuration files in a dedicated `config/` direct
 config/
 ├── dependencies/       # Dependency management configuration
 │   ├── .dependency-cruiser.cjs  # Architecture validation rules
-│   └── .npmrc          # NPM configuration
+│   ├── .npmrc          # NPM configuration
+│   └── reports/        # Architecture validation reports
+│       └── dependency-violations.html  # Generated dependency violation reports
 │
 ├── deployment/         # Deployment configuration
 │   ├── vercel.json     # Vercel configuration
 │   ├── vercel.build.json  # Vercel build settings
 │   └── vercel-deploy.sh   # Deployment script
 │
-└── linting/            # Code quality tools
-    └── .lintstagedrc.json  # Pre-commit lint configuration
+├── linting/            # Code quality tools
+│   └── .lintstagedrc.json  # Pre-commit lint configuration
+│
+└── plop/              # Code generation templates and configuration
+    ├── plopfile.js    # Code generator configuration
+    ├── ai-feature.hbs # AI feature template
+    ├── api-client.hbs # API client template
+    ├── component.hbs  # UI component template
+    ├── feature-api.hbs # Feature API boundary template
+    ├── feature-types.hbs # Feature types template
+    ├── hook.hbs      # React hook template
+    ├── integration-hook.hbs # Cross-feature integration hook template
+    └── service.hbs   # Service template
 ```
 
 ## Development Tools
 
 ### Code Generation (Plop.js)
 
-Planora uses Plop.js for code generation following our architectural principles. All templates and configuration for code generation are now organized in the `tools/plop/` directory.
+Planora uses Plop.js for code generation following our architectural principles. All templates and configuration for code generation are now organized in the `config/plop/` directory.
 
-```
-tools/
-└── plop/              # Code generation
-    ├── plopfile.js    # Code generator configuration
-    └── templates/     # Code templates
-        ├── ai-feature.hbs
-        ├── api-client.hbs
-        ├── component.hbs
-        ├── feature-api.hbs
-        ├── feature-types.hbs
-        ├── hook.hbs
-        ├── integration-hook.hbs
-        └── service.hbs
-```
+The `plopfile.js` in the root directory is a symbolic link to `config/plop/plopfile.js` for backward compatibility with existing scripts.
 
 ### Using Code Generation
 

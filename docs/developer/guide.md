@@ -46,7 +46,7 @@ This guide provides comprehensive information for developers working on the Plan
    npm run scaffold:integration
    ```
    
-   All code generation templates are located in `tools/plop/templates/` and configured in `tools/plop/plopfile.js`. They enforce Planora's architectural principles automatically.
+   All code generation templates are located in `config/plop/` and configured in `config/plop/plopfile.js` (with a symlink in the project root). They enforce Planora's architectural principles automatically.
 
 ## Project Organization
 

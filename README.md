@@ -102,10 +102,10 @@ planora.ai/
 │   └── types/              # TypeScript type definitions
 ├── config/                 # Configuration files
 │   ├── dependencies/       # Dependency management configs (.npmrc, .dependency-cruiser.cjs)
+│   │   └── reports/        # Architecture validation reports
 │   ├── deployment/         # Deployment configs (vercel.json, vercel.build.json)
-│   └── linting/            # Linting configs (.lintstagedrc.json, eslint configs)
-├── tools/                  # Development tooling
-│   └── plop/              # Code generation templates and configuration
+│   ├── linting/            # Linting configs (.lintstagedrc.json, eslint configs)
+│   └── plop/               # Code generation templates and configuration
 ├── docs/                   # Project documentation
 │   ├── ARCHITECTURE.md     # Architecture decisions and patterns
 │   ├── setup/              # Setup and configuration guides

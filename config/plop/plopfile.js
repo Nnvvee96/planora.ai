@@ -35,7 +35,7 @@ export default function (plop) {
       {
         type: 'add',
         path: '../../src/ui/{{atomicLevel}}/{{name}}.tsx',
-        templateFile: './templates/ai-feature.hbs'
+        templateFile: '../config/plop/component.hbs'
       }
     ]
   });
@@ -74,12 +74,12 @@ export default function (plop) {
       {
         type: 'add',
         path: '../../src/features/{{name}}/types.ts',
-        templateFile: './templates/feature-types.hbs'
+        templateFile: '../config/plop/feature-types.hbs'
       },
       {
         type: 'add',
         path: '../../src/features/{{name}}/{{name}}Api.ts',
-        templateFile: './templates/feature-api.hbs'
+        templateFile: '../config/plop/feature-api.hbs'
       }
     ]
   });
@@ -106,13 +106,13 @@ export default function (plop) {
         actions.push({
           type: 'add',
           path: '../../src/features/{{feature}}/services/{{name}}Service.ts',
-          templateFile: './templates/service.hbs'
+          templateFile: '../config/plop/service.hbs'
         });
       } else {
         actions.push({
           type: 'add',
           path: '../../src/services/{{name}}Service.ts',
-          templateFile: './templates/service.hbs'
+          templateFile: '../config/plop/service.hbs'
         });
       }
       
@@ -142,13 +142,13 @@ export default function (plop) {
         actions.push({
           type: 'add',
           path: '../../src/features/{{feature}}/hooks/use{{pascalCase name}}.ts',
-          templateFile: './templates/hook.hbs'
+          templateFile: '../config/plop/hook.hbs'
         });
       } else {
         actions.push({
           type: 'add',
           path: '../../src/hooks/use{{pascalCase name}}.ts',
-          templateFile: './templates/hook.hbs'
+          templateFile: '../config/plop/hook.hbs'
         });
       }
       
@@ -170,7 +170,7 @@ export default function (plop) {
       {
         type: 'add',
         path: '../../src/hooks/integration/use{{pascalCase feature}}Integration.ts',
-        templateFile: './templates/integration-hook.hbs'
+        templateFile: '../config/plop/integration-hook.hbs'
       }
     ]
   });
@@ -208,13 +208,13 @@ export default function (plop) {
         {
           type: 'add',
           path: '../../src/features/{{name}}/{{name}}Api.ts',
-          templateFile: './templates/feature-api.hbs'
+          templateFile: '../config/plop/feature-api.hbs'
         },
         // Create the types file
         {
           type: 'add',
           path: '../../src/features/{{name}}/types.ts',
-          templateFile: './templates/feature-types.hbs'
+          templateFile: '../config/plop/feature-types.hbs'
         },
         // Create folder structure
         {
@@ -363,7 +363,7 @@ export function get{{pascalCase name}}Service(): {{pascalCase name}}Service {
         {
           type: 'add',
           path: '../../src/features/{{name}}/README.md',
-          templateFile: './templates/ai-feature.hbs'
+          templateFile: '../config/plop/ai-feature.hbs'
         }
       ];
       
@@ -372,7 +372,7 @@ export function get{{pascalCase name}}Service(): {{pascalCase name}}Service {
         actions.push({
           type: 'add',
           path: '../../src/features/{{name}}/services/apiClient.ts',
-          templateFile: './templates/api-client.hbs'
+          templateFile: '../config/plop/api-client.hbs'
         });
       }
       
