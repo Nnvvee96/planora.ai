@@ -19,11 +19,8 @@ export const getTravelPreferencesPanelComponent = () => {
   })));
 };
 
-// For hooks, we'll create a factory function that dynamically imports
-export const getTravelPreferencesHook = async () => {
-  const module = await import('./hooks/useTravelPreferences');
-  return module.useTravelPreferences;
-};
+// Note: Factory function for useTravelPreferences hook removed to break circular dependency
+// Components should import the hook directly from './hooks/useTravelPreferences'
 
 // Import and export the travel preferences service
 import { travelPreferencesService } from './services/travelPreferencesService';

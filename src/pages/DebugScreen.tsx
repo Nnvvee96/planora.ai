@@ -7,7 +7,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/ui/atoms/Button';
-import { supabase } from '@/database/databaseExports';
+import { getAuthService } from '@/features/auth/authApi';
+import { userProfileService } from '@/features/user-profile/userProfileApi';
 
 /**
  * Debug screen component for diagnosing production issues
@@ -39,15 +40,15 @@ export const DebugScreen: React.FC = () => {
     // Check Supabase connection
     const checkConnection = async () => {
       try {
-        // Simple ping to Supabase
-        const { data, error } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
+        // Use user profile service to check for profiles count
+        const connected = await userProfileService.checkDatabaseConnection();
         
-        if (error) {
-          setConnectionStatus('Connection Error');
-          setErrorDetails(error.message);
-        } else {
+        if (connected) {
           setConnectionStatus('Connected');
           setErrorDetails(null);
+        } else {
+          setConnectionStatus('Connection Error');
+          setErrorDetails('Could not connect to database');
         }
       } catch (err) {
         setConnectionStatus('Fatal Error');
@@ -61,8 +62,10 @@ export const DebugScreen: React.FC = () => {
   // Handle test auth click
   const handleTestAuth = async () => {
     try {
-      const { data, error } = await supabase.auth.getSession();
-      console.log('Auth session test:', data, error);
+      // Use auth service through proper API boundary
+      const authService = getAuthService();
+      const { session, error } = await authService.refreshSession();
+      console.log('Auth session test:', session);
       alert(`Auth session test: ${error ? 'Error: ' + error.message : 'Success - check console for details'}`);
     } catch (err) {
       console.error('Auth test error:', err);

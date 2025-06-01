@@ -6,7 +6,7 @@
  */
 
 import { User } from '@supabase/supabase-js';
-import { supabase } from '@/database/databaseExports';
+import { supabase } from '@/database/databaseApi';
 import { 
   AuthResponse, 
   UserRegistrationStatus, 
@@ -1362,6 +1362,37 @@ export const supabaseAuthService = {
       return { 
         success: false, 
         error: err instanceof Error ? err.message : 'An unexpected error occurred'
+      };
+    }
+  },
+  
+  /**
+   * Check verification code status
+   * @param userId User ID
+   * @param code Verification code
+   * @returns Status of the verification code
+   */
+  /**
+   * Sign in with email and password
+   * @param credentials Email and password credentials
+   * @returns Authentication result with data and error
+   */
+  signInWithPassword: async (credentials: { email: string; password: string }) => {
+    try {
+      // Call Supabase auth signInWithPassword
+      const { data, error } = await supabase.auth.signInWithPassword(credentials);
+      
+      // Log for debugging (not sensitive info)
+      if (error) {
+        console.error('Login error:', error.message);
+      }
+      
+      return { data, error };
+    } catch (err) {
+      console.error('Unexpected error during login:', err);
+      return { 
+        data: null, 
+        error: err instanceof Error ? err : new Error('Unknown error during login') 
       };
     }
   },

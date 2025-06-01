@@ -5,9 +5,10 @@
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import { supabase } from '@/database/databaseExports';
+import { supabase } from '@/database/databaseApi';
 import { UserProfile, DbUserProfile } from '../types/profileTypes';
-import { travelPreferencesService } from '@/features/travel-preferences/travelPreferencesApi';
+// Import directly from service to avoid circular dependency through API
+import { travelPreferencesService } from '@/features/travel-preferences/services/travelPreferencesService';
 
 /**
  * Converts snake_case database profile to camelCase application profile
@@ -884,6 +885,79 @@ export const userProfileService = {
       return true;
     } catch (error) {
       console.error('Unexpected error deleting user profile:', error);
+      return false;
+    }
+  },
+  
+  /**
+   * Check if database connection is working
+   * @returns True if database connection is successful
+   */
+  checkDatabaseConnection: async (): Promise<boolean> => {
+    try {
+      // Simple ping to Supabase using profiles table to test connection
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('count', { count: 'exact', head: true });
+      
+      if (error) {
+        console.error('Database connection test failed:', error.message);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Unexpected error during database connection test:', error);
+      return false;
+    }
+  },
+  
+  /**
+   * Complete the email change process for a user
+   * @param userId The user ID to complete the email change for
+   * @returns True if the email change was successfully completed
+   */
+  completeEmailChange: async (userId: string): Promise<boolean> => {
+    try {
+      // Clear email change fields in the profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          pending_email_change: null,
+          email_change_requested_at: null,
+          email_verified: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+        
+      if (profileError) {
+        console.error('Error updating profile during email change completion:', profileError);
+        return false;
+      }
+      
+      // Update the email_change_tracking table if it exists
+      try {
+        const { error: trackingError } = await supabase
+          .from('email_change_tracking')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+          .eq('status', 'pending');
+          
+        if (trackingError) {
+          // This is a non-critical error, just log it
+          console.warn('Error updating email change tracking:', trackingError);
+        }
+      } catch (trackingErr) {
+        // Non-critical error, just log it
+        console.warn('Error with email change tracking table:', trackingErr);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Unexpected error completing email change:', error);
       return false;
     }
   }

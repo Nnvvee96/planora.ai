@@ -14,7 +14,8 @@ import { Logo } from '@/ui/atoms/Logo';
 import { ArrowLeft, Mail, CheckCircle } from 'lucide-react';
 import { Footer } from '@/ui/organisms/Footer';
 import { useToast } from '@/components/ui/use-toast';
-import { getAuthService } from '../authApi';
+// Import service directly to avoid circular dependency
+import { supabaseAuthService } from '../services/supabaseAuthService';
 
 export const ForgotPassword: React.FC = () => {
   const navigate = useNavigate();
@@ -36,11 +37,10 @@ export const ForgotPassword: React.FC = () => {
       setIsSubmitting(true);
       setError(null);
       
-      // Get auth service
-      const authService = getAuthService();
+      // Use service directly to avoid circular dependency
       
       // Send password reset email
-      const success = await authService.sendPasswordResetEmail(email);
+      const success = await supabaseAuthService.sendPasswordResetEmail(email);
       
       if (!success) {
         throw new Error('Failed to send password reset email. Please try again.');

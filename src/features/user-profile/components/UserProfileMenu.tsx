@@ -1,7 +1,5 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-// Direct imports to avoid circular dependencies 
-import { supabase } from '@/database/databaseExports';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -25,17 +23,21 @@ import {
   BookMarked
 } from 'lucide-react';
 
-// Lazy load modals to avoid bundle issues
-const ProfileModal = React.lazy(() => import('./modals/ProfileModal').then(module => ({
-  default: module.ProfileModal
-})));
-
-const SettingsModal = React.lazy(() => import('./modals/SettingsModal').then(module => ({
-  default: module.SettingsModal
-})));
-
-// Import user profile service only
+// Properly import from API boundaries
 import { userProfileService } from '@/features/user-profile/userProfileApi';
+import { getAuthService } from '@/features/auth/authApi';
+import { useUserProfileIntegration } from '../hooks/useUserProfileIntegration';
+
+// Directly lazy-load components to avoid circular dependencies
+import { lazy } from 'react';
+
+const ProfileDialog = lazy(() => import('./dialogs/ProfileDialog').then(module => ({
+  default: module.ProfileDialog
+})));
+const SettingsDialog = lazy(() => import('./dialogs/SettingsDialog').then(module => ({
+  default: module.SettingsDialog
+})));
+
 import { ProfileFormData } from '@/features/user-profile/types/profileTypes';
 
 /**
@@ -63,8 +65,8 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
 }) => {
   const nameInitial = userName.charAt(0);
   const navigate = useNavigate();
-  const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [profileData, setProfileData] = useState({
     firstName: firstName || '',
     lastName: lastName || '',
@@ -72,152 +74,77 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
     birthdate: birthdate || ''
   });
   
-  // Fetch the latest user profile data when opening the profile modal
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (profileModalOpen) {
-        try {
-          // Use supabase directly to avoid circular dependencies with proper null checking
-          const { data } = await supabase.auth.getUser();
-          
-          // Comprehensive null checking before accessing any user properties
-          if (!data || !data.user) {
-            console.warn('No user data available');
-            return;
-          }
-          
-          const user = data.user;
-          
-          // Safely extract metadata with enhanced null checks
-          // This is a critical point where TypeError: r is null can occur
-          const userMetadata = user?.user_metadata || {};
-          
-          // Add an additional safety check to ensure userMetadata is an object
-          if (typeof userMetadata !== 'object' || userMetadata === null) {
-            console.warn('User metadata is not an object or is null');
-            return; // Exit early if metadata is not valid
-          }
-          
-          // Get current user data with comprehensive null checking
-          const currentUser = {
-            id: user.id,
-            email: user.email || '',
-            firstName: '',
-            lastName: ''
-          };
-          
-          // Safely extract first name with fallbacks
-          if (typeof userMetadata === 'object') {
-            // Check for Google-specific formats
-            // Add safe optional chaining for all property accesses
-            if (userMetadata?.identities && Array.isArray(userMetadata.identities)) {
-              // Add try-catch to handle any unexpected errors during this critical operation
-              try {
-                const googleIdentity = userMetadata.identities.find((identity: any) => 
-                  identity && identity?.provider === 'google'
-                );
-                
-                if (googleIdentity && googleIdentity?.identity_data) {
-                  currentUser.firstName = googleIdentity?.identity_data?.given_name || 
-                                       googleIdentity?.identity_data?.first_name || '';
-                                       
-                  currentUser.lastName = googleIdentity?.identity_data?.family_name || 
-                                      googleIdentity?.identity_data?.last_name || '';
-                }
-              } catch (e) {
-                console.error('Error processing identity data:', e);
-                // Continue with fallbacks
-              }
-              
-              // This is now handled inside the try-catch block above
-            }
-            
-            // Fall back to direct metadata fields if needed
-            // Use optional chaining and safe type checks
-            if (!currentUser.firstName) {
-              const firstName = userMetadata?.first_name || userMetadata?.given_name;
-              currentUser.firstName = typeof firstName === 'string' ? firstName : '';
-            }
-            
-            // Use optional chaining and safe type checks
-            if (!currentUser.lastName) {
-              const lastName = userMetadata?.last_name || userMetadata?.family_name;
-              currentUser.lastName = typeof lastName === 'string' ? lastName : '';
-            }
-            
-            // Try to extract from full name if all else fails
-            // Add safe type checks before splitting name
-            if (!currentUser.firstName && !currentUser.lastName && userMetadata?.name) {
-              try {
-                const nameStr = typeof userMetadata.name === 'string' ? userMetadata.name : String(userMetadata.name);
-                const nameParts = nameStr.split(' ');
-                if (nameParts.length > 0) {
-                  currentUser.firstName = nameParts[0];
-                  currentUser.lastName = nameParts.slice(1).join(' ');
-                }
-              } catch (e) {
-                console.error('Error processing name:', e);
-                // Continue with fallbacks
-              }
-            }
-          }
-          
-          // Get detailed profile through the user profile service
-          const profileData = await userProfileService.getUserProfile(currentUser.id).catch(err => {
-            console.error('Error fetching user profile from service:', err);
-            return null;
-          });
-          
-          // Use data from the profile or fall back to props
-          const combinedFirstName = profileData?.firstName || currentUser.firstName || firstName || '';
-          const combinedLastName = profileData?.lastName || currentUser.lastName || lastName || '';
-          const combinedEmail = currentUser.email || profileData?.email || userEmail || '';
-          const combinedBirthdate = profileData?.birthdate || birthdate || '';
-          
-          setProfileData({
-            firstName: combinedFirstName,
-            lastName: combinedLastName,
-            email: combinedEmail,
-            birthdate: combinedBirthdate
-          });
-        } catch (error) {
-          console.error('Error fetching user profile:', error);
-          // Still update the profile data with whatever we have from props
-          setProfileData({
-            firstName: firstName || '',
-            lastName: lastName || '',
-            email: userEmail || '',
-            birthdate: birthdate || ''
-          });
-        }
-      }
-    };
+  // Use integration hook to access user profile data safely
+  const userProfileIntegration = useUserProfileIntegration();
+
+  // Define fetchUserProfile as a useCallback to prevent unnecessary re-renders
+  const fetchUserProfile = useCallback(async () => {
+    if (!profileDialogOpen) return;
     
-    fetchUserProfile();
-  }, [profileModalOpen, firstName, lastName, userEmail, birthdate]);
-  
-  const handleLogout = async () => {
     try {
-      // If onLogout prop is provided, use it
-      if (onLogout) {
-        onLogout();
+      // Get auth service via factory function to avoid circular dependencies
+      const authService = getAuthService();
+      
+      // Get current auth user with proper API boundary
+      const authUser = await authService.getCurrentUser();
+      
+      if (!authUser || !authUser.id) {
+        console.warn('No authenticated user available');
         return;
       }
       
-      // Use supabase directly to avoid circular dependencies
-      await supabase.auth.signOut();
-      // Clear local storage
-      localStorage.removeItem('hasCompletedInitialFlow');
-      localStorage.removeItem('userTravelPreferences');
+      // Get user with profile using integration hook
+      const user = await userProfileIntegration.getUserWithProfile(authUser.id);
+      
+      if (!user) {
+        console.warn('Could not load user profile data');
+        return;
+      }
+      
+      // Update profile data state with retrieved information
+      setProfileData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        birthdate: user.birthdate || ''
+      });
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  }, [profileDialogOpen, userProfileIntegration]);
+  
+  // Fetch user profile when dialog opens
+  useEffect(() => {
+    if (profileDialogOpen) {
+      fetchUserProfile();
+    }
+  }, [profileDialogOpen, fetchUserProfile]);
+
+  const handleLogout = async () => {
+    try {
+      // Get auth service via factory function to avoid circular dependencies
+      const authService = getAuthService();
+      
+      // Use auth service for logout
+      await authService.logout();
+      
+      // Clean up any local state
+      localStorage.removeItem('userSession');
+      localStorage.removeItem('userProfile');
+      
+      // Use callback if provided
+      if (onLogout) {
+        onLogout();
+      }
+      
+      // Navigate to root instead of login page
+      // This is important for proper navigation flow
+      navigate('/');
     } catch (error) {
       console.error('Error during logout:', error);
     }
-    
-    // Navigate to landing page instead of login page
-    // This ensures users land on the public home page after logout
-    navigate('/');
   };
-  
+
   return (
     <>
       <DropdownMenu>
@@ -244,7 +171,7 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem onClick={() => setProfileModalOpen(true)}>
+            <DropdownMenuItem onClick={() => setProfileDialogOpen(true)}>
               <User className="mr-2 h-4 w-4" />
               <span className="w-full">Profile</span>
             </DropdownMenuItem>
@@ -260,7 +187,7 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
               <CreditCard className="mr-2 h-4 w-4" />
               <Link to="/billing" className="w-full">Billing</Link>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSettingsModalOpen(true)}>
+            <DropdownMenuItem onClick={() => setSettingsDialogOpen(true)}>
               <Settings className="mr-2 h-4 w-4" />
               <span className="w-full">Settings</span>
             </DropdownMenuItem>
@@ -291,12 +218,12 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Profile Modal with Suspense fallback */}
+      {/* Profile Dialog with Suspense fallback */}
       <Suspense fallback={<div className="fixed inset-0 bg-background/80 flex items-center justify-center">Loading profile...</div>}>
-        {profileModalOpen && (
-          <ProfileModal 
-            open={profileModalOpen} 
-            onOpenChange={setProfileModalOpen} 
+        {profileDialogOpen && (
+          <ProfileDialog 
+            open={profileDialogOpen} 
+            onOpenChange={setProfileDialogOpen} 
             userName={userName}
             userEmail={profileData.email}
             firstName={profileData.firstName}
@@ -306,12 +233,12 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
         )}
       </Suspense>
 
-      {/* Settings Modal with Suspense fallback */}
+      {/* Settings Dialog with Suspense fallback */}
       <Suspense fallback={<div className="fixed inset-0 bg-background/80 flex items-center justify-center">Loading settings...</div>}>
-        {settingsModalOpen && (
-          <SettingsModal 
-            open={settingsModalOpen} 
-            onOpenChange={setSettingsModalOpen}
+        {settingsDialogOpen && (
+          <SettingsDialog 
+            open={settingsDialogOpen} 
+            onOpenChange={setSettingsDialogOpen}
           />
         )}
       </Suspense>

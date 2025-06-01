@@ -26,6 +26,9 @@ import { ErrorBoundary } from '@/ui/organisms/ErrorBoundary';
 // Add global error handler and debugging
 import { useEffect } from 'react';
 
+// Import dev tools
+import { getTestModeIndicatorComponent } from '@/features/dev-tools/devToolsApi';
+
 // Print environment variables to console (without keys)
 const DebugComponent = () => {
   useEffect(() => {
@@ -66,6 +69,9 @@ const App = () => {
   const ProtectedRoute = getProtectedRouteComponent();
   const AuthCallback = getAuthCallbackComponent();
   
+  // Initialize test mode indicator component
+  const TestModeIndicator = getTestModeIndicatorComponent();
+  
   return (
   <ErrorBoundary>
     <Provider store={store}>
@@ -85,6 +91,7 @@ const App = () => {
               <Toaster />
               <Sonner />
               <DebugComponent />
+              <TestModeIndicator />
               <Routes>
                 {/* Public routes - with authentication check for root path */}
                 <Route path="/" element={

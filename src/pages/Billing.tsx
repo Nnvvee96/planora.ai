@@ -1,27 +1,24 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
-import { getAuthService, AuthService } from '@/features/auth/authApi';
+import { useAuth } from '@/features/auth/authApi';
 
 const Billing: React.FC = () => {
   const navigate = useNavigate();
-  // Initialize auth service using factory function
-  const [authService, setAuthService] = useState<AuthService | null>(null);
-  
-  // Load auth service on component mount
-  useEffect(() => {
-    setAuthService(getAuthService());
-  }, [authService]);
+  // Get auth state from the auth hook
+  const { user, loading: authLoading } = useAuth();
   
   // Redirect logic for new Google sign-ins
   useEffect(() => {
     const checkUserAndRedirect = async () => {
       try {
-        const user = await authService.getCurrentUser();
+        // Wait until auth is no longer loading before making decisions
+        if (authLoading) return;
+        
         if (!user) {
           console.log('No authenticated user, redirecting to login');
           navigate('/login', { replace: true });
@@ -31,7 +28,7 @@ const Billing: React.FC = () => {
         // Check both Supabase metadata and localStorage to determine onboarding status
         const hasCompletedInitialFlow = localStorage.getItem('hasCompletedInitialFlow') === 'true';
         
-        // The user object from authService already has the mapped hasCompletedOnboarding from Supabase metadata
+        // The user object from useAuth hook already has the mapped hasCompletedOnboarding from Supabase metadata
         const hasCompletedOnboarding = user.hasCompletedOnboarding === true;
         // Note: user_metadata is not directly available in AppUser type, it's already mapped to hasCompletedOnboarding
         const hasSuabaseMetadataOnboarding = hasCompletedOnboarding;
@@ -70,7 +67,7 @@ const Billing: React.FC = () => {
     };
     
     checkUserAndRedirect();
-  }, [navigate, authService]);
+  }, [navigate, user, authLoading]);
   
   // Sample subscription data
   const currentPlan = "Professional";

@@ -21,6 +21,18 @@ The following environment variables must be configured in your Vercel project:
 | `VITE_SUPABASE_ANON_KEY` | The anon/public key for your Supabase project |
 | `VITE_FEATURE_FLAGS_ENABLED` | Set to 'true' to enable feature flags |
 
+## Configuration Files
+
+Planora.ai includes several configuration files that are essential for deployment:
+
+| File | Purpose |
+|------|--------|
+| `vercel.json` | Main Vercel configuration file for routing and headers |
+| `vercel.build.json` | Configures build options with legacy-peer-deps |
+| `vercel-deploy.sh` | Shell script for manual deployments with Vercel CLI |
+
+These files ensure proper deployment with all necessary dependencies and configurations.
+
 ## Deployment Steps
 
 ### 1. Connect Your Repository to Vercel

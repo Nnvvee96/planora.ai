@@ -10,7 +10,9 @@ import * as z from 'zod';
 import { DatePickerInput } from '@/components/ui/DatePickerInput';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { getAuthService, AuthService } from '@/features/auth/authApi';
+// Properly import from API boundary
 import { userProfileService } from '@/features/user-profile/userProfileApi';
+import { useUserProfileIntegration } from '@/features/user-profile/hooks/useUserProfileIntegration';
 import { useToast } from '@/components/ui/use-toast';
 import { Select } from '@/components/ui/select';
 import { countryOptions, getCityOptions } from '@/features/location-data/data/countryCityData';
@@ -28,13 +30,13 @@ const profileSchema = z.object({
 export type ProfileFormValues = z.infer<typeof profileSchema>;
 
 // Import shared types from the types directory to prevent circular dependencies
-import { ProfileModalProps } from '@/features/user-profile/types/profileTypes';
+import { ProfileDialogProps } from '@/features/user-profile/types/profileTypes';
 
 /**
- * ProfileModal - A component for editing user profile information
- * This modal allows users to update their personal details such as name, email, and birthdate
+ * ProfileDialog - A component for editing user profile information
+ * This dialog allows users to update their personal details such as name, email, and birthdate
  */
-const ProfileModal: React.FC<ProfileModalProps> = ({ 
+const ProfileDialog: React.FC<ProfileDialogProps> = ({ 
   open, 
   onOpenChange, 
   userName, 
@@ -80,11 +82,11 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
     },
   });
   
-  // State for managing city options based on selected country
   const [cityOptions, setCityOptions] = useState<Array<{value: string, label: string}>>([]);
   const [showCustomCityInput, setShowCustomCityInput] = useState(false);
   
-  // Fetch user data when the modal opens to ensure we have fresh data
+  const userProfileIntegration = useUserProfileIntegration();
+
   useEffect(() => {
     let isMounted = true;
     
@@ -92,60 +94,52 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
       if (open && authService) {
         setLoading(true);
         try {
-          // Get current user through the auth service API
           const currentUser = await authService.getCurrentUser();
           
           if (currentUser && isMounted) {
-            console.log('Current user from auth:', currentUser);
+            const userData = await userProfileIntegration.getUserWithProfile(currentUser.id);
             
-            // Get profile data through the user profile service
-            const profileData = await userProfileService.getUserProfile(currentUser.id);
-            console.log('Profile data from service:', profileData);
+            if (!userData) {
+              throw new Error('Failed to load user profile data');
+            }
             
-            // Format birthdate if it exists from any source
-            const birthdateFromProfile = profileData?.birthdate || birthdate;
-            const formattedBirthdate = formatDateString(birthdateFromProfile);
-            
-            // Combine all sources with priority: provided props > profile data > current user data
-            const combinedData = {
-              firstName: firstName || profileData?.firstName || currentUser.firstName || 
-                        (userName ? userName.split(' ')[0] : '') || '',
-              lastName: lastName || profileData?.lastName || currentUser.lastName || 
-                       (userName ? userName.split(' ').slice(1).join(' ') : '') || '',
-              email: userEmail || profileData?.email || currentUser.email || '',
-              birthdate: formattedBirthdate,
-              country: profileData?.country || '',
-              city: profileData?.city || '',
-              customCity: profileData?.customCity || ''
+            const formData = {
+              firstName: userData.firstName || firstName || '',
+              lastName: userData.lastName || lastName || '',
+              email: userData.email || userEmail || '',
+              birthdate: userData.birthdate || birthdate || '',
+              country: userData.country || '',
+              city: userData.city || '',
+              customCity: userData.customCity || '',
             };
             
-            // Update city options based on selected country
-            if (profileData?.country) {
-              const cities = getCityOptions(profileData.country);
-              setCityOptions(cities);
+            form.reset(formData);
+            
+            if (formData.country) {
+              setCityOptions(getCityOptions(formData.country));
               
-              // Check if we need to show custom city input
-              if (profileData.city === 'Other') {
+              if (formData.city === 'Other' && formData.customCity) {
                 setShowCustomCityInput(true);
               }
             }
-            
-            console.log('Setting form data:', combinedData);
-            
-            // Reset form with combined data
-            if (isMounted) {
-              form.reset(combinedData);
-            }
           }
         } catch (error) {
-          console.error('Error fetching user data:', error);
-          if (isMounted) {
-            toast({
-              title: 'Error',
-              description: 'Failed to load profile data. Please try again.',
-              variant: 'destructive',
-            });
-          }
+          console.error('Error loading profile data:', error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not load profile data. Please try again.",
+          });
+          
+          form.reset({
+            firstName: firstName || '',
+            lastName: lastName || '',
+            email: userEmail || '',
+            birthdate: birthdate || '',
+            country: '',
+            city: '',
+            customCity: '',
+          });
         } finally {
           if (isMounted) {
             setLoading(false);
@@ -159,157 +153,110 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [open, firstName, lastName, userEmail, birthdate, userName, form, authService, toast]);
-  
+  }, [open, authService, form, firstName, lastName, userEmail, birthdate, toast, userProfileIntegration]);
+
   const onSubmit = async (data: ProfileFormValues) => {
+    if (!authService) {
+      console.error('Auth service not initialized');
+      return;
+    }
+    
+    setLoading(true);
     try {
-      setLoading(true);
-      
-      // Get the current user through the auth service
       const currentUser = await authService.getCurrentUser();
-      if (!currentUser?.id) {
-        throw new Error('User not authenticated');
+      
+      if (!currentUser) {
+        throw new Error('No authenticated user found');
       }
       
-      // Debug log the form data
-      console.log('Form data being submitted:', JSON.stringify(data, null, 2));
-      console.log('Birthdate value type:', typeof data.birthdate, 'Value:', data.birthdate);
-      
-      // Log the data being sent to updateUserProfile
-      const updateData = {
+      const profileUpdateData = {
         firstName: data.firstName,
         lastName: data.lastName,
-        email: data.email,
-        birthdate: data.birthdate || undefined,
-        country: data.country || undefined,
-        city: data.city || undefined,
-        customCity: data.city === 'Other' ? data.customCity || undefined : undefined,
+        birthdate: data.birthdate,
+        country: data.country || null,
+        city: data.city === 'Other' && data.customCity ? 'Other' : data.city || null,
+        customCity: data.city === 'Other' ? data.customCity : null,
       };
       
-      console.log('Data being sent to updateUserProfile:', JSON.stringify(updateData, null, 2));
+      const effectiveCity = data.city === 'Other' && data.customCity ? data.customCity : data.city;
       
-      // Check if email has changed
-      const emailChanged = data.email !== currentUser.email;
-
-      // If email changed, use proper email update flow with verification
-      if (emailChanged && data.email) {
-        
-        try {
-          
-          // Use the auth service to properly update email with verification
-          await authService.updateEmail(data.email);
-          
-          // Show special toast for email verification
-          toast({
-            
-            title: 'Email Verification Required',
-            
-            description: 'A verification email has been sent to ' + data.email + '. Please check your inbox to confirm the change.',
-            
-            duration: 6000
-          
-          });
-        
-        } catch (emailError) {
-          
-          console.error('Failed to update email:', emailError);
-          
-          toast({
-            
-            title: 'Email Update Failed',
-            
-            description: emailError instanceof Error ? emailError.message : 'Failed to update email. Please try again.',
-            
-            variant: 'destructive',
-          
-          });
-          
-          throw emailError; // Re-throw to prevent further processing
-        
-        }
+      const isEmailChanged = currentUser.email.toLowerCase() !== data.email.toLowerCase();
       
+      const profileUpdated = await userProfileService.updateUserProfile(currentUser.id, profileUpdateData);
+      
+      if (!profileUpdated) {
+        throw new Error('Failed to update profile');
       }
-
-      // Update the user profile through the user profile service (without email if it was changed)
-      const updated = await userProfileService.updateUserProfile(currentUser.id, {
-        
-        firstName: data.firstName,
-        
-        lastName: data.lastName,
-        
-        // Only include email in profile update if it didn't change
-        ...(emailChanged ? {} : { email: data.email }),
-        
-        birthdate: data.birthdate || undefined,
-        
-        country: data.country || undefined,
-        
-        city: data.city || undefined,
-        
-        customCity: data.city === 'Other' ? data.customCity || undefined : undefined,
       
-      });
-      
-      if (!updated) {
-        
-        throw new Error('Failed to update profile in the database');
-      
+      if (isEmailChanged) {
+        try {
+          const emailChangeResult = await userProfileIntegration.handleEmailChangeRequest(
+            currentUser.id,
+            data.email
+          );
+          
+          if (emailChangeResult.success) {
+            toast({
+              title: "Profile Updated",
+              description: emailChangeResult.message || "Your profile has been updated. A verification email has been sent to your new email address.",
+            });
+          } else {
+            toast({
+              variant: "destructive",
+              title: "Email Update Failed",
+              description: emailChangeResult.message || "Could not update email address. Your other profile changes were saved.",
+            });
+          }
+        } catch (emailError) {
+          console.error('Error updating email:', emailError);
+          
+          toast({
+            variant: "destructive",
+            title: "Email Update Failed",
+            description: emailError instanceof Error ? emailError.message : "Could not update email address. Your other profile changes were saved.",
+          });
+        }
+      } else {
+        toast({
+          title: "Profile Updated",
+          description: "Your profile information has been successfully updated.",
+        });
       }
       
       // Update auth user metadata for name changes
       try {
-        
         await authService.updateUserMetadata({
-          
           first_name: data.firstName,
-          
           last_name: data.lastName
-        
         });
-      
       } catch (authError) {
-        
         console.warn('Failed to update auth user metadata:', authError);
-        
         // Non-critical error, continue
-      
       }
       
-      // Call the onProfileUpdate callback if provided
+      // Call the callback if provided
       if (onProfileUpdate) {
         onProfileUpdate({
-          firstName: data.firstName,
-          lastName: data.lastName,
-          email: data.email,
-          birthdate: data.birthdate,
-          country: data.country,
-          city: data.city,
-          customCity: data.city === 'Other' ? data.customCity : undefined
+          ...profileUpdateData,
+          email: currentUser.email, // Use current email since new one requires verification
         });
       }
       
-      // Show success message
-      toast({
-        title: 'Success',
-        description: 'Your profile has been updated.',
-      });
-      
-      // Close the modal
+      // Close the dialog
       onOpenChange(false);
-      
     } catch (error) {
       console.error('Error updating profile:', error);
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update profile',
-        variant: 'destructive',
+        variant: "destructive",
+        title: "Update Failed",
+        description: error instanceof Error ? error.message : "An error occurred while updating your profile.",
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const nameInitial = userName.charAt(0);
+  const nameInitial = userName ? userName.charAt(0) : '';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -487,4 +434,4 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
   );
 };
 
-export { ProfileModal };
+export { ProfileDialog };

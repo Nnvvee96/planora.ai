@@ -10,6 +10,26 @@ The database implementation follows Planora's architectural principles:
 - No redundancy
 - Clean code with proper error handling
 
+### Database Access Rules
+
+**Critical**: The following rules must be strictly followed when accessing the database:
+
+1. **No Direct Database Access in UI Components**
+   - UI components must never directly import or use database clients
+   - All database operations must be performed through service layers
+
+2. **Feature Isolation**
+   - Each feature must access only its own database tables through feature-specific services
+   - Cross-feature data access must use integration hooks and API boundaries
+
+3. **Type Safety**
+   - All database operations must use proper type definitions
+   - Database schemas must be mapped to application types via factory functions
+
+4. **Error Handling**
+   - All database operations must include proper error handling
+   - Use fallback mechanisms for critical operations (e.g., upsert with onConflict for RLS)
+
 ## Structure
 
 ```

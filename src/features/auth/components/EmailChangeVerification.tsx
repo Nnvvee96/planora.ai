@@ -12,10 +12,10 @@ import { Loader2, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/ui/atoms/Button';
 import { Logo } from '@/ui/atoms/Logo';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { getAuthService } from '../authApi';
-import { userProfileService } from '@/features/user-profile/services/userProfileService';
-// Import Supabase for direct database operations
-import { supabase } from '@/database/databaseExports';
+// Import service directly to avoid circular dependency
+import { supabaseAuthService } from '../services/supabaseAuthService';
+// Import through the proper API boundary
+import { userProfileService } from '@/features/user-profile/userProfileApi';
 
 /**
  * EmailChangeVerification component handles the verification of email changes
@@ -47,11 +47,11 @@ const EmailChangeVerification: React.FC = () => {
           return;
         }
         
-        // Verify the email using our auth service
-        const authService = getAuthService();
+        // Verify the email using our auth service directly to avoid circular dependency
+        // Use supabaseAuthService instead of getAuthService
         
         // Check if verifyEmail method exists on the auth service
-        if (typeof authService.verifyEmail !== 'function') {
+        if (typeof supabaseAuthService.verifyEmail !== 'function') {
           console.error('verifyEmail method not found on auth service');
           setError('Verification service unavailable. Please contact support.');
           setVerificationSuccess(false);
@@ -59,7 +59,7 @@ const EmailChangeVerification: React.FC = () => {
           return;
         }
         
-        const success = await authService.verifyEmail(token);
+        const success = await supabaseAuthService.verifyEmail(token);
         
         if (!success) {
           setError('Failed to verify email change. The link may have expired or been used already.');
@@ -69,7 +69,7 @@ const EmailChangeVerification: React.FC = () => {
         }
         
         // Get the current user after verification
-        const user = await authService.getCurrentUser();
+        const user = await supabaseAuthService.getCurrentUser();
         
         if (!user) {
           // This is expected - user might be logged out during email verification
@@ -98,34 +98,13 @@ const EmailChangeVerification: React.FC = () => {
             // No updatedAt - it will be handled by the service
           });
           
-          // Also update database directly to handle properties that might not be in the UserProfile type
+          // We've already updated the user profile above, but we also need to complete the email change process
           try {
-            await supabase
-              .from('profiles')
-              .update({
-                pending_email_change: null,
-                email_change_requested_at: null,
-                email_verified: true, // Actual database column name
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', user.id);
+            // Use the userProfileService to handle the database operations instead of direct Supabase access
+            await userProfileService.completeEmailChange(user.id);
           } catch (dbErr) {
-            console.warn('Error updating profile columns in database:', dbErr);
-          }
-          
-          // Also update the email_change_tracking table if it exists
-          try {
-            await supabase
-              .from('email_change_tracking')
-              .update({
-                status: 'completed',
-                completed_at: new Date().toISOString()
-              })
-              .eq('user_id', user.id)
-              .eq('status', 'pending');
-          } catch (trackingErr) {
             // Non-critical error, just log it
-            console.warn('Error updating email change tracking:', trackingErr);
+            console.warn('Error completing email change process:', dbErr);
           }
         } catch (profileErr) {
           console.warn('Error updating profile during verification:', profileErr);
@@ -245,6 +224,5 @@ const EmailChangeVerification: React.FC = () => {
   );
 };
 
-// Single export that works with both import styles
+// Using named exports only, as per Planora's architectural principles
 export { EmailChangeVerification };
-export default EmailChangeVerification;

@@ -1,13 +1,1 @@
-{
-  "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/node",
-      "config": {
-        "installCommand": "npm install --no-save --legacy-peer-deps",
-        "buildCommand": "npm run build --legacy-peer-deps"
-      }
-    }
-  ]
-}
+/Users/nnvve/Documents/Programming/Planora/planora.ai/config/deployment/vercel.build.json

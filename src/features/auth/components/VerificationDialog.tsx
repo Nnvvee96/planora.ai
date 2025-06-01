@@ -11,7 +11,8 @@ import { Button } from '@/ui/atoms/Button';
 import { Input } from '@/ui/atoms/Input';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { useAuth } from '../hooks/useAuth';
+// Import directly from services to avoid circular dependencies
+import { supabaseAuthService } from '../services/supabaseAuthService';
 import { VerificationCodeResponse } from '../types/authTypes';
 
 interface VerificationDialogProps {
@@ -36,7 +37,7 @@ export function VerificationDialog({
   const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState('');
   const { toast } = useToast();
-  const { getAuthService } = useAuth();
+  // Use supabaseAuthService directly to avoid circular dependency
   
   const handleVerify = async () => {
     try {
@@ -48,17 +49,17 @@ export function VerificationDialog({
       setIsSubmitting(true);
       setError('');
       
-      const authService = getAuthService();
-      const result: VerificationCodeResponse = await authService.verifyCode(userId, code);
+      // Use supabaseAuthService directly to avoid circular dependency
+      const result: VerificationCodeResponse = await supabaseAuthService.verifyCode(userId, code);
       
       if (result.success) {
         // Refresh the session to ensure the user is logged in with updated verification status
         try {
-          await authService.refreshSession();
+          await supabaseAuthService.refreshSession();
           console.log('Session refreshed after verification');
           
           // Check if onboarding is completed
-          const hasCompletedOnboarding = await authService.checkOnboardingStatus(userId);
+          const hasCompletedOnboarding = await supabaseAuthService.checkOnboardingStatus(userId);
           
           toast({
             title: "Email verified successfully",
@@ -92,9 +93,8 @@ export function VerificationDialog({
       setIsResending(true);
       setError('');
       
-      // Call the onResend function and catch any test verification code
-      const authService = getAuthService();
-      const result = await authService.sendVerificationCode(userId, email);
+      // Call the service directly to avoid circular dependency
+      const result = await supabaseAuthService.sendVerificationCode(userId, email);
       
       // If we got a code back for testing purposes, show it in the toast
       if (result.code) {

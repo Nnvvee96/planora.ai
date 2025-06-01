@@ -14,7 +14,8 @@ import { Logo } from '@/ui/atoms/Logo';
 import { ArrowLeft, Key, Shield, AlertCircle, CheckCircle } from 'lucide-react';
 import { Footer } from '@/ui/organisms/Footer';
 import { useToast } from '@/components/ui/use-toast';
-import { getAuthService } from '../authApi';
+// Import service directly to avoid circular dependency
+import { supabaseAuthService } from '../services/supabaseAuthService';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export const ResetPassword: React.FC = () => {
@@ -69,11 +70,10 @@ export const ResetPassword: React.FC = () => {
       setIsSubmitting(true);
       setError(null);
       
-      // Get auth service
-      const authService = getAuthService();
+      // Use service directly to avoid circular dependency
       
       // Reset password
-      const success = await authService.resetPassword(password);
+      const success = await supabaseAuthService.resetPassword(password);
       
       if (!success) {
         throw new Error('Failed to reset password. The link may have expired. Please request a new password reset link.');

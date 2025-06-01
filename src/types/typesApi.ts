@@ -1,7 +1,9 @@
 /**
- * Global Types
+ * Global Types API
  * 
- * Contains shared types that are used across multiple features
+ * Public API for shared types that are used across multiple features.
+ * Following Planora's architectural principles with consistent naming
+ * and organization patterns.
  */
 
 // Common type for API responses

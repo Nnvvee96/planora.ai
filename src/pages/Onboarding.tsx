@@ -42,20 +42,27 @@ import {
   FlightType
 } from '@/features/travel-preferences/travelPreferencesApi';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { getAuthService, AuthService } from '@/features/auth/authApi';
+import { useAuth } from '@/features/auth/authApi';
 import * as z from 'zod';
-import { supabase } from '@/database/databaseExports';
 // Import location data for country-city selection
 import { countryOptions, getCityOptions, isCustomCityNeeded, CountryOption, CityOption } from '@/features/location-data/locationDataApi';
+// Import feature APIs following architectural principles
+import { userProfileService, UserProfile } from '@/features/user-profile/userProfileApi';
+import { 
+  travelPreferencesService,
+  TravelPreferences
+} from '@/features/travel-preferences/travelPreferencesApi';
 
-// Extended User type to handle user metadata
-interface ExtendedUser {
+// Raw Supabase user interface for direct metadata access
+interface SupabaseRawUser {
   id: string;
   email?: string;
   user_metadata?: {
     has_completed_onboarding?: boolean;
+    country?: string;
     city?: string;
-    [key: string]: string | boolean | undefined;
+    customCity?: string;
+    [key: string]: any;
   };
 }
 
@@ -79,12 +86,10 @@ interface OnboardingFormData {
 const Onboarding = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  // Initialize auth service using factory function
-  const [authService, setAuthService] = useState<AuthService | null>(null);
-  
-  useEffect(() => {
-    setAuthService(getAuthService());
-  }, []);
+  // Use the auth hook directly instead of managing authService state
+  // Get auth data from the useAuth hook
+  // Note: The user from useAuth might be a raw Supabase user with user_metadata
+  const { user, loading: authLoading, authService } = useAuth();
 
   const isModifyingPreferences = location.state?.fromDashboard === true;
   const [step, setStep] = useState(0);
@@ -167,14 +172,24 @@ const Onboarding = () => {
   // Load user data when component mounts
   useEffect(() => {
     const loadUserData = async () => {
-      try {
-        const user = await authService.getCurrentUser() as ExtendedUser;
+    try {
+      // Use user directly from useAuth hook instead of calling getCurrentUser
         if (user) {
-          // Pre-fill the form with user data if available
-          // Extract country and city from user metadata
-          const userCountry = user.user_metadata?.country || '';
-          const userCity = user.user_metadata?.city || '';
-          const userCustomCity = user.user_metadata?.customCity || '';
+          // Use auth service to get current user
+          const userData = await authService.getCurrentUser();
+          
+          if (!userData) {
+            console.error('Error fetching user data');
+            return;
+          }
+          
+          // Access user metadata from the raw user object (type assertion needed for TypeScript)
+          // This is necessary because the AppUser interface doesn't include user_metadata
+          const rawUser = user as unknown as SupabaseRawUser;
+          const userMetadata = rawUser?.user_metadata || {};
+          const userCountry = userMetadata.country || '';
+          const userCity = userMetadata.city || '';
+          const userCustomCity = userMetadata.customCity || '';
           
           // Set form values for country and city
           if (typeof userCountry === 'string') {
@@ -195,7 +210,7 @@ const Onboarding = () => {
     };
     
     loadUserData();
-  }, [form, authService]); // Added form and authService as dependencies
+  }, [form, user]); // Updated dependency to user from useAuth hook
 
   const validateCurrentStep = () => {
     // Always pass step 0 (budget range) and step 1 (budget flexibility)
@@ -292,12 +307,13 @@ const Onboarding = () => {
     try {
       setLoading(true);
       
-      // Get current user through the auth service API boundary
-      const currentUser = await authService.getCurrentUser();
-      
-      if (!currentUser) {
-        throw new Error('No authenticated user found');
-      }
+      // Get current user from the useAuth hook
+    if (!user) {
+      throw new Error('No authenticated user found');
+    }
+    
+    // Use user from useAuth hook directly
+    const currentUser = user;
       
       // Get form data and ensure correct types
       const formData = form.getValues();
@@ -310,15 +326,14 @@ const Onboarding = () => {
       
       // First, we need to ensure the session is still valid
       // Explicitly refresh the session before any operations
-      const { data: sessionCheckData } = await supabase.auth.getSession();
-      if (!sessionCheckData?.session) {
-        console.error('No active session found before travel preferences save');
-        // Force refresh the session to ensure we're authenticated
-        await supabase.auth.refreshSession();
+      // Check session using auth service
+      const { session, error: sessionError } = await authService.refreshSession();
+      if (!session) {
+        console.error('No active session found before travel preferences save', sessionError);
         
-        // Double-check again after refresh
-        const { data: refreshedSession } = await supabase.auth.getSession();
-        if (!refreshedSession?.session) {
+        // Try to refresh the session again
+        const { session: refreshedSession, error: refreshError } = await authService.refreshSession();
+        if (!refreshedSession) {
           throw new Error('Unable to restore session, please log in again');
         }
       }
@@ -328,15 +343,12 @@ const Onboarding = () => {
       let existingLastName = '';
       
       try {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('first_name, last_name')
-          .eq('id', currentUser.id)
-          .single();
+        // Get profile using user profile service
+        const profileData = await userProfileService.getUserProfile(currentUser.id);
           
         if (profileData) {
-          existingFirstName = profileData.first_name || '';
-          existingLastName = profileData.last_name || '';
+          existingFirstName = profileData.firstName || '';
+          existingLastName = profileData.lastName || '';
           console.log('Retrieved existing profile data:', { existingFirstName, existingLastName });
         }
       } catch (profileFetchError) {
@@ -348,8 +360,8 @@ const Onboarding = () => {
       console.log('User ID:', currentUser.id);
       
       // Ensure we have the latest session before proceeding
-      const { data: sessionData } = await supabase.auth.getSession();
-      console.log('Current session:', sessionData?.session ? 'Active' : 'None');
+      const { session: currentSession } = await authService.refreshSession();
+      console.log('Current session:', currentSession ? 'Active' : 'None');
       
       // Prepare travel preferences data
       // Format departure location with both country and city
@@ -381,74 +393,13 @@ const Onboarding = () => {
       
       console.log('Travel preferences data for insertion:', prefData);
       
-      // First check if preferences already exist
-      const { data: existingPrefs } = await supabase
-        .from('travel_preferences')
-        .select('id')
-        .eq('user_id', currentUser.id);
+      // First check if preferences already exist using travel preferences service
+      const existingPrefs = await travelPreferencesService.getUserTravelPreferences(currentUser.id);
         
-      console.log('Existing preferences check:', existingPrefs);
+      console.log('Existing preferences check:', existingPrefs ? 'Found' : 'Not found');
       
-      // Use upsert for travel preferences - most reliable approach
-      const dbResult = await supabase
-        .from('travel_preferences')
-        .upsert(prefData, { onConflict: 'user_id' });
-      
-      console.log('Direct DB operation result:', dbResult);
-      
-      if (dbResult.error) {
-        console.error('Error in direct DB operation:', dbResult.error);
-        // Continue with other approaches - don't throw yet
-      }
-      
-      // STEP 3: Update profiles table to mark onboarding as completed
-      // IMPORTANT: Preserve existing first_name and last_name values!
-      try {
-        console.log('Updating profiles table directly...');
-        
-        // Prepare profile update data with preference for existing values
-        const profileUpdateData = {
-          has_completed_onboarding: true,
-          updated_at: new Date().toISOString()
-        };
-        
-        // Only include first_name and last_name if we have values from
-        // either existing profile or current user object
-        const firstName = existingFirstName || currentUser.firstName || '';
-        const lastName = existingLastName || currentUser.lastName || '';
-        
-        if (firstName) {
-          profileUpdateData['first_name'] = firstName;
-        }
-        
-        if (lastName) {
-          profileUpdateData['last_name'] = lastName;
-        }
-        
-        console.log('Profile update data:', profileUpdateData);
-        
-        const profileUpdate = await supabase
-          .from('profiles')
-          .update(profileUpdateData)
-          .eq('id', currentUser.id);
-          
-        console.log('Profile update result:', profileUpdate);
-        
-        if (profileUpdate.error) {
-          console.error('Profile update error:', profileUpdate.error);
-        }
-      } catch (profileError) {
-        console.error('Failed to update profile directly:', profileError);
-      }
-      
-      // STEP 4: Format data for travel preferences service (secondary approach)
-      // Format departure city for the travel preferences
-      let finalDepartureCity = formData.departureCity;
-      if (isCustomCityNeeded(formData.departureCity) && formData.customDepartureCity) {
-        finalDepartureCity = formData.customDepartureCity;
-      }
-
-      const travelPreferencesData: TravelPreferencesFormValues = {
+      // Format data for the travel preferences service
+      const travelPreferencesData = {
         budgetRange: budgetRangeData,
         budgetFlexibility: Number(formData.budgetTolerance || 10),
         travelDuration: (formData.travelDuration || 'week') as TravelDurationType,
@@ -460,19 +411,51 @@ const Onboarding = () => {
         locationPreference: (formData.locationPreference || 'center') as LocationPreference,
         flightType: (formData.flightType || 'direct') as FlightType,
         preferCheaperWithStopover: Boolean(formData.preferCheaperWithStopover),
-        departureCity: finalDepartureCity || '',
+        departureCity: departureCity || '',
         departureCountry: formData.departureCountry || ''
       };
+
+      // Save travel preferences using the proper service API
+      const saveResult = await saveTravelPreferences(currentUser.id, travelPreferencesData);
       
-      console.log('Regular travel preferences data:', travelPreferencesData);
+      console.log('Travel preferences save result:', saveResult);
       
-      // STEP 5: Save via service API as a backup approach
-      try {
-        const saveResult = await saveTravelPreferences(currentUser.id, travelPreferencesData);
-        console.log('Save travel preferences result:', saveResult);
-      } catch (error) {
-        console.error('Failed to save travel preferences via service:', error);
+      if (!saveResult) {
+        console.error('Error saving travel preferences');
+        // Continue with other approaches - don't throw yet
       }
+      
+      // STEP 3: Update profiles table to mark onboarding as completed
+      // IMPORTANT: Preserve existing first_name and last_name values!
+      try {
+        console.log('Updating profiles table directly...');
+        
+        // Prepare profile update data with preference for existing values
+        // following Planora's API model conventions with camelCase fields
+        const firstName = existingFirstName || currentUser.firstName || '';
+        const lastName = existingLastName || currentUser.lastName || '';
+        
+        const profileUpdateData = {
+          hasCompletedOnboarding: true,
+          firstName: firstName,
+          lastName: lastName
+        };
+        
+        console.log('Profile update data:', profileUpdateData);
+
+        const profileUpdate = await userProfileService.updateUserProfile(currentUser.id, profileUpdateData);
+          
+        console.log('Profile update result:', profileUpdate);
+        
+        if (!profileUpdate) {
+          console.error('Profile update failed');
+        }
+      } catch (profileError) {
+        console.error('Failed to update profile directly:', profileError);
+      }
+      
+      // We already saved the travel preferences via the proper service API above
+      // This duplicate step is removed following architectural principles
       
       // STEP 6: Update local storage BEFORE updating metadata (which triggers auth state change)
       localStorage.setItem('hasCompletedOnboarding', 'true');
@@ -505,7 +488,7 @@ const Onboarding = () => {
           departureCity = formData.customDepartureCity;
         }
         
-        await supabase.auth.updateUser({
+        await authService.updateUserMetadata({
           data: {
             has_completed_onboarding: true,
             country: formData.departureCountry || '',
@@ -532,8 +515,8 @@ const Onboarding = () => {
       // IMPORTANT: Before navigating, force refresh the session one final time
       // This ensures the session is fully updated with all metadata changes
       try {
-        await supabase.auth.refreshSession();
-        const { data: finalSession } = await supabase.auth.getSession();
+        await authService.refreshSession();
+        const finalSession = await authService.refreshSession();
         
         if (!finalSession?.session) {
           console.warn('Session appears to be lost after onboarding completion, attempting recovery...');

@@ -18,7 +18,11 @@ import {
   FlightType, 
   PlanningIntent 
 } from '../types/travelPreferencesTypes';
-import { getAuthService, AuthService } from '../../auth/authApi';
+// Import service directly to avoid circular dependency
+import { supabaseAuthService } from '../../auth/services/supabaseAuthService';
+// Import AuthService interface from authApi where it's defined
+import type { AuthService } from '../../auth/authApi';
+import { travelPreferencesService } from '../services/travelPreferencesService';
 
 // Define the return type for our hook
 interface UseTravelPreferencesResult {
@@ -44,13 +48,7 @@ export function useTravelPreferences(): UseTravelPreferencesResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   
-  // Initialize auth service using factory function
-  const [authService, setAuthService] = useState<AuthService | null>(null);
-  
-  // Load auth service on component mount
-  useEffect(() => {
-    setAuthService(getAuthService());
-  }, []);
+  // Use auth service directly to avoid circular dependency
   
   // Load preferences on mount
   const loadPreferences = useCallback(async (): Promise<void> => {
@@ -58,26 +56,17 @@ export function useTravelPreferences(): UseTravelPreferencesResult {
       setLoading(true);
       setError(null);
       
-      // Check if auth service is initialized
-      if (!authService) {
-        setError(new Error('Authentication service not available'));
-        return;
-      }
-      
-      // Get the current user
-      const currentUser = await authService.getCurrentUser();
+      // Get the current user directly from the service
+      const currentUser = await supabaseAuthService.getCurrentUser();
       if (!currentUser) {
         // Not logged in
         setPreferences(null);
         return;
       }
       
-      // Get preferences from the database or API
-      // This would be an API call in a real app
-      // In our mock version, just set some defaults
-      // This is a placeholder implementation
-      const { getUserTravelPreferences } = await import('../travelPreferencesApi');
-      const userPreferences = await getUserTravelPreferences(currentUser.id);
+      // Get preferences directly from the service
+      // This avoids circular dependency with travelPreferencesApi
+      const userPreferences = await travelPreferencesService.getUserTravelPreferences(currentUser.id);
       setPreferences(userPreferences);
     } catch (err) {
       console.error('Error loading travel preferences:', err);
@@ -85,7 +74,7 @@ export function useTravelPreferences(): UseTravelPreferencesResult {
     } finally {
       setLoading(false);
     }
-  }, [authService]);
+  }, []);
   
   // Call loadPreferences on mount
   useEffect(() => {
@@ -94,22 +83,18 @@ export function useTravelPreferences(): UseTravelPreferencesResult {
   
   // Function to save preferences
   const savePreferences = async (data: Partial<TravelPreferences>): Promise<void> => {
-    if (!authService) {
-      throw new Error('Auth service not available');
-    }
     
     try {
       setLoading(true);
       setError(null);
       
-      // Get current user
-      const currentUser = await authService.getCurrentUser();
+      // Get current user directly from the service
+      const currentUser = await supabaseAuthService.getCurrentUser();
       if (!currentUser) {
         throw new Error('User not authenticated');
       }
       
-      // Dynamic imports to avoid circular dependencies (Planora architectural principle)
-      const { saveTravelPreferences, updateOnboardingStatus } = await import('../travelPreferencesApi');
+      // Using directly imported service to avoid circular dependencies (Planora architectural principle)
       
       // Create a complete TravelPreferences object from partial data to satisfy type constraints
       // We ensure all required fields have a default value if not provided
@@ -126,14 +111,15 @@ export function useTravelPreferences(): UseTravelPreferencesResult {
         locationPreference: data.locationPreference || LocationPreference.CENTER,
         flightType: data.flightType || FlightType.DIRECT,
         preferCheaperWithStopover: data.preferCheaperWithStopover || false,
-        departureCity: data.departureCity || 'New York'
+        departureCity: data.departureCity || 'New York',
+        departureCountry: data.departureCountry || 'United States'
       };
       
       // Save preferences according to the API contract
-      await saveTravelPreferences(currentUser.id, completePreferences);
+      await travelPreferencesService.saveTravelPreferences(currentUser.id, completePreferences);
       
       // Mark onboarding as completed
-      await updateOnboardingStatus(currentUser.id, true);
+      await travelPreferencesService.updateOnboardingStatus(currentUser.id, true);
       
       // Refresh preferences
       await loadPreferences();
