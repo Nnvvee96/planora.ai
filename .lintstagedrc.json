@@ -1,1 +1,8 @@
-/Users/nnvve/Documents/Programming/Planora/planora.ai/config/linting/.lintstagedrc.json
+{
+  "*.{ts,tsx}": [
+    "eslint --fix"
+  ],
+  "*.{js,jsx}": [
+    "eslint --fix"
+  ]
+}

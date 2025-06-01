@@ -136,8 +136,8 @@ let allValidationsPassed = true;
 if (!options.featuresOnly && (!options.quick || options.depsOnly)) {
   printHeader('Dependency Structure Validation');
   const depCommand = filesToCheck.length > 0 
-    ? `npx depcruise --validate .dependency-cruiser.cjs ${filesToCheck.join(' ')}`
-    : 'npx depcruise --validate .dependency-cruiser.cjs src';
+    ? `npx depcruise --validate ./.dependency-cruiser.cjs ${filesToCheck.join(' ')}`
+    : 'npx depcruise --validate ./.dependency-cruiser.cjs src';
   const depCheck = runCommand(depCommand, { silent: true });
   allValidationsPassed = printResult('Dependency boundaries', depCheck.success, 
     depCheck.success ? '' : 'Found architectural boundary violations') && allValidationsPassed;

@@ -362,7 +362,7 @@ config/
 | `dependency-violations.html` | `config/dependencies/reports/` | Generated dependency violation reports |
 | `.lintstagedrc.json` | `config/linting/` | Configures pre-commit linting for TypeScript and JavaScript files |
 | `.npmrc` | `config/dependencies/` | Sets npm configuration (legacy-peer-deps=true) |
-| `components.json` | `config/` | shadcn/ui component library configuration |
+| `components.json` | `config/ui/` | shadcn/ui component library configuration |
 | `plopfile.js` | `config/plop/` | Code generator configuration (symlinked to root) |
 | `*.hbs templates` | `config/plop/` | Code generation templates for features, components, etc. |
 | `vercel.build.json` | `config/deployment/` | Vercel deployment configuration with legacy-peer-deps support |

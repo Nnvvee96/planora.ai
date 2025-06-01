@@ -10,8 +10,8 @@
 {
   "files": [],
   "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
+    { "path": "./tsconfig.node.json" },
+    { "path": "./tsconfig.app.json" }
   ],
   "compilerOptions": {
     "baseUrl": ".",
@@ -27,7 +27,7 @@
       "@lib/*": ["./src/lib/*"],
       "@constants/*": ["./src/constants/*"],
       "@styles/*": ["./src/styles/*"],
-      "@database/*": ["./database/*"]
+      "@database/*": ["./src/database/*"]
     },
     "esModuleInterop": true,
     "jsx": "react",
