@@ -60,10 +60,30 @@ We maintain comprehensive documentation to help developers understand and contri
 Planora.ai includes several development tools to ensure code quality and architecture compliance:
 
 - **ESLint** - Code quality and style checking
+- **Dependency Cruiser** - Validates architecture compliance and visualizes dependencies
 - **Architecture Validation** - Ensures code follows our architectural principles
-- **Scaffolding** - Templates for creating new features and components
+- **Plop.js** - Scaffolding templates for creating new features and components that follow our architectural standards
 
 Run `npm run arch:monitor` to visualize the current dependency graph and check architecture compliance.
+
+Use the scaffolding tools to generate compliant code:
+
+```bash
+# Generate a new feature
+npm run scaffold:feature
+
+# Generate a new UI component
+npm run scaffold:component
+
+# Generate a service
+npm run scaffold:service
+
+# Generate a hook
+npm run scaffold:hook
+
+# Generate an integration hook for cross-feature communication
+npm run scaffold:integration
+```
 
 ## Project Structure
 
@@ -71,20 +91,26 @@ Run `npm run arch:monitor` to visualize the current dependency graph and check a
 planora.ai/
 ├── src/                    # Source code
 │   ├── components/         # Third-party UI components (shadcn)
-│   ├── database/          # Database structure and client
-│   │   ├── client/        # Supabase client configuration
-│   │   └── schema/        # SQL schema and policies
-│   ├── features/          # Feature modules (auth, travel-planning, etc.)
-│   ├── ui/                # Custom UI components (atoms, molecules, organisms)
-│   ├── lib/               # Shared utilities and services
-│   ├── hooks/             # Custom React hooks
-│   ├── store/             # State management (Redux)
-│   └── types/             # TypeScript type definitions
+│   ├── database/           # Database structure and client
+│   │   ├── client/         # Supabase client configuration
+│   │   └── schema/         # SQL schema and policies
+│   ├── features/           # Feature modules (auth, travel-planning, etc.)
+│   ├── ui/                 # Custom UI components (atoms, molecules, organisms)
+│   ├── lib/                # Shared utilities and services
+│   ├── hooks/              # Custom React hooks
+│   ├── store/              # State management (Redux)
+│   └── types/              # TypeScript type definitions
+├── config/                 # Configuration files
+│   ├── dependencies/       # Dependency management configs (.npmrc, .dependency-cruiser.cjs)
+│   ├── deployment/         # Deployment configs (vercel.json, vercel.build.json)
+│   └── linting/            # Linting configs (.lintstagedrc.json, eslint configs)
+├── tools/                  # Development tooling
+│   └── plop/              # Code generation templates and configuration
 ├── docs/                   # Project documentation
 │   ├── ARCHITECTURE.md     # Architecture decisions and patterns
-│   ├── setup/             # Setup and configuration guides
-│   └── developer/         # Development guidelines
-└── public/                # Static assets
+│   ├── setup/              # Setup and configuration guides
+│   └── developer/          # Development guidelines
+└── public/                 # Static assets
 ```
 
 ## Development Guidelines

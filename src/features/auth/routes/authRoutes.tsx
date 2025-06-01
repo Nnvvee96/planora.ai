@@ -5,29 +5,26 @@
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import React, { Suspense } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { RouteObject } from 'react-router-dom';
 
-// Lazy load components to avoid circular dependencies and initialization errors
-const AuthCallback = React.lazy(() => import('../components/AuthCallback').then(module => ({
+// Directly lazy-load components to avoid circular dependencies with authApi
+const AuthCallback = lazy(() => import('../components/AuthCallback').then(module => ({
   default: module.AuthCallback
 })));
-
-const EmailConfirmation = React.lazy(() => import('../components/EmailConfirmation').then(module => ({
+const EmailConfirmation = lazy(() => import('../components/EmailConfirmation').then(module => ({
   default: module.EmailConfirmation
 })));
-
-const EmailChangeVerification = React.lazy(() => import('../components/EmailChangeVerification').then(module => ({
+const EmailChangeVerification = lazy(() => import('../components/EmailChangeVerification').then(module => ({
   default: module.EmailChangeVerification
 })));
-
-const ForgotPassword = React.lazy(() => import('../components/ForgotPassword').then(module => ({
+const ForgotPassword = lazy(() => import('../components/ForgotPassword').then(module => ({
   default: module.ForgotPassword
 })));
-
-const ResetPassword = React.lazy(() => import('../components/ResetPassword').then(module => ({
+const ResetPassword = lazy(() => import('../components/ResetPassword').then(module => ({
   default: module.ResetPassword
 })));
+
 
 // Loading fallback component
 const LoadingFallback = () => (

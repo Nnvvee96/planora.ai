@@ -50,8 +50,8 @@ export interface ProfileFormData {
   customCity?: string;
 }
 
-// Modal props interfaces
-export interface ProfileModalProps {
+// Dialog props interfaces
+export interface ProfileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userName: string;
@@ -62,7 +62,7 @@ export interface ProfileModalProps {
   onProfileUpdate?: (data: ProfileFormData) => void;
 }
 
-export interface SettingsModalProps {
+export interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }

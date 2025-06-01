@@ -15,16 +15,24 @@ import { Apple, Shield, CheckCircle, User, Mail, Lock, MapPin, Calendar, Loader2
 import { DatePickerInput } from "@/components/ui/DatePickerInput";
 import { Footer } from '@/ui/organisms/Footer';
 import { useToast } from "@/components/ui/use-toast";
-// Import types directly from types directory
-import { RegisterData } from "@/features/auth/types/authTypes";
-// Import factory function for auth service
-import { getAuthService, AuthService } from "@/features/auth/authApi";
-// Import verification dialog
-import { VerificationDialog } from '@/features/auth/components/VerificationDialog';
-// Import auth hook
-import { useAuth } from '@/features/auth/hooks/useAuth';
-// Import location data for country-city selection
-import { countryOptions, getCityOptions, isCustomCityNeeded, CountryOption, CityOption } from '@/features/location-data/locationDataApi';
+// Import everything through API boundaries for proper architectural organization
+import { 
+  getVerificationDialogComponent,
+  RegisterData, // Import type through API boundary
+  useAuth // Import hook through API boundary
+} from "@/features/auth/authApi";
+
+// Import location data through its API boundary
+import { 
+  countryOptions, 
+  getCityOptions, 
+  isCustomCityNeeded,
+  CountryOption, 
+  CityOption 
+} from "@/features/location-data/locationDataApi";
+
+// Use factory function for verification dialog
+const VerificationDialog = getVerificationDialogComponent();
 
 // Country and city options are imported from location-data feature
 
@@ -62,13 +70,8 @@ type FormValues = z.infer<typeof formSchema>;
 function Register() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { getAuthService } = useAuth();
-  const [authService, setAuthService] = useState<AuthService | null>(null);
-  
-  // Load auth service on component mount
-  useEffect(() => {
-    setAuthService(getAuthService());
-  }, [getAuthService]);
+  // Use auth hook directly instead of managing authService state
+  const { authService, signInWithGoogle } = useAuth();
   const [formStep, setFormStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -246,7 +249,7 @@ function Register() {
           }
         }}
         onResend={async () => {
-          if (authService && registeredUserId && registeredEmail) {
+          if (registeredUserId && registeredEmail) {
             await authService.sendVerificationCode(registeredUserId, registeredEmail);
           }
         }}
@@ -597,7 +600,7 @@ function Register() {
                 onClick={async () => {
                   try {
                     setIsSubmitting(true);
-                    await authService.signInWithGoogle();
+                    await signInWithGoogle();
                     // The page will be redirected by Supabase, no need to navigate
                   } catch (err) {
                     console.error('Google sign-in error:', err);

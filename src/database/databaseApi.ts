@@ -1,8 +1,8 @@
 /**
- * Database Exports
+ * Database API
  * 
- * Central export file for database-related functionality.
- * Follows Planora's architectural principle of named exports only.
+ * Public API for database-related functionality.
+ * Following Planora's architectural principles with feature-first organization and named exports.
  * 
  * Database Components:
  * - Client: Supabase client configuration
@@ -11,7 +11,8 @@
  *   - scheduled-account-purge: Automated purging of user accounts past recovery period
  */
 
-// Re-export the Supabase client
+// Import client
 import { supabase, supabaseClient } from './client/supabaseClient';
 
+// Re-export with consistent naming pattern
 export { supabase, supabaseClient };

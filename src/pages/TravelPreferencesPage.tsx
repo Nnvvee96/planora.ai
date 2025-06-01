@@ -1,5 +1,10 @@
 import React, { Suspense, lazy } from 'react';
+
+// Import through proper API boundary rather than internal component
 import { getTravelPreferencesPanelComponent } from '@/features/travel-preferences/travelPreferencesApi';
+
+// Use factory function to get the component
+const TravelPreferencesPanel = getTravelPreferencesPanelComponent();
 
 /**
  * Travel Preferences Page
@@ -8,8 +13,6 @@ import { getTravelPreferencesPanelComponent } from '@/features/travel-preference
  * It allows users to view and edit their saved travel preferences.
  */
 const TravelPreferencesPage = () => {
-  // Get the TravelPreferencesPanel component using the factory function
-  const TravelPreferencesPanel = getTravelPreferencesPanelComponent();
   
   return (
     <div className="min-h-screen bg-planora-purple-dark flex flex-col items-center justify-center p-4">

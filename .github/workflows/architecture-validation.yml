@@ -25,7 +25,10 @@ jobs:
         run: npm ci
       
       - name: Validate architecture boundaries
-        run: npm run check-arch
+        run: |
+          # Create symlink to dependency cruiser config for backwards compatibility
+          ln -sf config/dependencies/.dependency-cruiser.cjs .dependency-cruiser.cjs
+          npm run check-arch
       
       - name: Run ESLint checks
         run: npm run lint
@@ -65,6 +68,8 @@ jobs:
       - name: Generate architecture report
         run: |
           mkdir -p architecture-report
+          # Create symlink to dependency cruiser config for backwards compatibility
+          ln -sf config/dependencies/.dependency-cruiser.cjs .dependency-cruiser.cjs
           npx depcruise --include-only "^src" --output-type dot src | dot -T svg > architecture-report/dependency-graph.svg
           echo "# Architecture Validation Report" > architecture-report/report.md
           echo "## Generated on $(date)" >> architecture-report/report.md

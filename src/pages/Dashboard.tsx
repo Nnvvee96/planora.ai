@@ -17,55 +17,63 @@ import {
 } from 'lucide-react';
 import { Logo } from '@/ui/atoms/Logo';
 import { Suspense, lazy } from 'react';
-import { getUserProfileMenuComponent } from '@/features/user-profile/userProfileApi';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/ui/atoms/Card';
 import { Progress } from '@/components/ui/progress';
 import { useNavigate, Link } from 'react-router-dom';
 import { Footer } from '@/ui/organisms/Footer';
-import { getAuthService, AuthService } from '@/features/auth/authApi';
-import { AppUser } from '@/features/auth/types/authTypes';
-import { userProfileService, UserProfile } from '@/features/user-profile/userProfileApi';
-import { supabase } from '@/database/databaseExports';
+
+// Import from feature API boundaries only, following architectural principles
+import { useAuth, AppUser, getAuthService } from '@/features/auth/authApi';
+import { getUserProfileMenuComponent, UserProfile } from '@/features/user-profile/userProfileApi';
+import { useUserProfileIntegration } from '@/features/user-profile/hooks/useUserProfileIntegration';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  // Initialize auth service using factory function
-  const [authService, setAuthService] = useState<AuthService | null>(null);
+  // Use auth hook directly instead of managing authService state
+  const { user, loading: authLoading } = useAuth();
   
-  // Load auth service on component mount
-  useEffect(() => {
-    setAuthService(getAuthService());
-  }, []);
   const [searchQuery, setSearchQuery] = useState('');
-  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  
+  // Use the integration hook for cross-feature communication
+  const userProfileIntegration = useUserProfileIntegration();
   
   // Get the UserProfileMenu component using the factory function
   const UserProfileMenu = getUserProfileMenuComponent();
   
-  // Load user data on component mount
+  // Load user profile data when user is available
   useEffect(() => {
-    const loadUserData = async () => {
+    const loadUserProfile = async () => {
       try {
         setLoading(true);
-        // Check if auth service is available
-        if (!authService) {
-          console.log('Auth service not yet initialized, skipping user data load');
-          return;
-        }
         
-        // Get authenticated user through auth service
-        const currentUser = await authService.getCurrentUser();
-        if (currentUser) {
-          setUser(currentUser);
-          
-          // Profile data is fetched through the userProfileService via the feature API
+        // Only proceed if we have a user from the auth hook
+        if (user) {
           try {
-            const profileData = await userProfileService.getUserProfile(currentUser.id);
+            // Use the integration hook to fetch the combined user and profile data
+            const combinedData = await userProfileIntegration.getUserWithProfile(user.id);
             
-            if (profileData) {
+            if (combinedData) {
+              // The getUserWithProfile method returns a merged object of AppUser and UserProfile
+              // Extract the profile-specific properties to create a UserProfile object
+              const profileData: UserProfile = {
+                id: combinedData.id,
+                email: combinedData.email,
+                firstName: combinedData.firstName || '',
+                lastName: combinedData.lastName || '',
+                birthdate: combinedData.birthdate,
+                avatarUrl: combinedData.avatarUrl,
+                city: combinedData.city,
+                customCity: combinedData.customCity,
+                country: combinedData.country,
+                hasCompletedOnboarding: combinedData.hasCompletedOnboarding,
+                emailVerified: combinedData.emailVerified,
+                createdAt: combinedData.createdAt,
+                updatedAt: combinedData.updatedAt
+              };
+              
               setUserProfile(profileData);
             }
           } catch (profileError) {
@@ -79,8 +87,8 @@ const Dashboard = () => {
       }
     };
     
-    loadUserData();
-  }, [authService]);
+    loadUserProfile();
+  }, [user, userProfileIntegration]);
   
   // Get user's name from various sources in priority order
   const userFirstName = user?.firstName || userProfile?.firstName || '';
@@ -93,20 +101,23 @@ const Dashboard = () => {
   // Enhanced session verification and auth state handling
   useEffect(() => {
     // Only run after initial loading completes
-    if (loading) return;
+    if (loading || authLoading) return;
     
     const verifySession = async () => {
       try {
-        // If we don't have a user in context, check directly with Supabase
-        if (!user && authService) {
+        // If we don't have a user in context, check directly with auth service
+        if (!user) {
           console.log('No user in context, performing direct session verification...');
           
           // Force a session refresh to ensure we have the latest session state
-          const { data: sessionData } = await supabase.auth.getSession();
+          // Get auth service via factory function to avoid circular dependencies
+          const authService = getAuthService();
+          const { session } = await authService.refreshSession();
           
-          if (sessionData?.session) {
+          if (session) {
             console.log('Active session found during verification, but missing user in context');
             // We have a session but no user in context - trigger a user reload
+            // Use the proper auth service to get current user
             const refreshedUser = await authService.getCurrentUser();
             
             if (refreshedUser) {
@@ -136,7 +147,7 @@ const Dashboard = () => {
     };
     
     verifySession();
-  }, [user, loading, authService, navigate]);
+  }, [user, loading, authLoading, navigate]);
   
   // Handler for directing to chat interface
   const handleChatWithPlanora = () => {

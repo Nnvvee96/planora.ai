@@ -15,13 +15,32 @@ import type {
   UserRegistrationStatus,
   GoogleAuthCredentials,
   SessionInfo,
-  RegisterData,
   VerificationCodeResponse,
-  VerificationCodeStatus
+  VerificationCodeStatus,
+  RegisterData
 } from './types/authTypes';
+
+// Export types for use throughout the application
+export type { 
+  AuthResponse, 
+  UserRegistrationStatus,
+  GoogleAuthCredentials,
+  SessionInfo,
+  VerificationCodeResponse,
+  VerificationCodeStatus,
+  RegisterData 
+} from './types/authTypes';
+
+// Re-export useAuth hook to ensure pages can import it through the API boundary
+export { useAuth } from './hooks/useAuth';
+
+// Re-export components
+export { AuthCallback } from './components/AuthCallback';
+export { GoogleLoginButton } from './components/GoogleLoginButton';
 
 // Import the auth service directly to prevent circular dependencies
 import { supabaseAuthService } from './services/supabaseAuthService';
+import { sessionManager } from './services/sessionManager';
 
 /**
  * Application User interface
@@ -63,8 +82,7 @@ export const mapSupabaseUser = (user: SupabaseUser): AppUser => {
   };
 };
 
-// Export the auth types for use throughout the application
-export type { AuthResponse, UserRegistrationStatus, GoogleAuthCredentials, SessionInfo };
+// Types are exported at the top of the file
 
 /**
  * Authentication Provider Types
@@ -82,6 +100,7 @@ export enum AuthProviderType {
  */
 export interface AuthService {
   signInWithGoogle(): Promise<void>;
+  signInWithPassword(credentials: { email: string; password: string }): Promise<{ data: any; error: Error | null }>;
   updateUserMetadata(metadata: Record<string, unknown>): Promise<void>;
   getCurrentUser(): Promise<AppUser | null>;
   logout(): Promise<void>;
@@ -144,14 +163,50 @@ export const getAuthProviderComponent = () => {
   })));
 };
 
-// Export auth context hook with a factory function
-export const getAuthContextHook = async () => {
-  const module = await import('./components/AuthProvider');
-  return module.useAuthContext;
+export const getEmailConfirmationComponent = () => {
+  return lazy(() => import('./components/EmailConfirmation').then(module => ({
+    default: module.EmailConfirmation
+  })));
 };
 
-// Export routes
-export { authRoutes } from './routes/authRoutes';
+export const getEmailChangeVerificationComponent = () => {
+  return lazy(() => import('./components/EmailChangeVerification').then(module => ({
+    default: module.EmailChangeVerification
+  })));
+};
+
+export const getForgotPasswordComponent = () => {
+  return lazy(() => import('./components/ForgotPassword').then(module => ({
+    default: module.ForgotPassword
+  })));
+};
+
+export const getResetPasswordComponent = () => {
+  return lazy(() => import('./components/ResetPassword').then(module => ({
+    default: module.ResetPassword
+  })));
+};
+
+export const getVerificationDialogComponent = () => {
+  return lazy(() => import('./components/VerificationDialog').then(module => ({
+    default: module.VerificationDialog
+  })));
+};
+
+// Export auth context hook with a factory function
+// This returns the hook directly, not as a promise
+export const getAuthContextHook = () => {
+  // We import this synchronously to avoid async issues with hooks
+  // Since this is a hook and must be called at the top level, we can't use lazy loading
+  // This is an architectural compromise to maintain React's rules of hooks
+  return require('./components/AuthProvider').useAuthContext;
+};
+
+// Note: We've removed the getAuthRoutes function to break circular dependency
+// Routes should be imported directly where needed
+
+// Export session manager
+export { sessionManager };
 
 /**
  * Factory function for auth service
@@ -354,5 +409,21 @@ const authService = {
    */
   refreshSession: async () => {
     return supabaseAuthService.refreshSession();
+  },
+  
+  /**
+   * Sign in with email and password
+   * @param credentials Email and password credentials
+   * @returns Authentication result with data and error
+   */
+  signInWithPassword: async (credentials: { email: string; password: string }) => {
+    try {
+      // Use supabaseAuthService to implement this functionality
+      const { data, error } = await supabaseAuthService.signInWithPassword(credentials);
+      return { data, error };
+    } catch (err) {
+      console.error('Login error:', err);
+      return { data: null, error: err instanceof Error ? err : new Error('Unknown error during login') };
+    }
   }
 };

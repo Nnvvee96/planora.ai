@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import ReactDOM from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/ui/atoms/Button";
 import { Input } from "@/ui/atoms/Input";
@@ -11,82 +10,51 @@ import { useNavigate } from 'react-router-dom';
 import { Apple, Mail, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Footer } from '@/ui/organisms/Footer';
 import { useToast } from "@/components/ui/use-toast";
-import { getGoogleLoginButtonComponent, getAuthContextHook, getAuthService, AuthService } from "@/features/auth/authApi";
+import { useAuth } from "@/features/auth/authApi";
+import type { GoogleLoginButton as GoogleLoginButtonType } from "@/features/auth/components/GoogleLoginButton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { supabase } from '@/database/databaseExports';
-import { UserRegistrationStatus } from '@/features/auth/types/authTypes';
+// Database access should be through feature APIs, not direct imports
 
 type UserAuthFormProps = React.HTMLAttributes<HTMLDivElement>
 
-// Define types for auth context and components
-interface AuthContext {
-  isAuthenticated?: boolean;
-  loading?: boolean;
-  error?: string | null;
-  signInWithGoogle?: () => Promise<void>;
-  // Add other properties as needed
-}
+// Define types for components
 
-// Define more specific types for lazy-loaded components
-interface GoogleButtonProps {
-  className?: string;
-  variant?: 'default' | 'outline' | 'ghost' | 'link' | 'destructive' | 'secondary';
-  size?: 'default' | 'sm' | 'lg' | 'icon';
-  fullWidth?: boolean;
-  text?: string;
-  onClick?: () => void;
-}
-
-type LazyComponent = React.LazyExoticComponent<React.ComponentType<GoogleButtonProps>>;
+// Type for lazy-loaded components
+type LazyComponent = React.LazyExoticComponent<React.ComponentType<any>>;
 
 export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [authService, setAuthService] = useState<AuthService | null>(null);
-  // Add this back with proper type
-  const [authContext, setAuthContext] = useState<AuthContext>({});
+  // Import authService directly from the API boundary
+  // This follows Planora's architectural principles of importing features through their API boundary
+  const { authService, isAuthenticated, loading: authLoading, error: authError } = useAuth();
   const [GoogleLoginButton, setGoogleLoginButton] = useState<LazyComponent | null>(null);
   
-  // Dynamically load the auth context hook and GoogleLoginButton component
+  // Load Google login button dynamically
   useEffect(() => {
-    // Create separate function to load context to avoid hooks rules violation
-    const loadAuthContext = async () => {
+    // Dynamically import the Google login button component to avoid circular dependencies
+    const loadGoogleButton = async () => {
       try {
-        const useAuthContextHook = await getAuthContextHook();
-        // Create a fake component to use the hook properly
-        const TempComponent = () => {
-          const context = useAuthContextHook();
-          return null;
-        };
-        // Use the hook in a proper React component context
-        const rendered = document.createElement('div');
-        ReactDOM.render(<TempComponent />, rendered);
-        
-        // Get the auth context directly from the API instead
-        const authService = getAuthService();
-        setAuthContext({
-          isAuthenticated: false,
-          loading: false,
-          error: null,
-          signInWithGoogle: authService.signInWithGoogle
-        });
+        // Access the button through the auth feature API boundary
+        // Proper dynamic import wrapped with a default export adapter for lazy loading
+        const GoogleButton = lazy(() => 
+          import('@/features/auth/authApi')
+            .then(module => ({ 
+              // Create a default export adapter for the named export
+              default: (props: any) => {
+                const GoogleBtn = module.GoogleLoginButton;
+                return <GoogleBtn {...props} />;
+              }
+            }))
+        );
+        setGoogleLoginButton(() => GoogleButton);
       } catch (error) {
-        console.error('Error loading auth context:', error);
+        console.error('Error loading Google button component:', error);
       }
-      
-      // Load the GoogleLoginButton component
-      const GoogleLoginButtonComponent = getGoogleLoginButtonComponent();
-      setGoogleLoginButton(GoogleLoginButtonComponent);
     };
     
-    loadAuthContext();
+    loadGoogleButton();
   }, []);
-  
-  // Use optional chaining to safely access auth context properties
-  const isAuthenticated = authContext?.isAuthenticated;
-  const loading = authContext?.loading;
-  const authError = authContext?.error;
-  const signInWithGoogle = authContext?.signInWithGoogle;
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -119,22 +87,25 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   };
 
   // Email/password login implementation
-  async function onSubmit(event: React.SyntheticEvent) {
+  const onSubmit = async (event: React.SyntheticEvent) => {
     event.preventDefault();
-    setIsLoading(true);
-    setError(null);
     
     try {
-      // Validate form input
+      setIsLoading(true);
+      setError(null);
+      
       if (!email || !password) {
-        throw new Error('Please enter both email and password');
+        setError('Please enter your email and password');
+        return;
       }
       
-      // Get auth service from factory function if not already available
-      const service = authService || getAuthService();
-      
+      // Ensure we have the auth service
+      if (!authService) {
+        throw new Error('Authentication service not initialized');
+      }
       // Attempt to sign in with email and password
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      // Use the auth service instead of direct Supabase access
+      const { data, error: signInError } = await authService.signInWithPassword({
         email,
         password
       });
@@ -148,7 +119,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
       }
       
       // Check if email has been verified
-      const isEmailVerified = await service.checkEmailVerificationStatus(data.user.id);
+      const isEmailVerified = await authService.checkEmailVerificationStatus(data.user.id);
       
       if (!isEmailVerified) {
         // Email not verified, show verification needed screen
@@ -163,7 +134,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
       }
       
       // Login successful, check onboarding status
-      const registrationDetails = await service.checkUserRegistrationStatus(data.user.id);
+      const registrationDetails = await authService.checkUserRegistrationStatus(data.user.id);
       
       // Check if there's a redirect path stored in localStorage
       const redirectPath = localStorage.getItem('redirect_after_login');
@@ -293,8 +264,8 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         <Button 
           variant="outline" 
           className="border-white/10 bg-white/5 hover:bg-white/10 text-white flex items-center gap-2 justify-center transition-colors"
-          onClick={() => authContext?.signInWithGoogle?.()}
-          disabled={!authContext?.signInWithGoogle || isLoading}
+          onClick={() => authService?.signInWithGoogle?.()}
+          disabled={!authService?.signInWithGoogle || isLoading}
           type="button"
         >
           <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -342,13 +313,14 @@ export function Login() {
   const [resendingEmail, setResendingEmail] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
   const { toast } = useToast();
+  const { authService } = useAuth();
   
   // Function to handle resending verification email
   const handleResendVerification = async () => {
     if (!verificationEmail) {
       toast({
-        title: "Email Required",
-        description: "Please enter the email address you registered with.",
+        title: "Error",
+        description: "No email to resend verification",
         variant: "destructive"
       });
       return;
@@ -357,8 +329,10 @@ export function Login() {
     try {
       setResendingEmail(true);
       
-      // Get auth service
-      const authService = getAuthService();
+      // Use our already initialized auth service from the hook
+      if (!authService) {
+        throw new Error('Authentication service not initialized');
+      }
       
       // Attempt to resend verification email
       const success = await authService.resendVerificationEmail(verificationEmail);
@@ -422,42 +396,30 @@ export function Login() {
       <div className="flex-grow flex items-center justify-center px-4 w-full">
         <div className="relative z-10 mx-auto flex w-full flex-col justify-center space-y-6 max-w-[420px] overflow-hidden">
           <div className="flex flex-col space-y-2 text-center">
-            {verificationNeeded ? (
-              <>
-                <h1 className="text-2xl font-semibold tracking-tight text-white">Verify Your Email</h1>
-                <p className="text-sm text-white/60">
-                  Please check your inbox to complete registration
+            <div className="text-center mb-6">
+              <div className="flex flex-col items-center">
+                <Link to="/" className="block mb-5">
+                  <Logo className="h-16 w-auto" variant="full" href="/" />
+                </Link>
+                <h1 className="text-2xl font-bold tracking-tight text-white">
+                  Welcome Back
+                </h1>
+                <p className="text-white/60 text-sm mt-2">
+                  Sign in to your account to continue your planning journey
                 </p>
-              </>
-            ) : (
-              <>
-                <div className="text-center mb-6">
-                  {/* Integrated logo with enhanced styling */}
-                  <div className="flex flex-col items-center">
-                    <Link to="/" className="block mb-5">
-                      <Logo className="h-16 w-auto" variant="full" href="/" />
-                    </Link>
-                    <h1 className="text-2xl font-bold tracking-tight text-white">
-                      Welcome Back
-                    </h1>
-                    <p className="text-white/60 text-sm mt-2">
-                      Sign in to your account to continue your planning journey
-                    </p>
-                  </div>
-                  
-                  {/* Show session expired message with improved styling */}
-                  {sessionExpired && (
-                    <Alert className="mt-4 border-yellow-500/30 bg-yellow-500/10 text-yellow-200">
-                      <AlertCircle className="h-4 w-4 text-yellow-300" />
-                      <AlertTitle className="text-yellow-200 font-medium">Session Expired</AlertTitle>
-                      <AlertDescription className="text-yellow-200/90 text-sm">
-                        Your session has expired. Please log in again to continue.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-              </>
-            )}
+              </div>
+            
+              {/* Show session expired message with improved styling */}
+              {sessionExpired && (
+                <Alert className="mt-4 border-yellow-500/30 bg-yellow-500/10 text-yellow-200">
+                  <AlertCircle className="h-4 w-4 text-yellow-300" />
+                  <AlertTitle className="text-yellow-200 font-medium">Session Expired</AlertTitle>
+                  <AlertDescription className="text-yellow-200/90 text-sm">
+                    Your session has expired. Please log in again to continue.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
           </div>
           
           {/* Verification Alert with improved styling */}
@@ -534,3 +496,5 @@ export function Login() {
     </div>
   );
 }
+
+export default Login;

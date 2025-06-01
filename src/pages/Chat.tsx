@@ -6,20 +6,35 @@
  * components. It follows Planora's architectural principles of separation of concerns.
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthContext } from '@/features/auth/components/AuthProvider';
+import { useAuth } from '@/features/auth/authApi';
 import { getUserProfileMenuComponent } from '@/features/user-profile/userProfileApi';
 
-// Import our chat components
-import { ConversationSidebar } from '@/features/chat/components/ConversationSidebar';
-import { ChatHeader } from '@/features/chat/components/ChatHeader';
-import { ChatInput } from '@/features/chat/components/ChatInput';
-import { ChatMessage } from '@/features/chat/components/ChatMessage';
-import { TravelPersonaEditPanel } from '@/features/chat/components/TravelPersonaEditPanel';
+// Import from chat feature API - following architectural principles
+import {
+  useChatState,
+  MessageRole,
+  getConversationSidebarComponent,
+  getChatHeaderComponent,
+  getChatInputComponent,
+  getChatMessageComponent,
+  getTravelPersonaEditPanelComponent
+} from '@/features/chat/chatApi';
 
-// Import from chat feature API
-import { useChatState, MessageRole } from '@/features/chat/chatApi';
+// Use lazy loading factory functions
+const ConversationSidebar = getConversationSidebarComponent();
+const ChatHeader = getChatHeaderComponent();
+const ChatInput = getChatInputComponent();
+const ChatMessage = getChatMessageComponent();
+const TravelPersonaEditPanel = getTravelPersonaEditPanelComponent();
+
+// Simple loading component for Suspense fallbacks
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center w-full h-full">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+  </div>
+);
 
 // Import UI utilities
 import { useClientOnly } from '@/ui/hooks/useClientOnly';
@@ -31,8 +46,8 @@ const Chat: React.FC = () => {
   // Navigation
   const navigate = useNavigate();
   
-  // Get auth state from context instead of direct API calls
-  const { user, loading: authLoading } = useAuthContext();
+  // Get auth state from the auth hook
+  const { user, loading: authLoading } = useAuth();
   
   // Extract userId from auth context
   const userId = user?.id || null;
@@ -146,36 +161,44 @@ const Chat: React.FC = () => {
   return (
     <div className="flex h-screen overflow-hidden bg-planora-purple-dark">
       {/* Travel Persona Edit Panel - Only shown when open */}
-      <TravelPersonaEditPanel 
-        isOpen={isTravelPersonaEditOpen} 
-        onClose={toggleTravelPersonaEdit} 
-      />
+      {isTravelPersonaEditOpen && (
+        <Suspense fallback={<LoadingFallback />}>
+          <TravelPersonaEditPanel 
+            isOpen={isTravelPersonaEditOpen} 
+            onClose={toggleTravelPersonaEdit} 
+          />
+        </Suspense>
+      )}
       
       {/* Main layout container - adjusts based on sidebar state */}
       <div className="flex w-full h-full">
         {/* Conversation Sidebar - only takes up space when visible on desktop */}
-        <ConversationSidebar 
-          conversations={chatState.conversations}
-          activeConversationId={chatState.activeConversationId}
-          onSelectConversation={chatState.setActiveConversation}
-          onCreateConversation={chatState.createConversation}
-          onRenameConversation={chatState.renameConversation}
-          onDeleteConversation={chatState.deleteConversation}
-          isMobile={isMobileView}
-          isOpen={isMobileMenuOpen}
-          onClose={() => setIsMobileMenuOpen(false)}
-          userProfileComponent={<ClientOnlyProfileMenu />}
-        />
+        <Suspense fallback={<LoadingFallback />}>
+          <ConversationSidebar 
+            conversations={chatState.conversations}
+            activeConversationId={chatState.activeConversationId}
+            onSelectConversation={chatState.setActiveConversation}
+            onCreateConversation={chatState.createConversation}
+            onRenameConversation={chatState.renameConversation}
+            onDeleteConversation={chatState.deleteConversation}
+            isMobile={isMobileView}
+            isOpen={isMobileMenuOpen}
+            onClose={() => setIsMobileMenuOpen(false)}
+            userProfileComponent={<ClientOnlyProfileMenu />}
+          />
+        </Suspense>
       
         {/* Main chat area */}
         <div className={`flex-1 flex flex-col h-full overflow-hidden ${isMobileMenuOpen && isMobileView ? 'opacity-50' : ''}`}>
-          {/* Chat header */}
-          <ChatHeader 
-            title={activeConversation?.title || "New Chat"}
-            onToggleSidebar={toggleMobileMenu}
-            onEditTravelPersona={toggleTravelPersonaEdit}
-            isMobile={isMobileView}
-          />
+          {/* Chat Header - shows current conversation title & actions */}
+          <Suspense fallback={<LoadingFallback />}>
+            <ChatHeader 
+              title={activeConversation?.title || 'New Chat'}
+              onToggleSidebar={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              onEditTravelPersona={toggleTravelPersonaEdit}
+              isMobile={isMobileView}
+            />
+          </Suspense>
           
           {/* Messages area */}
           <div className="flex-1 overflow-y-auto p-4 bg-planora-purple-dark/60">
@@ -193,25 +216,29 @@ const Chat: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                activeConversation.messages?.map(message => (
-                  <ChatMessage 
-                    key={message.id}
-                    id={message.id}
-                    role={message.role}
-                    content={message.content}
-                    timestamp={message.createdAt}
-                  />
+                activeConversation.messages?.map((message, index) => (
+                  <Suspense key={message.id || index} fallback={<LoadingFallback />}>
+                    <ChatMessage
+                      key={message.id}
+                      id={message.id}
+                      role={message.role}
+                      content={message.content}
+                      timestamp={message.createdAt}
+                    />
+                  </Suspense>
                 ))
               )}
-              <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} className="h-4" />
             </div>
           </div>
           
           {/* Input area */}
-          <ChatInput 
-            onSendMessage={handleSendMessage}
-            disabled={chatState.loading}
-          />
+          <Suspense fallback={<LoadingFallback />}>
+            <ChatInput 
+              onSendMessage={handleSendMessage}
+              disabled={chatState.loading}
+            />
+          </Suspense>
         </div>
       </div>
     </div>

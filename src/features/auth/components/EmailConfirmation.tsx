@@ -11,7 +11,8 @@ import { Loader2, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/ui/atoms/Button';
 import { Logo } from '@/ui/atoms/Logo';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { getAuthService } from '../authApi';
+// Import service directly to avoid circular dependency
+import { supabaseAuthService } from '../services/supabaseAuthService';
 
 /**
  * Email confirmation component for handling verification links
@@ -41,9 +42,8 @@ const EmailConfirmation: React.FC = () => {
           return;
         }
         
-        // Verify the email using our auth service
-        const authService = getAuthService();
-        const success = await authService.verifyEmail(token);
+        // Use service directly to avoid circular dependency
+        const success = await supabaseAuthService.verifyEmail(token);
         
         setVerificationSuccess(success);
         

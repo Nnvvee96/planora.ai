@@ -45,14 +45,89 @@ This guide provides comprehensive information for developers working on the Plan
    # Create a new integration hook
    npm run scaffold:integration
    ```
+   
+   All code generation templates are located in `tools/plop/templates/` and configured in `tools/plop/plopfile.js`. They enforce Planora's architectural principles automatically.
+
+## Project Organization
+
+Planora.ai is organized with a clear separation of concerns:
+
+```
+planora.ai/
+├── src/              # Source code organized by feature
+├── config/           # Configuration files organized by purpose
+│   ├── dependencies/ # Dependency management (.dependency-cruiser.cjs, .npmrc)
+│   ├── deployment/   # Deployment configuration (vercel.json, etc.)
+│   └── linting/      # Code quality tools (.lintstagedrc.json, etc.)
+├── tools/            # Development tools
+│   └── plop/         # Code generation templates and configuration
+└── docs/             # Project documentation
+```
 
 ## Architecture Overview
 
 Planora.ai follows a clean architecture pattern that combines:
 
-1. **Feature-First Organization**: Business logic is organized by feature domain
-2. **Atomic Design**: UI components follow a hierarchical organization
-3. **Integration Hooks**: Features communicate through dedicated integration hooks
+1. **Feature-First Organization**: Code is organized by business domain, not technical role
+2. **Atomic Design for UI**: UI components follow atomic design principles
+3. **Strict Separation of Concerns**: Each module has a single responsibility
+
+### Critical Architectural Rules
+
+#### 1. No Direct Database Access in UI Components
+
+```typescript
+// INCORRECT - Direct database access in component
+import { supabaseClient } from '@/database/client/supabaseClient';
+
+function MyComponent() {
+  // Direct database query - violates architecture
+  const fetchData = async () => {
+    const { data } = await supabaseClient.from('table').select('*');
+  }
+}
+
+// CORRECT - Using service through API boundary
+import { useFeatureService } from '@/features/feature-name/featureNameApi';
+
+function MyComponent() {
+  const { getData } = useFeatureService();
+  // Service handles database access
+  const fetchData = async () => {
+    const data = await getData();
+  }
+}
+```
+
+#### 2. Cross-Feature Communication via API Boundaries
+
+```typescript
+// INCORRECT - Direct import from another feature's internals
+import { someUtility } from '@/features/auth/utils/authUtils';
+
+// CORRECT - Import from feature's API boundary
+import { someUtility } from '@/features/auth/authApi';
+```
+
+#### 3. Integration Hooks for Complex Feature Interactions
+
+```typescript
+// CORRECT - Using integration hook for cross-feature functionality
+import { useUserProfileIntegration } from '@/hooks/integration/useUserProfileIntegration';
+
+function FeatureComponent() {
+  // Integration hook handles coordinating multiple features
+  const { getUserWithProfile } = useUserProfileIntegration();
+  
+  useEffect(() => {
+    const loadUserData = async () => {
+      const userData = await getUserWithProfile();
+      // Use combined data from multiple features
+    };
+    loadUserData();
+  }, []);
+}
+```
 4. **Redux State Management**: Global state is managed through Redux
 
 Our architecture creates clear boundaries between different parts of the system to ensure maintainability, scalability, and testability.
@@ -72,7 +147,7 @@ src/
 │
 ├── features/               # Feature-specific code organized by domain
 │   ├── auth/                # Authentication feature
-│   │   ├── api.ts           # Public API exports for the feature (boundary)
+│   │   ├── authApi.ts       # Public API exports for the feature (standardized naming)
 │   │   ├── types/           # Feature-specific type definitions
 │   │   ├── components/      # Feature-specific components
 │   │   ├── services/        # Feature-related services
@@ -85,12 +160,13 @@ src/
 │
 ├── pages/                  # Page components that use features and UI components
 ├── store/                   # Global state management
-│   ├── store.ts             # Redux store configuration
+│   ├── storeApi.ts          # Redux store configuration (standardized API naming)
 │   ├── slices/              # Redux slices organized by feature
-│   └── hooks.ts             # Typed hooks for Redux
+│   └── hooks/               # Typed hooks for Redux
 ├── lib/                     # Shared utilities and services
 ├── hooks/                   # Shared React hooks
 └── types/                   # Global type definitions
+    └── typesApi.ts         # Global shared types API (standardized naming)
 ```
 
 ## Coding Style Guide

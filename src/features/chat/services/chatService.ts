@@ -5,7 +5,7 @@
  * This service follows Planora's architectural principles of separation of concerns.
  */
 
-import { supabase } from '@/database/databaseExports';
+import { supabase } from '@/database/databaseApi';
 import { 
   Conversation, 
   Message, 

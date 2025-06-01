@@ -5,7 +5,7 @@
  * Following Planora's architectural principles with feature-first organization
  */
 
-import { supabase } from '@/database/databaseExports';
+import { supabase } from '@/database/databaseApi';
 import { AuthError } from '@supabase/supabase-js';
 
 /**

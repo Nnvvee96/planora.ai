@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from '@/ui/atoms/Button';
 import { Label } from '@/ui/atoms/Label';
@@ -10,12 +10,21 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select } from '@/components/ui/select';
-import { getAuthService, AuthService, AuthProviderType } from '@/features/auth/api';
-import { userProfileService } from '../../services/userProfileService';
-import { DeleteAccountModal } from './DeleteAccountModal';
+import { getAuthService, AuthService, AuthProviderType } from '@/features/auth/authApi';
+import { userProfileService } from '@/features/user-profile/userProfileApi';
+import { useUserProfileIntegration } from '@/features/user-profile/hooks/useUserProfileIntegration';
+// DeleteAccountDialog is lazy loaded below
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { InfoIcon, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+
+// Lazy load DeleteAccountDialog to avoid circular dependencies
+// Using dynamic import with destructuring to handle named exports
+const DeleteAccountDialog = lazy(() => 
+  import('./DeleteAccountDialog').then(module => ({ 
+    default: module.DeleteAccountDialog 
+  }))
+);
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, { message: "Current password is required" }),
@@ -52,7 +61,7 @@ const emailSchema = z.object({
 
 type EmailFormValues = z.infer<typeof emailSchema>;
 
-export interface SettingsModalProps {
+export interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDeleteAccount?: () => void;
@@ -62,10 +71,10 @@ export interface SettingsModalProps {
 }
 
 /**
- * SettingsModal - A component for managing user account settings
- * This modal provides options for theme preferences, language selection, password change, and account deletion
+ * SettingsDialog - A component for managing user account settings
+ * This dialog provides options for theme preferences, language selection, password change, and account deletion
  */
-const SettingsModal: React.FC<SettingsModalProps> = ({ 
+const SettingsDialog: React.FC<SettingsDialogProps> = ({ 
   open, 
   onOpenChange,
   onDeleteAccount,
@@ -78,11 +87,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [language, setLanguage] = React.useState("english");
   const [changePasswordOpen, setChangePasswordOpen] = React.useState(false);
   const [emailChangeOpen, setEmailChangeOpen] = React.useState(false);
-  const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [isEmailLoading, setIsEmailLoading] = React.useState(false);
   const [authProvider, setAuthProvider] = useState<AuthProviderType | null>(null);
   const [authInitialized, setAuthInitialized] = useState(false);
+  
+  // Use user profile integration hook for cross-feature operations
+  const userProfileIntegration = useUserProfileIntegration();
 
   // Initialize auth service using factory function
   const [authService, setAuthService] = useState<AuthService | null>(null);
@@ -207,6 +219,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     try {
       setIsEmailLoading(true);
       
+      // Get current user to obtain user ID
+      const currentUser = await authService.getCurrentUser();
+      
+      if (!currentUser || !currentUser.id) {
+        throw new Error('No authenticated user found');
+      }
+      
       // Special handling for Google-authenticated users
       if (authProvider === AuthProviderType.GOOGLE) {
         // Validate password requirement for Google users
@@ -219,39 +238,68 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           return;
         }
         
-        // Call the enhanced updateEmail method with password parameter
-        // This will handle the Google-to-email conversion
-        await authService.updateEmail(data.newEmail, data.password);
-        
-        toast({
-          title: "Verification Email Sent",
-          description: (
-            <div>
-              <p>A verification email has been sent to <span className="font-medium">{data.newEmail}</span>.</p>
-              <p className="mt-1">Please verify your new email address to complete the change.</p>
-              <p className="mt-2 text-sm opacity-80">Note: This will disconnect your account from Google Sign-In.</p>
-            </div>
-          ),
-          duration: 8000
-        });
-      } else {
-        // Standard email change for email/password users
-        await authService.updateEmail(data.newEmail);
-        
-        toast({
-          title: "Verification Email Sent",
-          description: (
-            <p>Please check your inbox to confirm the change to <span className="font-medium">{data.newEmail}</span>.</p>
-          )
-        });
+        // Store password in auth state for later use in email verification
+        // This is needed for Google to Email conversion
+        try {
+          // Set password before email change
+          await authService.updatePassword('', data.password);
+        } catch (passwordError) {
+          console.error("Failed to set password for Google user:", passwordError);
+          toast({
+            title: "Password Update Failed",
+            description: "Could not update your password. Please try again.",
+            variant: "destructive"
+          });
+          return;
+        }
       }
       
-      setEmailChangeOpen(false);
-      emailForm.reset();
+      // Use integration hook to handle email change across features
+      const emailChangeResult = await userProfileIntegration.handleEmailChangeRequest(
+        currentUser.id,
+        data.newEmail
+      );
+      
+      if (emailChangeResult.success) {
+        // Handle success case with appropriate messaging
+        if (authProvider === AuthProviderType.GOOGLE) {
+          toast({
+            title: "Verification Email Sent",
+            description: (
+              <div>
+                <p>A verification email has been sent to <span className="font-medium">{data.newEmail}</span>.</p>
+                <p className="mt-1">Please verify your new email address to complete the change.</p>
+                <p className="mt-2 text-sm opacity-80">Note: This will disconnect your account from Google Sign-In.</p>
+              </div>
+            ),
+            duration: 8000
+          });
+        } else {
+          toast({
+            title: "Verification Email Sent",
+            description: (
+              <p>Please check your inbox to confirm the change to <span className="font-medium">{data.newEmail}</span>.</p>
+            )
+          });
+        }
+        
+        setEmailChangeOpen(false);
+        emailForm.reset();
+      } else {
+        // Handle failure case
+        toast({
+          title: "Email Change Failed",
+          description: emailChangeResult.message || "Failed to update email. Please try again.",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error("Failed to update email:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to update email. Please try again.";
-      alert(errorMessage);
+      toast({
+        title: "Email Change Failed",
+        description: error instanceof Error ? error.message : "Failed to update email. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsEmailLoading(false);
     }
@@ -527,16 +575,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             <Button 
               variant="destructive" 
               className="w-full"
-              onClick={() => setDeleteModalOpen(true)}
+              onClick={() => setDeleteDialogOpen(true)}
             >
               Delete Account
             </Button>
             
-            {/* Delete Account Modal with 30-day recovery period */}
-            <DeleteAccountModal 
-              isOpen={deleteModalOpen} 
-              onClose={() => setDeleteModalOpen(false)} 
-            />
+            {/* Delete Account Dialog with 30-day recovery period */}
+            <Suspense fallback={<div>Loading...</div>}>
+              <DeleteAccountDialog 
+                isOpen={deleteDialogOpen} 
+                onClose={() => setDeleteDialogOpen(false)} 
+              />
+            </Suspense>
           </div>
         </div>
 
@@ -548,4 +598,4 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   );
 };
 
-export { SettingsModal };
+export { SettingsDialog };

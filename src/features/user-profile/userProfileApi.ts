@@ -5,32 +5,55 @@
  * Following Planora's architectural principles with feature-first organization.
  */
 
-// Instead of directly re-exporting the UserProfileMenu, we'll create a factory function
-// This breaks the circular dependency
+// Import types
 import type { FC } from 'react';
+import type { UserProfile, DbUserProfile } from './types/profileTypes';
+import { lazy } from 'react';
+
+// Import services
+import { userProfileService as userProfileServiceImpl } from './services/userProfileService';
+import { userDataManager } from './services/userDataManager';
+
+// Re-export types
+export type { UserProfile, DbUserProfile };
 
 // Type for the UserProfileMenu props - redefined here to avoid circular import
 export interface UserProfileMenuProps {
   className?: string;
 }
 
-// Import types
-import type { UserProfile, DbUserProfile } from './types/profileTypes';
+// Create factory functions for lazy-loaded components
+// This avoids circular dependencies by dynamically importing components only when needed
 
-// Re-export types
-export type { UserProfile, DbUserProfile };
-
-// Import the user profile service
-import { userProfileService as userProfileServiceImpl } from './services/userProfileService';
-import { lazy } from 'react';
-
-// Create a lazy-loaded UserProfileMenu component
-// This avoids circular dependencies by dynamically importing the component only when needed
+// UserProfileMenu component factory
 export const getUserProfileMenuComponent = () => {
   return lazy(() => import('./components/UserProfileMenu').then(module => ({ 
     default: module.UserProfileMenu 
   })));
 };
+
+// ProfileDialog component factory
+export const getProfileDialogComponent = () => {
+  return lazy(() => import('./components/dialogs/ProfileDialog').then(module => ({
+    default: module.ProfileDialog
+  })));
+};
+
+// SettingsDialog component factory
+export const getSettingsDialogComponent = () => {
+  return lazy(() => import('./components/dialogs/SettingsDialog').then(module => ({
+    default: module.SettingsDialog
+  })));
+};
+
+// DeleteAccountDialog component factory
+export const getDeleteAccountDialogComponent = () => {
+  return lazy(() => import('./components/dialogs/DeleteAccountDialog').then(module => ({
+    default: module.DeleteAccountDialog
+  })));
+};
+
+
 
 /**
  * User profile service
@@ -112,5 +135,36 @@ export const userProfileService = {
       return false;
     }
     return userProfileServiceImpl.deleteUserProfile(profile.id, deleteAuth);
+  },
+
+  /**
+   * Check if database connection is working
+   * @returns True if database connection is successful
+   */
+  checkDatabaseConnection: async (): Promise<boolean> => {
+    try {
+      // Try to fetch a count of profiles as a simple connection test
+      return await userProfileServiceImpl.checkDatabaseConnection();
+    } catch (error) {
+      console.error('Database connection test failed:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Complete the email change process for a user
+   * @param userId The user ID to complete the email change for
+   * @returns True if the email change was successfully completed
+   */
+  completeEmailChange: async (userId: string): Promise<boolean> => {
+    try {
+      return await userProfileServiceImpl.completeEmailChange(userId);
+    } catch (error) {
+      console.error('Error completing email change:', error);
+      return false;
+    }
   }
 };
+
+// Export the user data manager
+export { userDataManager };

@@ -6,8 +6,32 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { AppUser, getAuthService, AuthResponse, AuthService } from '../authApi';
 import { useNavigate } from 'react-router-dom';
+import { User } from '@supabase/supabase-js';
+
+// Import directly from services to avoid circular dependencies
+import { supabaseAuthService } from '../services/supabaseAuthService';
+
+// Import types directly from the types folder
+import type { AppUser, AuthResponse, AuthService } from '../types/authTypes';
+
+// User mapping function - implemented directly to avoid circular dependency
+const mapUserToAppUser = (user: User | null): AppUser | null => {
+  if (!user) return null;
+  
+  // Extract user metadata or use empty object if undefined
+  const metadata = user.user_metadata || {};
+  
+  return {
+    id: user.id,
+    email: user.email || '',
+    username: metadata.username || '',
+    firstName: metadata.first_name || '',
+    lastName: metadata.last_name || '',
+    avatarUrl: metadata.avatar_url || '',
+    hasCompletedOnboarding: metadata.has_completed_onboarding === true
+  };
+};
 
 /**
  * Custom hook for authentication operations
@@ -22,9 +46,21 @@ export const useAuth = () => {
   const [authService, setAuthService] = useState<AuthService | null>(null);
   const navigate = useNavigate();
   
-  // Load auth service on component mount
+  // Set auth service directly on component mount
   useEffect(() => {
-    setAuthService(getAuthService());
+    // Create adapter for supabaseAuthService to match AuthService interface
+    const authServiceAdapter: AuthService = {
+      ...supabaseAuthService,
+      // Adapt method names to match our interface
+      logout: supabaseAuthService.signOut,
+      getCurrentUser: async () => {
+        // Get the raw user and map to our app user type
+        const user = await supabaseAuthService.getCurrentUser();
+        return mapUserToAppUser(user);
+      }
+    };
+    
+    setAuthService(authServiceAdapter);
   }, []);
 
   // Check auth status after auth service is initialized
@@ -36,7 +72,7 @@ export const useAuth = () => {
         setLoading(true);
         setError(null);
         
-        // getCurrentUser already returns our mapped User type
+        // Get current user - already mapped by our adapter
         const currentUser = await authService.getCurrentUser();
         
         if (currentUser) {
@@ -193,7 +229,16 @@ export const useAuth = () => {
    */
   const getAuthServiceInstance = useCallback(() => {
     if (!authService) {
-      return getAuthService();
+      // Create adapter if authService is null
+      const authServiceAdapter: AuthService = {
+        ...supabaseAuthService,
+        logout: supabaseAuthService.signOut,
+        getCurrentUser: async () => {
+          const user = await supabaseAuthService.getCurrentUser();
+          return mapUserToAppUser(user);
+        }
+      };
+      return authServiceAdapter;
     }
     return authService;
   }, [authService]);
@@ -207,6 +252,8 @@ export const useAuth = () => {
     logout,
     handleAuthCallback,
     updateOnboardingStatus,
-    getAuthService: getAuthServiceInstance
+    getAuthService: getAuthServiceInstance,
+    // Add direct access to auth service for convenience
+    authService
   };
 };

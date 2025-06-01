@@ -1,6 +1,9 @@
 /**
- * Redux Store Configuration
+ * Store API
  * 
+ * Public API for store-related functionality.
+ * Following Planora's architectural principles with feature-first organization.
+ *
  * Configures the global Redux store with all feature slices
  */
 import { configureStore } from '@reduxjs/toolkit';

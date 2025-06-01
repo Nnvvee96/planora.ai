@@ -11,8 +11,9 @@ import { useNavigate } from 'react-router-dom';
 import { UserRegistrationStatus } from '../types/authTypes';
 import { AuthRedirect } from './AuthRedirect';
 import { googleAuthHelper } from '../helpers/googleAuthHelper';
-import { supabase } from '@/database/databaseExports';
-import { getAuthService } from '../authApi';
+import { supabase } from '@/database/databaseApi';
+// Import service directly to avoid circular dependency
+import { supabaseAuthService } from '../services/supabaseAuthService';
 
 /**
  * Component that handles OAuth callback
@@ -94,9 +95,8 @@ export const AuthCallback: React.FC = () => {
         if (isEmailVerification && emailVerificationToken) {
           console.log('Handling email verification redirect with token');
           try {
-            // Verify email using our auth service
-            const authService = await getAuthService();
-            const success = await authService.verifyEmail(emailVerificationToken);
+            // Use service directly to avoid circular dependency
+            const success = await supabaseAuthService.verifyEmail(emailVerificationToken);
             
             if (success) {
               console.log('Email verification successful');

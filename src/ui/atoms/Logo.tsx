@@ -1,23 +1,24 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { useAuthContext } from '@/features/auth/components/AuthProvider';
+// UI components should not import directly from features
+// Instead, we'll accept auth state as a prop
 
 interface LogoProps {
   className?: string;
   href?: string;
   size?: 'sm' | 'md' | 'lg';
   variant?: 'text' | 'icon' | 'full';
+  isAuthenticated?: boolean;
 }
 
 const Logo: React.FC<LogoProps> = ({ 
   className = '', 
   href, 
   size = 'md',
-  variant = 'full' 
+  variant = 'full',
+  isAuthenticated = false
 }) => {
-  // Use the AuthContext directly to get real-time auth state
-  const { isAuthenticated } = useAuthContext();
   
   // Determine correct href based on auth state and explicit props
   // Always prioritize explicit href if provided

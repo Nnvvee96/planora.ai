@@ -4,7 +4,7 @@
  * Contains reusable functions for formatting various data types
  */
 
-import { Currency } from '@/types/global';
+import { Currency } from '@/types/typesApi';
 
 /**
  * Format a monetary value as a currency string

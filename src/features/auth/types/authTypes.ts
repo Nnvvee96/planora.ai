@@ -17,8 +17,8 @@ export interface AppUser {
   username: string;
   firstName: string;
   lastName: string;
+  hasCompletedOnboarding: boolean; // Required to match authApi.ts interface
   avatarUrl?: string;
-  hasCompletedOnboarding?: boolean;
 }
 
 /**
@@ -117,4 +117,39 @@ export interface VerificationCodeStatus {
   isValid: boolean;
   isExpired: boolean;
   message?: string;
+}
+
+/**
+ * Authentication Service interface
+ * Defines the contract for auth service implementations
+ */
+export interface AuthService {
+  signInWithGoogle(): Promise<void>;
+  signInWithPassword(credentials: { email: string; password: string }): Promise<{ data: any; error: Error | null }>;
+  updateUserMetadata(metadata: Record<string, unknown>): Promise<void>;
+  getCurrentUser(): Promise<AppUser | null>;
+  logout(): Promise<void>;
+  handleAuthCallback(): Promise<AuthResponse>;
+  register(data: RegisterData): Promise<{ user: User | null, emailConfirmationRequired: boolean }>;
+  verifyEmail(token: string): Promise<boolean>;
+  resendVerificationEmail(email: string): Promise<boolean>;
+  sendPasswordResetEmail(email: string): Promise<boolean>;
+  resetPassword(newPassword: string): Promise<boolean>;
+  updatePassword(currentPassword: string, newPassword: string): Promise<void>;
+  updateEmail(newEmail: string, password?: string): Promise<void>;
+  getAuthProvider(userId?: string): Promise<AuthProviderType>;
+  checkOnboardingStatus(userId: string): Promise<boolean>;
+  updateOnboardingStatus(userId: string, hasCompleted?: boolean): Promise<boolean>;
+  checkEmailVerificationStatus(userId: string): Promise<boolean>;
+  sendVerificationCode(userId: string, email: string): Promise<VerificationCodeResponse>;
+  verifyCode(userId: string, code: string): Promise<VerificationCodeResponse>;
+  checkCodeStatus(userId: string, code: string): Promise<VerificationCodeStatus>;
+  refreshSession(): Promise<{session: any, error: Error | null}>;
+  checkUserRegistrationStatus(userId: string): Promise<{
+    isNewUser: boolean;
+    hasProfile: boolean;
+    hasCompletedOnboarding: boolean;
+    hasTravelPreferences: boolean;
+    registrationStatus: UserRegistrationStatus;
+  }>;
 }

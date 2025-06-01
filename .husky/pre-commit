@@ -3,4 +3,20 @@
 # Run lint-staged to check staged files (faster checks only)
 npx lint-staged
 
-echo "✅ Pre-commit checks passed! Your code follows style guidelines."
+# Architecture validation on changed files only
+changed_ts_files=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.tsx?$' | tr '\n' ' ')
+
+if [ -n "$changed_ts_files" ]; then
+  echo "🔍 Running architecture validation on changed files..."
+  node scripts/architecture-validator.js --files "$changed_ts_files" --quick
+  validation_exit_code=$?
+  
+  if [ $validation_exit_code -ne 0 ]; then
+    echo "❌ Architecture validation failed! Please fix architectural violations before committing."
+    exit 1
+  fi
+  
+  echo "✅ Architecture validation passed!"
+fi
+
+echo "✅ All pre-commit checks passed! Your code follows architecture guidelines."
