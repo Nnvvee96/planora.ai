@@ -12,6 +12,7 @@ import { UserRegistrationStatus } from '../types/authTypes';
 import { AuthRedirect } from './AuthRedirect';
 import { googleAuthHelper } from '../helpers/googleAuthHelper';
 import { supabase } from '@/database/databaseExports';
+import { getAuthService } from '../authApi';
 
 /**
  * Component that handles OAuth callback
@@ -54,10 +55,21 @@ export const AuthCallback: React.FC = () => {
           localStorage.removeItem('auth_flow_timestamp');
         }
         
-        // Extract auth data from URL
+        // Extract auth data from URL and detect email verification redirects
         const accessToken = new URLSearchParams(window.location.hash.substring(1)).get('access_token');
         const refreshToken = new URLSearchParams(window.location.hash.substring(1)).get('refresh_token');
         
+        // Check for Supabase email verification token types
+        const emailVerificationToken = 
+          new URLSearchParams(window.location.search).get('token') || 
+          new URLSearchParams(window.location.search).get('confirmation_token') || 
+          new URLSearchParams(window.location.search).get('t');
+        
+        // Check if this is an email verification redirect
+        const isEmailVerification = !!emailVerificationToken &&
+          (window.location.search.includes('type=signup') || 
+           window.location.search.includes('type=email'));
+            
         // Check if we have a complete hash-based auth response
         const hasHashAuth = accessToken && refreshToken;
         
@@ -73,8 +85,43 @@ export const AuthCallback: React.FC = () => {
           hasAuthError, 
           hasDbError,
           hasAccessToken: !!accessToken,
-          hasRefreshToken: !!refreshToken
+          hasRefreshToken: !!refreshToken,
+          isEmailVerification,
+          hasEmailVerificationToken: !!emailVerificationToken
         });
+        
+        // If this is an email verification redirect, handle it explicitly
+        if (isEmailVerification && emailVerificationToken) {
+          console.log('Handling email verification redirect with token');
+          try {
+            // Verify email using our auth service
+            const authService = await getAuthService();
+            const success = await authService.verifyEmail(emailVerificationToken);
+            
+            if (success) {
+              console.log('Email verification successful');
+              setRedirectMessage('Email verification successful! Redirecting you to login...');
+              // Wait a moment to show the success message
+              setTimeout(() => {
+                setRedirectPath('/login');
+              }, 2000);
+            } else {
+              console.log('Email verification failed');
+              setRedirectMessage('Email verification failed. Please try again or contact support.');
+              setError('Failed to verify email. The verification link may have expired.');
+              setRedirectPath('/login');
+            }
+            
+            setIsProcessing(false);
+            return;
+          } catch (verifyError) {
+            console.error('Error during email verification:', verifyError);
+            setError('An error occurred during email verification');
+            setRedirectPath('/login');
+            setIsProcessing(false);
+            return;
+          }
+        }
         
         // Try to verify if we have an active session regardless of URL parameters
         const { data: sessionData } = await supabase.auth.getSession();

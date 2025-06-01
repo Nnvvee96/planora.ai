@@ -106,6 +106,7 @@ export interface VerificationCodeResponse {
   success: boolean;
   message?: string;
   error?: string;
+  code?: string; // Optional code returned for testing purposes
 }
 
 /**

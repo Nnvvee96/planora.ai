@@ -171,14 +171,29 @@ function Register() {
       setRegisteredEmail(data.email);
       setRegisteredUserId(registrationResult.user.id);
       
-      // Send verification code
-      const codeResult = await authService.sendVerificationCode(
-        registrationResult.user.id,
-        data.email
-      );
-      
-      if (!codeResult.success) {
-        throw new Error(codeResult.error || 'Failed to send verification code');
+      // If email confirmation is required, Supabase will have already sent the verification email
+      // We can still generate a code for our custom verification flow if needed
+      if (registrationResult.emailConfirmationRequired) {
+        console.log('Email confirmation required, verification email sent by Supabase');
+        
+        // For testing purposes, we can still generate a verification code
+        // that can be used alongside Supabase's email verification
+        const codeResult = await authService.sendVerificationCode(
+          registrationResult.user.id,
+          data.email
+        );
+        
+        if (!codeResult.success) {
+          console.warn('Failed to generate backup verification code:', codeResult.error);
+          // This is not critical as Supabase has already sent a verification email
+        } else if (codeResult.code) {
+          // If we got a code back (in test mode), display it
+          toast({
+            title: "Test Mode: Verification Code",
+            description: `Code: ${codeResult.code} (Only shown in test mode)`,
+            duration: 10000, // Show for 10 seconds
+          });
+        }
       }
       
       // Show verification dialog
