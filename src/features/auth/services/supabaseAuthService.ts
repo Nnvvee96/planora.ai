@@ -832,14 +832,25 @@ export const supabaseAuthService = {
   },
   
   /**
-   * Resend verification email
+   * Resend verification email or code
    * @param email The email address to resend verification to
+   * @param userId Optional user ID (required for code-based verification)
    */
-  resendVerificationEmail: async (email: string): Promise<boolean> => {
+  resendVerificationEmail: async (email: string, userId?: string): Promise<boolean> => {
     try {
+      // If userId is provided, use our custom verification code system
+      if (userId) {
+        const result = await supabaseAuthService.sendVerificationCode(userId, email);
+        return result.success;
+      }
+      
+      // Otherwise, use Supabase's built-in verification email system
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email,
+        options: {
+          emailRedirectTo: supabaseAuthService.getEmailVerificationRedirectUrl('verification')
+        }
       });
       
       if (error) {
@@ -1163,72 +1174,80 @@ export const supabaseAuthService = {
       // Refresh session to ensure we have the latest authentication state
       await supabaseAuthService.refreshSession();
       
-      // Call the verification-code-handler edge function
-      const { data, error } = await supabase.functions.invoke('verification-code-handler', {
-        body: { action: 'send', userId, email }
-      });
+      // Check if we're in a test/development environment to show the code
+      const isTestMode = import.meta.env.DEV || import.meta.env.MODE === 'test';
       
-      if (error) {
-        console.error('Error sending verification code:', error);
+      // Generate a verification code directly in the database
+      try {
+        // Try to use the generate_verification_code function if available
+        const { data: rpcData, error: rpcError } = await supabase.rpc('generate_verification_code', {
+          p_user_id: userId,
+          p_user_email: email,
+          p_is_test_mode: isTestMode
+        });
         
-        // If the Edge Function is unavailable, fall back to direct database insertion
-        if (error.message?.includes('Service unavailable') || error.message?.includes('timeout')) {
-          console.log('Edge function unavailable, attempting direct database insertion');
-          
-          try {
-            // Generate random 6-digit code
-            const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-            const expiresAt = new Date();
-            expiresAt.setHours(expiresAt.getHours() + 1); // Expires in 1 hour
-            
-            // Expire any previous codes for this user
-            await supabase
-              .from('verification_codes')
-              .update({ used: true })
-              .eq('user_id', userId)
-              .eq('used', false);
-            
-            // Insert new code
-            const { error: insertError } = await supabase
-              .from('verification_codes')
-              .insert({
-                user_id: userId,
-                email: email,
-                code: verificationCode,
-                expires_at: expiresAt.toISOString()
-              });
-            
-            if (insertError) {
-              console.error('Error creating verification code directly:', insertError);
-              return {
-                success: false,
-                error: 'Failed to generate verification code. Please try again.'
-              };
-            }
-            
-            // Return success without the actual code (for security)
-            return {
-              success: true,
-              message: 'Verification code created successfully. Please check your email.'
-            };
-          } catch (directErr) {
-            console.error('Error in direct database fallback:', directErr);
-            return {
-              success: false,
-              error: 'Failed to generate verification code after multiple attempts.'
-            };
-          }
+        if (!rpcError && rpcData) {
+          // RPC succeeded, return the code for test mode
+          console.log(`Verification code generated successfully${isTestMode ? ' (test mode)' : ''} for user ${userId}`);
+          return isTestMode 
+            ? { success: true, code: rpcData } 
+            : { success: true };
         }
         
-        return { success: false, error: error.message || 'Failed to send verification code' };
+        // If RPC failed (possibly older DB schema), fall back to direct method
+        console.log('Falling back to direct verification code generation');
+        
+        // Generate random 6-digit code
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 1); // Expires in 1 hour
+        
+        // Expire any previous codes for this user
+        await supabase
+          .from('verification_codes')
+          .update({ used: true })
+          .eq('user_id', userId)
+          .eq('used', false);
+        
+        // Insert new code
+        const { error: insertError } = await supabase
+          .from('verification_codes')
+          .insert({
+            user_id: userId,
+            email: email,
+            code: verificationCode,
+            expires_at: expiresAt.toISOString(),
+            used: false,
+            is_test_mode: isTestMode
+          });
+        
+        if (insertError) {
+          console.error('Error creating verification code:', insertError);
+          return {
+            success: false,
+            error: 'Failed to create verification code. Please try again.'
+          };
+        }
+        
+        // For testing purposes, return the code directly
+        console.log(`Verification code generated successfully${isTestMode ? ' (test mode)' : ''} for user ${userId}`);
+        
+        // Return success with the code for testing
+        return isTestMode 
+          ? { success: true, code: verificationCode } 
+          : { success: true };
+      } catch (directErr) {
+        console.error('Error in verification code generation:', directErr);
+        return {
+          success: false,
+          error: 'Failed to generate verification code.'
+        };
       }
-      
-      return data as VerificationCodeResponse;
     } catch (err) {
       console.error('Error in sendVerificationCode:', err);
       return { 
         success: false, 
-        error: err instanceof Error ? err.message : 'An unexpected error occurred'
+        error: err instanceof Error ? err.message : 'Failed to send verification code' 
       };
     }
   },
@@ -1246,105 +1265,98 @@ export const supabaseAuthService = {
       // Refresh session to ensure we have the latest authentication state
       await supabaseAuthService.refreshSession();
       
-      // Call the verification-code-handler edge function
-      const { data, error } = await supabase.functions.invoke('verification-code-handler', {
-        body: { action: 'verify', userId, code }
-      });
+      // Directly verify the code against the database
+      const { data: codeData, error: dbError } = await supabase
+        .from('verification_codes')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('code', code)
+        .eq('used', false)
+        .gt('expires_at', new Date().toISOString())
+        .single();
       
-      if (error) {
-        console.error('Error verifying code:', error);
-        // If there's a service unavailable error, try a direct database check as fallback
-        if (error.message?.includes('Service unavailable') || error.message?.includes('timeout')) {
-          console.log('Edge function unavailable, attempting direct database verification');
-          const { data: codeData, error: dbError } = await supabase
-            .from('verification_codes')
-            .select('*')
-            .eq('user_id', userId)
-            .eq('code', code)
-            .eq('used', false)
-            .gt('expires_at', new Date().toISOString())
-            .single();
-          
-          if (dbError || !codeData) {
-            return { success: false, error: 'Invalid or expired verification code' };
-          }
-          
-          // Mark code as used
-          await supabase
-            .from('verification_codes')
-            .update({ used: true })
-            .eq('id', codeData.id);
-          
-          // Proceed with verification success steps
-          // Update verification status in multiple places for redundancy
-          const timestamp = new Date().toISOString();
-          
-          // 1. Update profile table
-          try {
-            await supabase
-              .from('profiles')
-              .update({
-                email_verified: true,
-                updated_at: timestamp
-              })
-              .eq('id', userId);
-          } catch (updateErr) {
-            console.warn('Error updating profile verification status:', updateErr);
-            // Continue despite error - we have multiple update points for redundancy
-          }
-          
-          // 2. Update user metadata
-          try {
-            await supabase.auth.updateUser({
-              data: {
-                email_verified: true,
-                email_verified_at: timestamp
-              }
-            });
-          } catch (updateErr) {
-            console.warn('Error updating user metadata verification status:', updateErr);
-            // Continue despite error
-          }
-          
-          return { success: true };
+      if (dbError || !codeData) {
+        // Check if the code is expired
+        const { data: expiredData } = await supabase
+          .from('verification_codes')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('code', code)
+          .eq('used', false)
+          .lte('expires_at', new Date().toISOString())
+          .single();
+        
+        if (expiredData) {
+          return { success: false, error: 'Verification code has expired. Please request a new one.' };
         }
         
-        return { success: false, error: error.message || 'Failed to verify code' };
+        // Check if the code was already used
+        const { data: usedData } = await supabase
+          .from('verification_codes')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('code', code)
+          .eq('used', true)
+          .single();
+        
+        if (usedData) {
+          return { success: false, error: 'This verification code has already been used.' };
+        }
+        
+        return { success: false, error: 'Invalid verification code. Please check and try again.' };
       }
       
-      // If verification was successful, update the user's profile in multiple places
-      if (data?.success) {
-        const timestamp = new Date().toISOString();
-        
-        // Update profile table
-        try {
-          await supabase
-            .from('profiles')
-            .update({
-              email_verified: true,
-              updated_at: timestamp
-            })
-            .eq('id', userId);
-        } catch (updateErr) {
-          console.warn('Error updating profile verification status:', updateErr);
-          // Continue despite error - we have multiple update points for redundancy
-        }
-        
-        // Update user metadata
-        try {
-          await supabase.auth.updateUser({
-            data: {
-              email_verified: true,
-              email_verified_at: timestamp
-            }
-          });
-        } catch (updateErr) {
-          console.warn('Error updating user metadata verification status:', updateErr);
-          // Continue despite error
-        }
+      // Mark code as used
+      await supabase
+        .from('verification_codes')
+        .update({ used: true })
+        .eq('id', codeData.id);
+      
+      // Update verification status in multiple places for redundancy
+      const timestamp = new Date().toISOString();
+      
+      // 1. Update profile table
+      try {
+        await supabase
+          .from('profiles')
+          .update({
+            email_verified: true,
+            updated_at: timestamp
+          })
+          .eq('id', userId);
+      } catch (updateErr) {
+        console.warn('Error updating profile verification status:', updateErr);
+        // Continue despite error - we have multiple update points for redundancy
       }
       
-      return data as VerificationCodeResponse;
+      // 2. Update user metadata
+      try {
+        await supabase.auth.updateUser({
+          data: {
+            email_verified: true,
+            email_verified_at: timestamp
+          }
+        });
+        
+        // Update user metadata in auth.users using admin API
+        const { error: adminError } = await supabase.auth.admin.updateUserById(userId, {
+          // Note: We can't directly set email_confirmed_at as it's not in the AdminUserAttributes type
+          // But we can update the user metadata to reflect verified status
+          user_metadata: {
+            email_verified: true,
+            email_verified_at: timestamp
+          }
+        });
+        
+        if (adminError) {
+          console.warn('Error updating auth user record:', adminError);
+        }
+      } catch (updateErr) {
+        console.warn('Error updating user metadata verification status:', updateErr);
+        // Continue despite error
+      }
+      
+      return { success: true, message: 'Email verified successfully' };
     } catch (err) {
       console.error('Error in verifyCode:', err);
       return { 
@@ -1354,7 +1366,6 @@ export const supabaseAuthService = {
     }
   },
   
-
   /**
    * Check verification code status
    * @param userId User ID
