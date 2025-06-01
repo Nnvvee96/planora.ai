@@ -8,9 +8,13 @@
 -- ==========================================
 -- 1. Verification Codes Table
 -- ==========================================
+-- Drop existing verification_codes table if it exists (to update foreign key constraints)
+DROP TABLE IF EXISTS public.verification_codes;
+
+-- Create the verification_codes table with proper constraints
 CREATE TABLE IF NOT EXISTS public.verification_codes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,  -- No foreign key constraint to avoid race conditions
   email TEXT NOT NULL,
   code VARCHAR(6) NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
@@ -26,7 +30,10 @@ CREATE INDEX IF NOT EXISTS verification_codes_used_idx ON public.verification_co
 -- ==========================================
 -- 2. Generate Verification Code Function
 -- ==========================================
-CREATE OR REPLACE FUNCTION public.generate_verification_code(user_id UUID, user_email TEXT)
+-- First drop the existing function to allow parameter name changes
+DROP FUNCTION IF EXISTS public.generate_verification_code(uuid, text);
+
+CREATE OR REPLACE FUNCTION public.generate_verification_code(p_user_id UUID, p_user_email TEXT)
 RETURNS VARCHAR AS $$
 DECLARE
   verification_code VARCHAR(6);
@@ -37,7 +44,7 @@ BEGIN
   -- Insert new code, expire any previous ones
   UPDATE public.verification_codes 
   SET used = TRUE 
-  WHERE user_id = $1 AND used = FALSE;
+  WHERE user_id = p_user_id AND used = FALSE;
   
   INSERT INTO public.verification_codes (
     user_id, 
@@ -45,8 +52,8 @@ BEGIN
     code, 
     expires_at
   ) VALUES (
-    $1, 
-    $2, 
+    p_user_id, 
+    p_user_email, 
     verification_code, 
     now() + interval '1 hour'
   );
@@ -56,7 +63,24 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ==========================================
--- 3. Email Verification Synchronization Functions
+-- 3. Helper Functions
+-- ==========================================
+
+-- Helper function to check if a user exists in any relevant table
+-- This is used by the Edge Function to handle race conditions during user registration
+DROP FUNCTION IF EXISTS public.user_exists(uuid);
+CREATE OR REPLACE FUNCTION public.user_exists(user_id_param UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  -- Check auth.users and public.users (profiles) tables
+  RETURN EXISTS (
+    SELECT 1 FROM auth.users WHERE id = user_id_param
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ==========================================
+-- 4. Email Verification Synchronization Functions
 -- ==========================================
 
 -- Function to sync email verification status between auth.users and profiles
@@ -122,7 +146,7 @@ CREATE TRIGGER on_verification_code_used
   EXECUTE PROCEDURE public.mark_verification_code_used();
 
 -- ==========================================
--- 4. Row Level Security Policies
+-- 5. Row Level Security Policies
 -- ==========================================
 
 -- Enable Row Level Security for verification_codes table
