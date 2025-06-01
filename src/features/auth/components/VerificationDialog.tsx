@@ -92,12 +92,30 @@ export function VerificationDialog({
       setIsResending(true);
       setError('');
       
-      await onResend();
+      // Call the onResend function and catch any test verification code
+      const authService = getAuthService();
+      const result = await authService.sendVerificationCode(userId, email);
       
-      toast({
-        title: "Verification code sent",
-        description: `A new verification code has been sent to ${email}`,
-      });
+      // If we got a code back for testing purposes, show it in the toast
+      if (result.code) {
+        toast({
+          title: "Test Mode: Verification Code",
+          description: `Code: ${result.code} (Only shown in test mode)`,
+          duration: 10000, // Show for 10 seconds
+        });
+        // Auto-fill the code for testing
+        setCode(result.code);
+      } else {
+        toast({
+          title: "Verification code sent",
+          description: `A new verification code has been sent to ${email}`,
+        });
+      }
+      
+      // Also call the original onResend if provided
+      if (onResend) {
+        await onResend();
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to resend code';
       setError(errorMessage);
