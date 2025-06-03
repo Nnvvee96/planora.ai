@@ -1235,6 +1235,12 @@ export const supabaseAuthService = {
         // Get the correct Supabase URL based on environment
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+        // DEBUG LOGS START
+        console.log('[Debug] In sendVerificationCode, checking env vars:');
+        console.log('[Debug] VITE_SUPABASE_URL:', supabaseUrl);
+        console.log('[Debug] VITE_SUPABASE_ANON_KEY is set:', !!supabaseAnonKey);
+        // DEBUG LOGS END
         
         if (!supabaseUrl) {
           console.error('Missing VITE_SUPABASE_URL environment variable');
@@ -1244,7 +1250,8 @@ export const supabaseAuthService = {
           };
         }
         
-        console.log('Calling verification-code-handler Edge Function to send email');
+        // Ensure this log is definitely here and not missed
+        console.log('[Important] Attempting to call verification-code-handler Edge Function to send email. URL:', `${supabaseUrl}/functions/v1/verification-code-handler`);
         
         // Call the Edge Function with the 'send' action
         const functionUrl = `${supabaseUrl}/functions/v1/verification-code-handler`;
