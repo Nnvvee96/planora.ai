@@ -1186,53 +1186,95 @@ export const supabaseAuthService = {
           p_is_test_mode: isTestMode
         });
         
+        let verificationCode: string;
+        
         if (!rpcError && rpcData) {
-          // RPC succeeded, return the code for test mode
+          // RPC succeeded, store the code
+          verificationCode = rpcData;
           console.log(`Verification code generated successfully${isTestMode ? ' (test mode)' : ''} for user ${userId}`);
-          return isTestMode 
-            ? { success: true, code: rpcData } 
-            : { success: true };
+        } else {
+          // If RPC failed (possibly older DB schema), fall back to direct method
+          console.log('Falling back to direct verification code generation');
+          
+          // Generate random 6-digit code
+          verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + 1); // Expires in 1 hour
+          
+          // Expire any previous codes for this user
+          await supabase
+            .from('verification_codes')
+            .update({ used: true })
+            .eq('user_id', userId)
+            .eq('used', false);
+          
+          // Insert new code
+          const { error: insertError } = await supabase
+            .from('verification_codes')
+            .insert({
+              user_id: userId,
+              email: email,
+              code: verificationCode,
+              expires_at: expiresAt.toISOString(),
+              used: false,
+              is_test_mode: isTestMode
+            });
+          
+          if (insertError) {
+            console.error('Error creating verification code:', insertError);
+            return {
+              success: false,
+              error: 'Failed to create verification code. Please try again.'
+            };
+          }
+          
+          console.log(`Verification code generated successfully${isTestMode ? ' (test mode)' : ''} for user ${userId}`);
         }
         
-        // If RPC failed (possibly older DB schema), fall back to direct method
-        console.log('Falling back to direct verification code generation');
+        // Call the Supabase Edge Function to send the email
+        // Get the correct Supabase URL based on environment
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
         
-        // Generate random 6-digit code
-        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + 1); // Expires in 1 hour
-        
-        // Expire any previous codes for this user
-        await supabase
-          .from('verification_codes')
-          .update({ used: true })
-          .eq('user_id', userId)
-          .eq('used', false);
-        
-        // Insert new code
-        const { error: insertError } = await supabase
-          .from('verification_codes')
-          .insert({
-            user_id: userId,
-            email: email,
-            code: verificationCode,
-            expires_at: expiresAt.toISOString(),
-            used: false,
-            is_test_mode: isTestMode
-          });
-        
-        if (insertError) {
-          console.error('Error creating verification code:', insertError);
+        if (!supabaseUrl) {
+          console.error('Missing VITE_SUPABASE_URL environment variable');
           return {
             success: false,
-            error: 'Failed to create verification code. Please try again.'
+            error: 'Configuration error. Please try again later.'
           };
         }
         
-        // For testing purposes, return the code directly
-        console.log(`Verification code generated successfully${isTestMode ? ' (test mode)' : ''} for user ${userId}`);
+        console.log('Calling verification-code-handler Edge Function to send email');
         
-        // Return success with the code for testing
+        // Call the Edge Function with the 'send' action
+        const functionUrl = `${supabaseUrl}/functions/v1/verification-code-handler`;
+        const response = await fetch(functionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+          },
+          body: JSON.stringify({
+            action: 'send',
+            userId,
+            email,
+            testMode: isTestMode
+          })
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Edge Function error:', errorText);
+          return {
+            success: false,
+            error: `Failed to send verification code email: ${response.status} ${response.statusText}`
+          };
+        }
+        
+        const edgeFunctionResult = await response.json();
+        console.log('Edge Function result:', edgeFunctionResult);
+        
+        // Return the code in test mode, otherwise just return success
         return isTestMode 
           ? { success: true, code: verificationCode } 
           : { success: true };
