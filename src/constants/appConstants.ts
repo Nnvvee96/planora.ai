@@ -3,14 +3,15 @@
  */
 
 // Application settings
-export const APP_NAME = 'Planora.ai';
+export const APP_NAME = 'Planora';
 export const APP_VERSION = '1.0.0';
 
 // API settings
-export const API_BASE_URL = 'https://api.planora.ai'; // Replace with your actual API base URL
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || window.location.origin; // Uses env or current origin
 export const API_TIMEOUT = 30000; // 30 seconds
 
 // Auth constants
+
 export const AUTH_TOKEN_KEY = 'planora_auth_token';
 export const REFRESH_TOKEN_KEY = 'planora_refresh_token';
 export const SESSION_EXPIRY_KEY = 'planora_session_expiry';

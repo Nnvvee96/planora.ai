@@ -53,13 +53,9 @@ export const supabaseAuthService = {
       let redirectUrl;
       
       if (import.meta.env.DEV) {
-        // Local development - use current window location to determine port
-        const currentUrl = window.location.origin;
-        redirectUrl = `${currentUrl}/auth/callback`;
-        console.log('Using dynamic redirect URL:', redirectUrl);
-      } else {
-        // Production environment - hardcode the main domain
-        redirectUrl = 'https://planora-ai-plum.vercel.app/auth/callback';
+        // Use environment variable for redirect URL in all environments
+        redirectUrl = import.meta.env.VITE_AUTH_REDIRECT_URL || `${window.location.origin}/auth/callback`;
+        console.log('Using redirect URL from env:', redirectUrl);
       }
       
       console.log('Google Auth: Initiating sign-in with redirect URL:', redirectUrl);
@@ -257,20 +253,8 @@ export const supabaseAuthService = {
     let baseUrl = '';
     const standardizedRoute = route === 'verification' ? 'verification' : route;
     
-    // Use environment variables for consistent URLs across environments
-    if (import.meta.env.MODE === 'production' || import.meta.env.PROD) {
-      // Production environment - use main production URL
-      baseUrl = import.meta.env.VITE_PRODUCTION_URL || 'https://planora-ai-plum.vercel.app';
-    } else if (import.meta.env.MODE === 'development' || import.meta.env.DEV) {
-      // Development environment - use consistent localhost URL
-      baseUrl = 'http://localhost:5173';
-    } else if (typeof window !== 'undefined' && window.location.origin) {
-      // Fall back to current origin if available and not in recognized environment
-      baseUrl = window.location.origin;
-    } else {
-      // Default fallback to production URL
-      baseUrl = 'https://planora-ai-plum.vercel.app';
-    }
+    // Use environment variable for base URL in all environments
+    baseUrl = import.meta.env.VITE_SITE_URL || (typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://getplanora.app');
     
     // Log the redirect URL for debugging
     console.log(`Setting email verification redirect URL: ${baseUrl}/auth/${standardizedRoute}`);
