@@ -1,561 +1,583 @@
--- Consolidated Email Verification SQL for Planora.ai
--- This file contains all SQL needed for email verification, including:
--- 1. Verification Codes Table (for fallback/testing verification)
--- 2. Generate Verification Code Function
--- 3. Email Verification Synchronization Functions (bidirectional sync between Supabase Auth and profiles)
--- 4. Row Level Security Policies
---
--- IMPORTANT: As of June 2025, Planora.ai uses Supabase Auth's built-in email verification as the primary method.
--- This schema supports both the built-in flow and our custom verification code flow, with the custom flow
--- primarily used for testing purposes or as a fallback mechanism.
-/**
- * Verification Code Handler Edge Function
- * 
- * This Supabase Edge Function handles email verification code generation, sending, and verification.
- * It includes comprehensive retry logic and race condition handling for reliable email verification.
- * 
- * Features:
- * - Exponential backoff for handling race conditions during user creation
- * - Multiple fallback strategies
- * - Detailed error logging and structured error responses
- * - Type-safe implementation
- * - Configurable CORS support
- * - Rate limiting for security
- * - Enhanced service degradation handling
- * - Test mode support for development environments
- * 
- * Deploy to Supabase:
- * supabase functions deploy verification-code-handler
- */ 
-// Deno standard library imports
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+-- Complete Supabase Database Setup Script for Planora.ai
+-- This script combines schema creation, triggers, and RLS policies in the correct order
+-- Updated with account deletion system, email change tracking, improved RLS policies, and email verification system
+-- Execute this in the Supabase SQL Editor to set up the complete database
 
-// ======== Configuration ========
-// Verification callback URLs
-const VERIFICATION_CALLBACK_URLS = {
-  development: 'http://localhost:5173/auth/callback',
-  production: 'https://planora-ai-plum.vercel.app/auth/callback'
-};
+-- Enable UUID extension if not already enabled
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-// All allowed origins (both development and production)
-const ALLOWED_ORIGINS = [
-  // Development origins
-  'http://localhost:3000',
-  'http://localhost:5173',
-  // Production origins
-  'https://planora.ai',
-  'https://www.planora.ai',
-  'https://app.planora.ai',
-  'https://planora-ai-plum.vercel.app',
-  'https://planora-ai.vercel.app'
-];
+-- User Profiles Table
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID REFERENCES auth.users(id) PRIMARY KEY,
+  first_name TEXT,
+  last_name TEXT,
+  email TEXT, -- IMPORTANT: No UNIQUE constraint to prevent conflicts with auth.users during email changes
+  avatar_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  has_completed_onboarding BOOLEAN DEFAULT FALSE,
+  email_verified BOOLEAN DEFAULT FALSE,
+  account_status TEXT DEFAULT 'active' CHECK (account_status IN ('active', 'pending_deletion', 'deleted')),
+  deletion_requested_at TIMESTAMP WITH TIME ZONE,
+  pending_email_change TEXT, -- Tracks pending email change during verification
+  email_change_requested_at TIMESTAMP WITH TIME ZONE -- When the email change was requested
+);
 
-// Rate limiting configuration
-const RATE_LIMITS = {
-  send: {
-    maxAttempts: 5,
-    windowMs: 3600000
-  },
-  verify: {
-    maxAttempts: 10,
-    windowMs: 3600000
-  }
-};
-
-// Tracking key in session storage for rate limiting
-const RATE_LIMIT_KEY_PREFIX = 'planora_rate_limit_';
-
-// ======== CORS Headers ========
-const getCorsHeaders = (requestOrigin)=>{
-  // Check if origin is in our allowed list
-  if (requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)) {
-    return {
-      'Access-Control-Allow-Origin': requestOrigin,
-      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Vary': 'Origin' // Important for proper caching with CORS
-    };
-  }
-  // If origin not in allowed list or missing, return safe default (wildcard for development only)
-  console.log(`CORS: Unknown origin ${requestOrigin}, using wildcard`);
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Vary': 'Origin'
-  };
-};
-
-// ======== Environment Detection ========
-const isTestMode = (origin) => {
-  // Consider test mode if:
-  // 1. We're in a development environment (localhost)
-  // 2. The EDGE_RUNTIME env var is set to "test" or "development"
-  const environment = Deno.env.get('EDGE_RUNTIME') || 'production';
-  const isDevelopmentOrigin = origin && (origin.includes('localhost') || origin.includes('127.0.0.1'));
+-- Add all potentially missing columns and their comments with error handling
+DO $$
+BEGIN
+  -- Handle birthdate column (standard field for birth date)
+  BEGIN
+    -- Add birthdate column if it doesn't exist
+    ALTER TABLE public.profiles ADD COLUMN birthdate DATE;
+    -- Add comment once we know the column exists
+    COMMENT ON COLUMN public.profiles.birthdate IS 'Standard field for storing birth date information';
+    RAISE NOTICE 'Added birthdate column';
+  EXCEPTION WHEN duplicate_column THEN
+    -- Column already exists, still try to add comment
+    BEGIN
+      COMMENT ON COLUMN public.profiles.birthdate IS 'Standard field for storing birth date information';
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Could not add comment to birthdate column: %', SQLERRM;
+    END;
+    RAISE NOTICE 'birthdate column already exists';
+  END;
   
-  return environment !== 'production' || isDevelopmentOrigin;
-};
-
-// ======== Supabase Client ========
-const createSupabaseClient = ()=>{
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing Supabase URL or service role key');
-  }
-  return createClient(supabaseUrl, supabaseKey);
-};
-
-// ======== Direct Database Access ========
-const createDirectDbClient = async ()=>{
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-    if (!supabaseUrl || !serviceKey) {
-      throw new Error('Missing database configuration');
-    }
-    const connectionString = `${supabaseUrl}/rest/v1/?apikey=${serviceKey}`;
-    return {
-      query: async (sql, params = [])=>{
-        const response = await fetch(`${supabaseUrl}/rest/v1/rpc/execute_sql`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${serviceKey}`,
-            'apikey': serviceKey
-          },
-          body: JSON.stringify({
-            sql,
-            params
-          })
-        });
-        if (!response.ok) {
-          throw new Error(`Database query failed: ${await response.text()}`);
-        }
-        return await response.json();
-      }
-    };
-  } catch (error) {
-    console.error('Error creating direct DB client:', error);
-    throw error;
-  }
-};
-
-// ======== Error Tracking ========
-const logError = (context, error, userId, additionalInfo)=>{
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  const errorObj = {
-    timestamp: new Date().toISOString(),
-    context,
-    userId,
-    errorMessage,
-    stack: error instanceof Error ? error.stack : undefined,
-    ...additionalInfo
-  };
-  console.error(JSON.stringify(errorObj));
-  return errorObj;
-};
-
-// ======== Rate Limiting ========
-const checkRateLimit = async (supabase, userId, action)=>{
-  // Build key for this specific action and user
-  const key = `${RATE_LIMIT_KEY_PREFIX}${action}_${userId}`;
-  const now = new Date();
-  // Get current rate limit info
-  const { data, error } = await supabase.from('session_storage').select('*').eq('key', key).single();
-  if (error && error.code !== 'PGRST116') {
-    console.warn('Error checking rate limit:', error);
-    // Fail open if we can't check rate limit
-    return {
-      remainingAttempts: RATE_LIMITS[action].maxAttempts,
-      resetTime: new Date(now.getTime() + RATE_LIMITS[action].windowMs)
-    };
-  }
-  if (!data) {
-    // No existing rate limit record, create one
-    const resetTime = new Date(now.getTime() + RATE_LIMITS[action].windowMs);
-    await supabase.from('session_storage').insert({
-      key,
-      value: JSON.stringify({
-        attempts: 1,
-        resetAt: resetTime.toISOString()
-      }),
-      expires_at: resetTime.toISOString()
-    });
-    return {
-      remainingAttempts: RATE_LIMITS[action].maxAttempts - 1,
-      resetTime
-    };
-  }
-  // Existing rate limit found, check if it's still valid
-  const limitInfo = JSON.parse(data.value);
-  const resetAt = new Date(limitInfo.resetAt);
-  if (now > resetAt) {
-    // Window expired, reset counter
-    const newResetTime = new Date(now.getTime() + RATE_LIMITS[action].windowMs);
-    await supabase.from('session_storage').update({
-      value: JSON.stringify({
-        attempts: 1,
-        resetAt: newResetTime.toISOString()
-      }),
-      expires_at: newResetTime.toISOString()
-    }).eq('key', key);
-    return {
-      remainingAttempts: RATE_LIMITS[action].maxAttempts - 1,
-      resetTime: newResetTime
-    };
-  }
-  // Still within window, increment counter
-  const attempts = limitInfo.attempts + 1;
-  const remainingAttempts = Math.max(0, RATE_LIMITS[action].maxAttempts - attempts);
-  await supabase.from('session_storage').update({
-    value: JSON.stringify({
-      attempts,
-      resetAt: resetAt.toISOString()
-    })
-  }).eq('key', key);
-  return {
-    remainingAttempts,
-    resetTime: resetAt
-  };
-};
-
-// ======== User Existence Check ========
-const checkUserExists = async (supabase, userId)=>{
-  try {
-    const { data, error } = await supabase.rpc('user_exists', {
-      user_id_param: userId
-    });
-    if (error) {
-      logError('checkUserExists', error, userId);
-      return false;
-    }
-    return !!data;
-  } catch (err) {
-    logError('checkUserExists:exception', err, userId);
-    return false;
-  }
-};
-
-// ======== Verification Code Generation ========
-const generateVerificationCode = async (supabase, userId, email, testMode, maxRetries = 5)=>{
-  let retryCount = 0;
-  let lastError = null;
-  // Exponential backoff retry strategy
-  const getBackoffTime = (attempt)=>Math.min(1000 * Math.pow(2, attempt), 8000);
-  while(retryCount < maxRetries){
-    try {
-      // First, check if the user exists in auth.users
-      const userExists = await checkUserExists(supabase, userId);
-      if (!userExists) {
-        console.log(`User ${userId} not found on attempt ${retryCount + 1}, waiting before retry...`);
-        // Wait with exponential backoff before retrying
-        await new Promise((resolve)=>setTimeout(resolve, getBackoffTime(retryCount)));
-        retryCount++;
-        continue;
-      }
-      // User exists, generate code using the database function
-      const { data, error } = await supabase.rpc('generate_verification_code', {
-        p_user_id: userId,
-        p_user_email: email,
-        p_is_test_mode: testMode
-      });
-      if (error) {
-        logError('generateVerificationCode', error, userId, {
-          email,
-          attempt: retryCount + 1
-        });
-        lastError = error;
-        // If this is a foreign key violation, retry after a delay
-        if (error.message && error.message.includes('foreign key')) {
-          await new Promise((resolve)=>setTimeout(resolve, getBackoffTime(retryCount)));
-          retryCount++;
-          continue;
-        }
-        break;
-      }
-      // Successfully generated code
-      return {
-        success: true,
-        code: data
-      };
-    } catch (err) {
-      logError('generateVerificationCode:exception', err, userId, {
-        email,
-        attempt: retryCount + 1
-      });
-      lastError = err;
-      await new Promise((resolve)=>setTimeout(resolve, getBackoffTime(retryCount)));
-      retryCount++;
-    }
-  }
-  // If we've exhausted retries or hit a non-retriable error, try direct insertion
-  try {
-    console.log('Falling back to direct verification code generation');
-    // Generate a random 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour expiration
-    // Expire any existing unused codes for this user
-    await supabase.from('verification_codes').update({
-      used: true
-    }).eq('user_id', userId).eq('used', false);
-    // Insert new code directly
-    const { error: insertError } = await supabase.from('verification_codes').insert({
-      user_id: userId,
-      email: email,
-      code: code,
-      expires_at: expiresAt.toISOString(),
-      used: false,
-      is_test_mode: testMode
-    });
-    if (insertError) {
-      logError('generateVerificationCode:fallback', insertError, userId, {
-        email
-      });
-      return {
-        success: false,
-        error: `Failed to generate code after ${maxRetries} attempts`,
-        errorCode: 'VERIFICATION_GEN_FAILED',
-        details: {
-          originalError: lastError?.message,
-          fallbackError: insertError.message
-        }
-      };
-    }
-    return {
-      success: true,
-      code
-    };
-  } catch (finalErr) {
-    logError('generateVerificationCode:fatal', finalErr, userId, {
-      email
-    });
-    return {
-      success: false,
-      error: `All code generation attempts failed`,
-      errorCode: 'VERIFICATION_FATAL',
-      details: {
-        originalError: lastError?.message,
-        finalError: finalErr instanceof Error ? finalErr.message : String(finalErr)
-      }
-    };
-  }
-};
-
-// ======== Code Verification ========
-const verifyCode = async (supabase, userId, code)=>{
-  try {
-    // First, check if the code exists and is valid
-    const { data: codeData, error: codeError } = await supabase.from('verification_codes').select('*').eq('user_id', userId).eq('code', code).eq('used', false).gt('expires_at', new Date().toISOString()).single();
-    if (codeError || !codeData) {
-      // Check if we can find an expired code to give better feedback
-      const { data: expiredData } = await supabase.from('verification_codes').select('*').eq('user_id', userId).eq('code', code).eq('used', false).lte('expires_at', new Date().toISOString()).single();
-      if (expiredData) {
-        return {
-          success: false,
-          error: 'Verification code has expired. Please request a new one.',
-          errorCode: 'CODE_EXPIRED'
-        };
-      }
-      // Check if the code was already used
-      const { data: usedData } = await supabase.from('verification_codes').select('*').eq('user_id', userId).eq('code', code).eq('used', true).single();
-      if (usedData) {
-        return {
-          success: false,
-          error: 'This verification code has already been used.',
-          errorCode: 'CODE_ALREADY_USED'
-        };
-      }
-      // General invalid code error
-      return {
-        success: false,
-        error: 'Invalid verification code. Please check and try again.',
-        errorCode: 'INVALID_CODE'
-      };
-    }
-    // Mark code as used
-    const { error: updateError } = await supabase.from('verification_codes').update({
-      used: true
-    }).eq('id', codeData.id);
-    if (updateError) {
-      logError('verifyCode:markUsed', updateError, userId, {
-        codeId: codeData.id
-      });
-    // Continue anyway - code verification is successful
-    }
-    // Update user profile
-    await updateVerificationStatus(supabase, userId);
-    return {
-      success: true,
-      message: 'Email verified successfully'
-    };
-  } catch (err) {
-    logError('verifyCode', err, userId);
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'An unexpected error occurred during verification',
-      errorCode: 'VERIFICATION_ERROR'
-    };
-  }
-};
-
-// ======== Update Verification Status ========
-const updateVerificationStatus = async (supabase, userId)=>{
-  try {
-    const timestamp = new Date().toISOString();
-    // 1. Update profiles table
-    const { error: profileError } = await supabase.from('profiles').update({
-      email_verified: true,
-      updated_at: timestamp
-    }).eq('id', userId);
-    if (profileError) {
-      logError('updateVerificationStatus:profile', profileError, userId);
-    // Continue despite error - we have multiple update mechanisms
-    }
-    // 2. Update auth.users (requires admin privileges)
-    const { data: userData, error: userError } = await supabase.auth.admin.updateUserById(userId, {
-      email_confirmed_at: timestamp,
-      user_metadata: {
-        email_verified: true,
-        email_verified_at: timestamp
-      }
-    });
-    if (userError) {
-      logError('updateVerificationStatus:auth', userError, userId);
-    // Continue despite error
-    }
-    console.log('Verification status updated for user:', userId);
-  } catch (err) {
-    logError('updateVerificationStatus:exception', err, userId);
-    throw err;
-  }
-};
-
-// ======== Service Status Checker ========
-const checkServiceStatus = async (supabase)=>{
-  try {
-    // Use the profiles table instead of non-existent _service_health table
-    const { data, error } = await supabase.from('profiles').select('id').limit(1);
-    if (error) {
-      logError('serviceStatus', error);
-      // Fail open rather than closed to prevent blocking users
-      return true;
-    }
-    return true;
-  } catch (err) {
-    logError('serviceStatus', err);
-    // Fail open rather than closed to prevent blocking users
-    return true;
-  }
-};
-
-// ======== Direct Email Magic Link Sending ========
-const sendSupabaseMagicLink = async (supabase, email, redirectTo)=>{
-  try {
-    const { data, error } = await supabase.auth.admin.generateLink({
-      type: 'magiclink',
-      email,
-      options: {
-        redirectTo
-      }
-    });
-    if (error) {
-      logError('sendSupabaseMagicLink', error, undefined, {
-        email
-      });
-      return {
-        success: false,
-        error: error.message,
-        errorCode: 'MAGIC_LINK_FAILED'
-      };
-    }
-    return {
-      success: true,
-      message: 'Magic link sent successfully'
-    };
-  } catch (err) {
-    logError('sendSupabaseMagicLink', err, undefined, {
-      email
-    });
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'An unexpected error occurred',
-      errorCode: 'MAGIC_LINK_ERROR'
-    };
-  }
-};
-
-// ======== Main Request Handler ========
-const handleRequest = async (req)=>{
-  // Get origin for CORS
-  const origin = req.headers.get('origin');
-  console.log('Request origin:', origin);
-  const corsHeaders = getCorsHeaders(origin);
-  
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: corsHeaders,
-      status: 204
-    });
-  }
-  
-  try {
-    const supabase = createSupabaseClient();
+  -- Migrate data from birthday to birthdate if birthday exists
+  BEGIN
+    -- First check if birthday column exists
+    PERFORM column_name FROM information_schema.columns 
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'birthday';
     
-    // Quick service health check
-    const serviceAvailable = await checkService
--- ==========================================
--- 1. Verification Codes Table
--- ==========================================
--- NOTE: This table is primarily used for testing/fallback verification
--- as Planora now uses Supabase Auth's built-in email verification.
--- However, we maintain this table for:
--- 1. Testing mode where codes are displayed to users
--- 2. Fallback verification if needed
--- 3. Historical record of verification attempts
+    -- If birthday exists, migrate data and drop the column
+    IF FOUND THEN
+      -- Migrate any existing data
+      UPDATE public.profiles
+      SET birthdate = birthday
+      WHERE birthday IS NOT NULL AND (birthdate IS NULL OR birthdate != birthday);
+      
+      -- Drop the birthday column now that data is migrated
+      ALTER TABLE public.profiles DROP COLUMN birthday;
+      RAISE NOTICE 'Successfully migrated data from birthday to birthdate and dropped birthday column';
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Error during birthday migration: %', SQLERRM;
+  END;
+  
+  -- Handle pending_email_change column
+  BEGIN
+    -- Check if column exists, add it if not
+    ALTER TABLE public.profiles ADD COLUMN pending_email_change TEXT;
+    -- Add comment once we know the column exists
+    COMMENT ON COLUMN public.profiles.pending_email_change IS 'Tracks email change during verification process';
+    RAISE NOTICE 'Added pending_email_change column';
+  EXCEPTION WHEN duplicate_column THEN
+    -- Column already exists, still try to add comment
+    BEGIN
+      COMMENT ON COLUMN public.profiles.pending_email_change IS 'Tracks email change during verification process';
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Could not add comment to pending_email_change column: %', SQLERRM;
+    END;
+    RAISE NOTICE 'pending_email_change column already exists';
+  END;
+  
+  -- Handle email_change_requested_at column
+  BEGIN
+    -- Check if column exists, add it if not
+    ALTER TABLE public.profiles ADD COLUMN email_change_requested_at TIMESTAMP WITH TIME ZONE;
+    -- Add comment once we know the column exists
+    COMMENT ON COLUMN public.profiles.email_change_requested_at IS 'Timestamp when email change was requested';
+    RAISE NOTICE 'Added email_change_requested_at column';
+  EXCEPTION WHEN duplicate_column THEN
+    -- Column already exists, still try to add comment
+    BEGIN
+      COMMENT ON COLUMN public.profiles.email_change_requested_at IS 'Timestamp when email change was requested';
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Could not add comment to email_change_requested_at column: %', SQLERRM;
+    END;
+    RAISE NOTICE 'email_change_requested_at column already exists';
+  END;
+  
+  -- Handle country column
+  BEGIN
+    -- Check if column exists, add it if not
+    ALTER TABLE public.profiles ADD COLUMN country TEXT;
+    -- Add comment once we know the column exists
+    COMMENT ON COLUMN public.profiles.country IS 'User''s country of residence';
+    RAISE NOTICE 'Added country column';
+  EXCEPTION WHEN duplicate_column THEN
+    -- Column already exists, still try to add comment
+    BEGIN
+      COMMENT ON COLUMN public.profiles.country IS 'User''s country of residence';
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Could not add comment to country column: %', SQLERRM;
+    END;
+    RAISE NOTICE 'country column already exists';
+  END;
+  
+  -- Handle city column
+  BEGIN
+    -- Check if column exists, add it if not
+    ALTER TABLE public.profiles ADD COLUMN city TEXT;
+    -- Add comment once we know the column exists
+    COMMENT ON COLUMN public.profiles.city IS 'User''s city of residence';
+    RAISE NOTICE 'Added city column';
+  EXCEPTION WHEN duplicate_column THEN
+    -- Column already exists, still try to add comment
+    BEGIN
+      COMMENT ON COLUMN public.profiles.city IS 'User''s city of residence';
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Could not add comment to city column: %', SQLERRM;
+    END;
+    RAISE NOTICE 'city column already exists';
+  END;
+  
+  -- Handle custom_city column
+  BEGIN
+    -- Check if column exists, add it if not
+    ALTER TABLE public.profiles ADD COLUMN custom_city TEXT;
+    -- Add comment once we know the column exists
+    COMMENT ON COLUMN public.profiles.custom_city IS 'User''s custom city input when city is "Other"';
+    RAISE NOTICE 'Added custom_city column';
+  EXCEPTION WHEN duplicate_column THEN
+    -- Column already exists, still try to add comment
+    BEGIN
+      COMMENT ON COLUMN public.profiles.custom_city IS 'User''s custom city input when city is "Other"';
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Could not add comment to custom_city column: %', SQLERRM;
+    END;
+    RAISE NOTICE 'custom_city column already exists';
+  END;
+END$$;
 
--- Drop existing verification_codes table if it exists (to update foreign key constraints)
-DROP TABLE IF EXISTS public.verification_codes;
+-- Email Change Tracking Table
+CREATE TABLE IF NOT EXISTS public.email_change_tracking (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id),
+  old_email TEXT NOT NULL,
+  new_email TEXT NOT NULL,
+  requested_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  completed_at TIMESTAMP WITH TIME ZONE,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'cancelled', 'failed')),
+  auth_provider TEXT -- Tracks original auth provider (e.g., 'google', 'email', etc.)
+);
 
--- Create the verification_codes table with proper constraints
+-- Travel Preferences Table
+CREATE TABLE IF NOT EXISTS public.travel_preferences (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  budget_min INTEGER DEFAULT 0,
+  budget_max INTEGER DEFAULT 0,
+  budget_flexibility INTEGER DEFAULT 0,
+  travel_duration TEXT DEFAULT 'week',
+  date_flexibility TEXT DEFAULT 'flexible-few',
+  custom_date_flexibility TEXT DEFAULT '',
+  planning_intent TEXT DEFAULT 'exploring',
+  accommodation_types TEXT[] DEFAULT ARRAY['hotel'],
+  accommodation_comfort TEXT[] DEFAULT ARRAY['private-room'],
+  location_preference TEXT DEFAULT 'center',
+  flight_type TEXT DEFAULT 'direct',
+  prefer_cheaper_with_stopover BOOLEAN DEFAULT false,
+  departure_country TEXT DEFAULT 'Germany',
+  departure_city TEXT DEFAULT 'Berlin',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  CONSTRAINT travel_preferences_user_id_key UNIQUE (user_id)
+);
+
+-- Account Deletion Requests Table
+CREATE TABLE IF NOT EXISTS public.account_deletion_requests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id),
+  email TEXT NOT NULL,
+  requested_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  scheduled_purge_at TIMESTAMP WITH TIME ZONE,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'cancelled', 'completed')),
+  purged_at TIMESTAMP WITH TIME ZONE,
+  recovery_token TEXT,
+  CONSTRAINT unique_active_request UNIQUE (user_id, status)
+);
+
+
+-- Session Storage Table for Edge Functions
+-- This table is used by Edge Functions for rate limiting and other stateful operations.
+CREATE TABLE IF NOT EXISTS public.session_storage (
+  key TEXT PRIMARY KEY,
+  value TEXT,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
+);
+
+-- Create an index on expires_at for efficient cleanup of expired entries
+CREATE INDEX IF NOT EXISTS session_storage_expires_at_idx ON public.session_storage(expires_at);
+
+-- Function to clean up expired session storage entries
+CREATE OR REPLACE FUNCTION public.cleanup_expired_session_storage_entries()
+RETURNS void AS $$
+BEGIN
+  DELETE FROM public.session_storage WHERE expires_at < NOW();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+COMMENT ON FUNCTION public.cleanup_expired_session_storage_entries() IS 'Deletes expired entries from the session_storage table. Intended to be called periodically by a cron job (e.g., pg_cron).';
+
+-- NOTE: Instead of a trigger for cleanup, which can impact performance on high-traffic tables,
+-- it is generally recommended to use a scheduled job (e.g., pg_cron) to call
+-- public.cleanup_expired_session_storage_entries() periodically (e.g., daily or hourly).
+-- Example pg_cron setup (run this in SQL editor once pg_cron is enabled):
+-- SELECT cron.schedule(''cleanup-session-storage'', ''0 * * * *'', ''SELECT public.cleanup_expired_session_storage_entries();'');
+-- This schedules the cleanup to run at the start of every hour.
+
+-- Add RLS policies
+ALTER TABLE public.session_storage ENABLE ROW LEVEL SECURITY;
+
+-- Policy for service role access (Edge Functions use service role)
+DROP POLICY IF EXISTS "Service role full access for session_storage" ON public.session_storage;
+CREATE POLICY "Service role full access for session_storage"
+ON public.session_storage
+FOR ALL
+TO service_role
+USING (true)
+WITH CHECK (true);
+
+COMMENT ON TABLE public.session_storage IS 'Storage for session-related data like rate limiting for Edge Functions. Cleanup of expired entries should be handled by a scheduled job.';
+
+-- Verification Codes Table for Email Verification
 CREATE TABLE IF NOT EXISTS public.verification_codes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL,  -- No foreign key constraint to avoid race conditions
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   code VARCHAR(6) NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  used BOOLEAN DEFAULT FALSE,
-  is_test_mode BOOLEAN DEFAULT FALSE -- Flag to indicate test mode codes
+  used BOOLEAN DEFAULT FALSE
 );
 
 -- Create indexes for better query performance
+CREATE INDEX IF NOT EXISTS travel_preferences_user_id_idx ON public.travel_preferences(user_id);
+CREATE INDEX IF NOT EXISTS profiles_id_idx ON public.profiles(id);
+CREATE INDEX IF NOT EXISTS profiles_email_verified_idx ON public.profiles(email_verified);
+CREATE INDEX IF NOT EXISTS profiles_account_status_idx ON public.profiles(account_status);
+CREATE INDEX IF NOT EXISTS deletion_requests_status_idx ON public.account_deletion_requests(status);
+CREATE INDEX IF NOT EXISTS deletion_requests_token_idx ON public.account_deletion_requests(recovery_token);
+CREATE INDEX IF NOT EXISTS email_change_user_id_idx ON public.email_change_tracking(user_id);
+CREATE INDEX IF NOT EXISTS email_change_status_idx ON public.email_change_tracking(status);
 CREATE INDEX IF NOT EXISTS verification_codes_user_id_idx ON public.verification_codes(user_id);
 CREATE INDEX IF NOT EXISTS verification_codes_email_idx ON public.verification_codes(email);
 CREATE INDEX IF NOT EXISTS verification_codes_used_idx ON public.verification_codes(used);
 
--- ==========================================
--- 2. Generate Verification Code Function
--- ==========================================
--- ==========================================
--- 2. Generate Verification Code Function
--- ==========================================
--- This function generates verification codes for testing or fallback verification
--- It returns the code to the caller, which is useful for testing mode
+-- Automatic Profile Creation Trigger
+-- This ensures that when a new user signs up, a profile is automatically created
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+DECLARE
+  provider text;
+  is_email_verified boolean;
+BEGIN
+  -- Get the authentication provider if available
+  provider := COALESCE(new.raw_app_meta_data->>'provider', new.raw_user_meta_data->>'provider', '');
+  
+  -- Log metadata for debugging (Supabase Edge Functions can view these logs)
+  RAISE LOG 'New user: %, Provider: %, Raw metadata: %', new.id, provider, new.raw_user_meta_data;
+  
+  -- Determine if email should be marked as verified
+  -- Email is verified if it's a social login or if email_confirmed_at is set
+  is_email_verified := (provider != '') OR (new.email_confirmed_at IS NOT NULL);
 
--- First drop the existing function to allow parameter changes
-DROP FUNCTION IF EXISTS public.generate_verification_code(uuid, text);
-DROP FUNCTION IF EXISTS public.generate_verification_code(uuid, text, boolean);
+  -- Handle profile creation with error catching
+  BEGIN
+    INSERT INTO public.profiles (
+      id, 
+      email, 
+      first_name, 
+      last_name, 
+      birthdate,   -- Only add the primary date field
+      -- birthday field has been removed, using only birthdate
+      has_completed_onboarding, 
+      email_verified,
+      account_status,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      new.id, 
+      new.email, 
+      -- Extract first name with multiple fallbacks for Google auth
+      COALESCE(
+        new.raw_user_meta_data->>'first_name',
+        new.raw_user_meta_data->>'given_name',
+        CASE 
+          WHEN new.raw_user_meta_data->>'name' IS NOT NULL THEN 
+            split_part(new.raw_user_meta_data->>'name', ' ', 1)
+          ELSE ''
+        END,
+        CASE 
+          WHEN new.raw_user_meta_data->>'full_name' IS NOT NULL THEN 
+            split_part(new.raw_user_meta_data->>'full_name', ' ', 1)
+          ELSE ''
+        END,
+        ''
+      ), 
+      -- Extract last name with multiple fallbacks for Google auth
+      COALESCE(
+        new.raw_user_meta_data->>'last_name',
+        new.raw_user_meta_data->>'family_name',
+        CASE 
+          WHEN new.raw_user_meta_data->>'name' IS NOT NULL AND 
+               array_length(string_to_array(new.raw_user_meta_data->>'name', ' '), 1) > 1 THEN
+            (SELECT array_to_string((string_to_array(new.raw_user_meta_data->>'name', ' '))[2:], ' '))
+          ELSE ''
+        END,
+        CASE 
+          WHEN new.raw_user_meta_data->>'full_name' IS NOT NULL AND 
+               array_length(string_to_array(new.raw_user_meta_data->>'full_name', ' '), 1) > 1 THEN
+            (SELECT array_to_string((string_to_array(new.raw_user_meta_data->>'full_name', ' '))[2:], ' '))
+          ELSE ''
+        END,
+        ''
+      ),
+      NULL, -- birthdate (standardized field)
+      FALSE,
+      is_email_verified,
+      'active',
+      now(),
+      now()
+    );
+  EXCEPTION 
+    -- If the profile already exists, do nothing (prevents duplicates)
+    WHEN unique_violation THEN
+      RAISE NOTICE 'Profile for user % already exists', new.id;
+  END;
+  
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION public.generate_verification_code(
-  p_user_id UUID, 
-  p_user_email TEXT,
-  p_is_test_mode BOOLEAN DEFAULT FALSE
-)
+-- Drop existing trigger if it exists
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+-- Create trigger for new user registration
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- Ensure Row Level Security (RLS) is enabled on all tables
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.travel_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.account_deletion_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.email_change_tracking ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.verification_codes ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies to avoid duplication errors
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can delete their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can view their own travel preferences" ON public.travel_preferences;
+DROP POLICY IF EXISTS "Users can insert their own travel preferences" ON public.travel_preferences;
+DROP POLICY IF EXISTS "Users can update their own travel preferences" ON public.travel_preferences;
+DROP POLICY IF EXISTS "Users can delete their own travel preferences" ON public.travel_preferences;
+DROP POLICY IF EXISTS "Users can read their own travel preferences" ON public.travel_preferences;
+DROP POLICY IF EXISTS "Users can manage their own travel preferences" ON public.travel_preferences;
+DROP POLICY IF EXISTS "Users can view their own deletion requests" ON public.account_deletion_requests;
+DROP POLICY IF EXISTS "Service role can manage all deletion requests" ON public.account_deletion_requests;
+DROP POLICY IF EXISTS "Users can view their own email changes" ON public.email_change_tracking;
+DROP POLICY IF EXISTS "Users can insert their own email changes" ON public.email_change_tracking;
+DROP POLICY IF EXISTS "Users can update their own email changes" ON public.email_change_tracking;
+DROP POLICY IF EXISTS "Service role can manage email changes" ON public.email_change_tracking;
+DROP POLICY IF EXISTS "Users can view their own email changes" ON public.email_change_tracking;
+DROP POLICY IF EXISTS "Users can manage their own email changes" ON public.email_change_tracking;
+DROP POLICY IF EXISTS "Service role can manage all email changes" ON public.email_change_tracking;
+DROP POLICY IF EXISTS "Users can read their own verification codes" ON public.verification_codes;
+DROP POLICY IF EXISTS "Service role has full access to verification codes" ON public.verification_codes;
+
+-- Create policies for the profiles table
+CREATE POLICY "Users can view their own profile" 
+ON public.profiles 
+FOR SELECT 
+USING (auth.uid() = id);
+
+CREATE POLICY "Users can update their own profile" 
+ON public.profiles 
+FOR UPDATE 
+USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert their own profile" 
+ON public.profiles 
+FOR INSERT 
+WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users can delete their own profile" 
+ON public.profiles 
+FOR DELETE 
+USING (auth.uid() = id);
+
+-- Create policies for travel_preferences table
+CREATE POLICY "Users can view their own travel preferences" 
+ON public.travel_preferences 
+FOR SELECT 
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own travel preferences" 
+ON public.travel_preferences 
+FOR INSERT 
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own travel preferences" 
+ON public.travel_preferences 
+FOR UPDATE
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own travel preferences" 
+ON public.travel_preferences 
+FOR DELETE
+USING (auth.uid() = user_id);
+
+-- Create policies for account_deletion_requests table
+CREATE POLICY "Users can view their own deletion requests" 
+ON public.account_deletion_requests 
+FOR SELECT 
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role can manage all deletion requests" 
+ON public.account_deletion_requests 
+USING (auth.role() = 'service_role');
+
+-- Create policies for email_change_tracking table
+CREATE POLICY "Users can view their own email changes" 
+ON public.email_change_tracking 
+FOR SELECT 
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own email changes" 
+ON public.email_change_tracking 
+FOR INSERT 
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own email changes" 
+ON public.email_change_tracking 
+FOR UPDATE
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role can manage email changes" 
+ON public.email_change_tracking 
+USING (auth.role() = 'service_role');
+
+CREATE POLICY "Users can manage their own email changes" 
+ON public.email_change_tracking 
+FOR ALL 
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role can manage all email changes" 
+ON public.email_change_tracking 
+USING (auth.role() = 'service_role');
+
+-- Create policies for verification codes
+CREATE POLICY "Users can read their own verification codes" 
+ON public.verification_codes 
+FOR SELECT 
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role has full access to verification codes" 
+ON public.verification_codes 
+USING (true)
+WITH CHECK (true);
+
+-- Service role access policies (for administrative functions)
+DROP POLICY IF EXISTS "Service role can view all profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Service role can insert any profile" ON public.profiles;
+DROP POLICY IF EXISTS "Service role can update any profile" ON public.profiles;
+
+CREATE POLICY "Service role can view all profiles"
+ON public.profiles
+FOR SELECT
+USING (auth.role() = 'service_role');
+
+CREATE POLICY "Service role can insert any profile"
+ON public.profiles
+FOR INSERT
+WITH CHECK (auth.role() = 'service_role');
+
+CREATE POLICY "Service role can update any profile"
+ON public.profiles
+FOR UPDATE
+USING (auth.role() = 'service_role');
+
+-- Verify setup and tables
+SELECT 
+  table_name, 
+  (SELECT count(*) FROM information_schema.triggers WHERE event_object_table = table_name) as trigger_count
+FROM 
+  information_schema.tables 
+WHERE 
+  table_schema = 'public' 
+  AND table_type = 'BASE TABLE'
+  AND table_name IN ('profiles', 'travel_preferences', 'account_deletion_requests', 'email_change_tracking', 'verification_codes');
+
+-- Safe column addition procedure
+-- This ensures we gracefully add columns if they don't exist
+DO $$
+DECLARE
+  column_exists boolean;
+BEGIN
+    -- Check and add pending_email_change column if it doesn't exist
+    SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'pending_email_change'
+    ) INTO column_exists;
+    
+    IF NOT column_exists THEN
+        ALTER TABLE public.profiles ADD COLUMN pending_email_change TEXT;
+        RAISE NOTICE 'Added pending_email_change column to profiles table';
+    END IF;
+    
+    -- Check and add email_change_requested_at column if it doesn't exist
+    SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'email_change_requested_at'
+    ) INTO column_exists;
+    
+    IF NOT column_exists THEN
+        ALTER TABLE public.profiles ADD COLUMN email_change_requested_at TIMESTAMP WITH TIME ZONE;
+        RAISE NOTICE 'Added email_change_requested_at column to profiles table';
+    END IF;
+END $$;
+
+-- Set email_verified for all Google-authenticated accounts
+DO $$
+BEGIN
+    -- Verify that birthdate column exists (should be added in earlier steps)
+    BEGIN
+        -- Add birthdate column if it doesn't exist as a final safety check
+        SELECT EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'birthdate'
+        );
+        
+        IF NOT FOUND THEN
+            ALTER TABLE public.profiles ADD COLUMN birthdate DATE;
+            RAISE NOTICE 'Added birthdate column as final safety check';
+        END IF;
+    
+        -- Set email_verified for all Google-authenticated accounts
+        UPDATE public.profiles AS p
+        SET email_verified = TRUE
+        FROM auth.users AS u
+        WHERE p.id = u.id AND (u.raw_app_meta_data->>'provider' = 'google' OR u.raw_user_meta_data->>'provider' = 'google');
+        
+        RAISE NOTICE 'Successfully set email_verified flag for Google accounts';
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Error updating email verification status: %', SQLERRM;
+    END;
+END $$;
+
+-- Note about the birthdate field standardization
+DO $$
+BEGIN
+    RAISE NOTICE 'Database schema updated: birthdate is now the only field for birth dates. The birthday field has been removed.';
+END $$;
+
+-- Function to generate a verification code for a user
+CREATE OR REPLACE FUNCTION public.generate_verification_code(user_id UUID, user_email TEXT)
 RETURNS VARCHAR AS $$
 DECLARE
   verification_code VARCHAR(6);
@@ -563,185 +585,89 @@ BEGIN
   -- Generate random 6-digit code
   verification_code := lpad(floor(random() * 1000000)::text, 6, '0');
   
-  -- Insert new code, expire any previous ones
+  -- Expire any previous codes for this user
   UPDATE public.verification_codes 
   SET used = TRUE 
-  WHERE user_id = p_user_id AND used = FALSE;
+  WHERE user_id = $1 AND used = FALSE;
   
-  -- Insert the new verification code
+  -- Insert new code
   INSERT INTO public.verification_codes (
     user_id, 
     email, 
     code, 
-    expires_at,
-    is_test_mode
+    expires_at
   ) VALUES (
-    p_user_id, 
-    p_user_email, 
+    $1, 
+    $2, 
     verification_code, 
-    now() + interval '1 hour',
-    p_is_test_mode
+    now() + interval '1 hour'
   );
-  
-  -- Log for debugging/auditing
-  IF p_is_test_mode THEN
-    RAISE LOG 'Test mode verification code generated for user %: %', p_user_id, verification_code;
-  ELSE
-    RAISE LOG 'Verification code generated for user %', p_user_id;
-  END IF;
   
   RETURN verification_code;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ==========================================
--- 3. Helper Functions
--- ==========================================
+-- -----------------------------------------------------------------------------
+-- Rate Limit Storage Table
+-- Stores rate limiting counters and timestamps for various actions.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.rate_limit_storage (
+    key TEXT PRIMARY KEY,
+    value JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- Helper function to check if a user exists in any relevant table
--- This is used to handle race conditions during user registration
--- and verification checks
-DROP FUNCTION IF EXISTS public.user_exists(uuid);
-CREATE OR REPLACE FUNCTION public.user_exists(user_id_param UUID)
-RETURNS BOOLEAN AS $$
-BEGIN
-  -- Check auth.users table (primary source of truth)
-  RETURN EXISTS (
-    SELECT 1 FROM auth.users WHERE id = user_id_param
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+COMMENT ON TABLE public.rate_limit_storage IS 'Stores rate limiting counters and timestamps for various actions (e.g., email verification sends, code checks).';
+COMMENT ON COLUMN public.rate_limit_storage.key IS 'Unique key identifying the rate-limited action and user/entity (e.g., verification_code_send:user_id@example.com).';
+COMMENT ON COLUMN public.rate_limit_storage.value IS 'JSONB object storing count and last attempt timestamp, e.g., { "count": 1, "lastAttempt": "2023-01-01T12:00:00Z" }.';
 
--- Helper function to check if a user's email is verified in Supabase Auth
--- This helps with the bidirectional verification sync
-DROP FUNCTION IF EXISTS public.is_email_verified(uuid);
-CREATE OR REPLACE FUNCTION public.is_email_verified(user_id_param UUID)
-RETURNS BOOLEAN AS $$
-BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM auth.users 
-    WHERE id = user_id_param AND email_confirmed_at IS NOT NULL
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Enable RLS
+ALTER TABLE public.rate_limit_storage ENABLE ROW LEVEL SECURITY;
 
--- ==========================================
--- 4. Email Verification Synchronization Functions
--- ==========================================
+-- Policies for rate_limit_storage
+-- Service roles can bypass RLS
+DROP POLICY IF EXISTS "Allow service_role to access rate_limit_storage" ON public.rate_limit_storage;
+CREATE POLICY "Allow service_role to access rate_limit_storage"
+ON public.rate_limit_storage
+FOR ALL
+USING (auth.role() = 'service_role')
+WITH CHECK (auth.role() = 'service_role');
 
--- Function to sync email verification status between auth.users and profiles
--- This is triggered when Supabase Auth's built-in verification confirms an email
-CREATE OR REPLACE FUNCTION public.sync_email_verification()
+-- Authenticated users should not directly access this table; it's managed by Edge Functions.
+DROP POLICY IF EXISTS "Disallow direct access for authenticated users on rate_limit_storage" ON public.rate_limit_storage;
+CREATE POLICY "Disallow direct access for authenticated users on rate_limit_storage"
+ON public.rate_limit_storage
+FOR ALL
+USING (auth.role() = 'authenticated')
+WITH CHECK (false);
+
+DROP POLICY IF EXISTS "Disallow anon access for rate_limit_storage" ON public.rate_limit_storage;
+CREATE POLICY "Disallow anon access for rate_limit_storage"
+ON public.rate_limit_storage
+FOR ALL
+USING (auth.role() = 'anon')
+WITH CHECK (false);
+
+
+-- Trigger to update 'updated_at' timestamp
+CREATE OR REPLACE FUNCTION public.handle_rate_limit_storage_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- When email_confirmed_at changes from NULL to a timestamp, update profile
-  IF OLD.email_confirmed_at IS NULL AND NEW.email_confirmed_at IS NOT NULL THEN
-    -- Update the profiles table to maintain consistency
-    UPDATE public.profiles
-    SET 
-      email_verified = TRUE,
-      updated_at = TIMEZONE('utc', NOW())
-    WHERE id = NEW.id;
-    
-    RAISE LOG 'Email verification synced from Supabase Auth to profiles for user: %', NEW.id;
-    
-    -- Also update any pending verification codes to prevent confusion
-    UPDATE public.verification_codes
-    SET used = TRUE
-    WHERE user_id = NEW.id AND used = FALSE;
-    
-    RAISE LOG 'Marked all pending verification codes as used for user: %', NEW.id;
-  END IF;
-  
+  NEW.updated_at = NOW();
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create trigger for email verification sync
-DROP TRIGGER IF EXISTS on_auth_user_email_confirmed ON auth.users;
-CREATE TRIGGER on_auth_user_email_confirmed
-  AFTER UPDATE ON auth.users
-  FOR EACH ROW
-  WHEN (OLD.email_confirmed_at IS NULL AND NEW.email_confirmed_at IS NOT NULL)
-  EXECUTE PROCEDURE public.sync_email_verification();
+DROP TRIGGER IF EXISTS on_rate_limit_storage_updated ON public.rate_limit_storage;
+CREATE TRIGGER on_rate_limit_storage_updated
+BEFORE UPDATE ON public.rate_limit_storage
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_rate_limit_storage_updated_at();
 
--- Function to sync verification code status when a valid code is verified
--- This is triggered when our custom verification code system marks a code as used
--- It ensures bidirectional sync with Supabase Auth's email_confirmed_at field
-CREATE OR REPLACE FUNCTION public.mark_verification_code_used()
-RETURNS TRIGGER AS $$
+
+-- Verify successful schema updates
+DO $$
 BEGIN
-  -- When a code is marked as used, also update auth.users if not already verified
-  IF NEW.used = TRUE AND OLD.used = FALSE THEN
-    -- Get the user from auth.users
-    DECLARE
-      user_record RECORD;
-    BEGIN
-      SELECT * INTO user_record FROM auth.users WHERE id = NEW.user_id;
-      
-      -- If user exists but email_confirmed_at is NULL, update it
-      IF user_record.id IS NOT NULL AND user_record.email_confirmed_at IS NULL THEN
-        -- Update Supabase Auth's email_confirmed_at
-        UPDATE auth.users
-        SET 
-          email_confirmed_at = TIMEZONE('utc', NOW()),
-          updated_at = TIMEZONE('utc', NOW())
-        WHERE id = NEW.user_id;
-        
-        RAISE LOG 'User email confirmed via custom verification code: %', NEW.user_id;
-        
-        -- Also update the profiles table directly to ensure consistency
-        UPDATE public.profiles
-        SET 
-          email_verified = TRUE,
-          updated_at = TIMEZONE('utc', NOW())
-        WHERE id = NEW.user_id;
-        
-        RAISE LOG 'Profile updated for verification via code: %', NEW.user_id;
-      ELSE
-        RAISE LOG 'No update needed for verification code - user already verified or not found: %', NEW.user_id;
-      END IF;
-    END;
-  END IF;
-  
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Create trigger for verification code usage sync
-DROP TRIGGER IF EXISTS on_verification_code_used ON public.verification_codes;
-CREATE TRIGGER on_verification_code_used
-  AFTER UPDATE ON public.verification_codes
-  FOR EACH ROW
-  WHEN (NEW.used = TRUE AND OLD.used = FALSE)
-  EXECUTE PROCEDURE public.mark_verification_code_used();
-
--- ==========================================
--- 5. Row Level Security Policies
--- ==========================================
-
--- Enable Row Level Security for verification_codes table
-ALTER TABLE public.verification_codes ENABLE ROW LEVEL SECURITY;
-
--- Drop existing policies to avoid conflicts
-DROP POLICY IF EXISTS "Admin has full access" ON public.verification_codes;
-DROP POLICY IF EXISTS "Users can read their own verification codes" ON public.verification_codes;
-DROP POLICY IF EXISTS "verification_codes_user_isolation" ON public.verification_codes;
-DROP POLICY IF EXISTS "verification_codes_service_role" ON public.verification_codes;
-DROP POLICY IF EXISTS "Service role has full access" ON public.verification_codes;
-DROP POLICY IF EXISTS "Users can manage their own verification codes" ON public.verification_codes;
-
--- Create comprehensive policies
-
--- Admin policy
--- Note: Since the profiles table doesn't have a role column, using service_role from JWT
-CREATE POLICY "Service role has full access" ON public.verification_codes
-  USING (auth.jwt() ->> 'role' = 'service_role')
-  WITH CHECK (auth.jwt() ->> 'role' = 'service_role');
-
--- User access policy - allows users to read and manage their own verification codes
-CREATE POLICY "Users can manage their own verification codes" ON public.verification_codes
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-
--- Service role policy already created above with "Service role has full access" policy
+  RAISE NOTICE 'Supabase schema setup completed successfully for Planora.ai!';
+END$$;
