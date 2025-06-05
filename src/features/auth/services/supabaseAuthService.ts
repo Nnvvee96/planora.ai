@@ -1201,6 +1201,11 @@ export const supabaseAuthService = {
           const expiresAt = new Date();
           expiresAt.setHours(expiresAt.getHours() + 1); // Expires in 1 hour
           
+          // The Supabase webhook will now trigger the Edge Function to send the email.
+          // This frontend service is now only responsible for generating and storing the code,
+          // and returning it in test mode for display.
+          console.log('[Info] Verification code generated. Email sending will be handled by webhook-triggered Edge Function.');
+          
           // Expire any previous codes for this user
           await supabase
             .from('verification_codes')
@@ -1230,66 +1235,17 @@ export const supabaseAuthService = {
           
           console.log(`Verification code generated successfully${isTestMode ? ' (test mode)' : ''} for user ${userId}`);
         }
-        
-        // Call the Supabase Edge Function to send the email
-        // Get the correct Supabase URL based on environment
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-        // DEBUG LOGS START
-        console.log('[Debug] In sendVerificationCode, checking env vars:');
-        console.log('[Debug] VITE_SUPABASE_URL:', supabaseUrl);
-        console.log('[Debug] VITE_SUPABASE_ANON_KEY is set:', !!supabaseAnonKey);
-        // DEBUG LOGS END
-        
-        if (!supabaseUrl) {
-          console.error('Missing VITE_SUPABASE_URL environment variable');
-          return {
-            success: false,
-            error: 'Configuration error. Please try again later.'
-          };
+        // Return the code if in test mode, otherwise just success
+        if (isTestMode) {
+          return { success: true, code: verificationCode };
+        } else {
+          return { success: true };
         }
-        
-        // Ensure this log is definitely here and not missed
-        console.log('[Important] Attempting to call verification-code-handler Edge Function to send email. URL:', `${supabaseUrl}/functions/v1/verification-code-handler`);
-        
-        // Call the Edge Function with the 'send' action
-        const functionUrl = `${supabaseUrl}/functions/v1/verification-code-handler`;
-        const response = await fetch(functionUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseAnonKey}`,
-          },
-          body: JSON.stringify({
-            action: 'send',
-            userId,
-            email,
-            testMode: isTestMode
-          })
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Edge Function error:', errorText);
-          return {
-            success: false,
-            error: `Failed to send verification code email: ${response.status} ${response.statusText}`
-          };
-        }
-        
-        const edgeFunctionResult = await response.json();
-        console.log('Edge Function result:', edgeFunctionResult);
-        
-        // Return the code in test mode, otherwise just return success
-        return isTestMode 
-          ? { success: true, code: verificationCode } 
-          : { success: true };
-      } catch (directErr) {
-        console.error('Error in verification code generation:', directErr);
-        return {
-          success: false,
-          error: 'Failed to generate verification code.'
+      } catch (generationError: any) { // Catch for the inner try block (code generation logic)
+        console.error('Error during verification code generation logic:', generationError);
+        return { 
+          success: false, 
+          error: 'Failed to generate verification code due to an internal issue. Please try again.' 
         };
       }
     } catch (err) {

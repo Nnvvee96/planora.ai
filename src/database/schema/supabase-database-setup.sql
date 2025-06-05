@@ -103,12 +103,12 @@ BEGIN
     -- Check if column exists, add it if not
     ALTER TABLE public.profiles ADD COLUMN country TEXT;
     -- Add comment once we know the column exists
-    COMMENT ON COLUMN public.profiles.country IS 'User\'s country of residence';
+    COMMENT ON COLUMN public.profiles.country IS 'User''s country of residence';
     RAISE NOTICE 'Added country column';
   EXCEPTION WHEN duplicate_column THEN
     -- Column already exists, still try to add comment
     BEGIN
-      COMMENT ON COLUMN public.profiles.country IS 'User\'s country of residence';
+      COMMENT ON COLUMN public.profiles.country IS 'User''s country of residence';
     EXCEPTION WHEN OTHERS THEN
       RAISE NOTICE 'Could not add comment to country column: %', SQLERRM;
     END;
@@ -120,12 +120,12 @@ BEGIN
     -- Check if column exists, add it if not
     ALTER TABLE public.profiles ADD COLUMN city TEXT;
     -- Add comment once we know the column exists
-    COMMENT ON COLUMN public.profiles.city IS 'User\'s city of residence';
+    COMMENT ON COLUMN public.profiles.city IS 'User''s city of residence';
     RAISE NOTICE 'Added city column';
   EXCEPTION WHEN duplicate_column THEN
     -- Column already exists, still try to add comment
     BEGIN
-      COMMENT ON COLUMN public.profiles.city IS 'User\'s city of residence';
+      COMMENT ON COLUMN public.profiles.city IS 'User''s city of residence';
     EXCEPTION WHEN OTHERS THEN
       RAISE NOTICE 'Could not add comment to city column: %', SQLERRM;
     END;
@@ -137,12 +137,12 @@ BEGIN
     -- Check if column exists, add it if not
     ALTER TABLE public.profiles ADD COLUMN custom_city TEXT;
     -- Add comment once we know the column exists
-    COMMENT ON COLUMN public.profiles.custom_city IS 'User\'s custom city input when city is "Other"';
+    COMMENT ON COLUMN public.profiles.custom_city IS 'User''s custom city input when city is "Other"';
     RAISE NOTICE 'Added custom_city column';
   EXCEPTION WHEN duplicate_column THEN
     -- Column already exists, still try to add comment
     BEGIN
-      COMMENT ON COLUMN public.profiles.custom_city IS 'User\'s custom city input when city is "Other"';
+      COMMENT ON COLUMN public.profiles.custom_city IS 'User''s custom city input when city is "Other"';
     EXCEPTION WHEN OTHERS THEN
       RAISE NOTICE 'Could not add comment to custom_city column: %', SQLERRM;
     END;
@@ -197,6 +197,49 @@ CREATE TABLE IF NOT EXISTS public.account_deletion_requests (
   recovery_token TEXT,
   CONSTRAINT unique_active_request UNIQUE (user_id, status)
 );
+
+
+-- Session Storage Table for Edge Functions
+-- This table is used by Edge Functions for rate limiting and other stateful operations.
+CREATE TABLE IF NOT EXISTS public.session_storage (
+  key TEXT PRIMARY KEY,
+  value TEXT,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
+);
+
+-- Create an index on expires_at for efficient cleanup of expired entries
+CREATE INDEX IF NOT EXISTS session_storage_expires_at_idx ON public.session_storage(expires_at);
+
+-- Function to clean up expired session storage entries
+CREATE OR REPLACE FUNCTION public.cleanup_expired_session_storage_entries()
+RETURNS void AS $$
+BEGIN
+  DELETE FROM public.session_storage WHERE expires_at < NOW();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+COMMENT ON FUNCTION public.cleanup_expired_session_storage_entries() IS 'Deletes expired entries from the session_storage table. Intended to be called periodically by a cron job (e.g., pg_cron).';
+
+-- NOTE: Instead of a trigger for cleanup, which can impact performance on high-traffic tables,
+-- it is generally recommended to use a scheduled job (e.g., pg_cron) to call
+-- public.cleanup_expired_session_storage_entries() periodically (e.g., daily or hourly).
+-- Example pg_cron setup (run this in SQL editor once pg_cron is enabled):
+-- SELECT cron.schedule(''cleanup-session-storage'', ''0 * * * *'', ''SELECT public.cleanup_expired_session_storage_entries();'');
+-- This schedules the cleanup to run at the start of every hour.
+
+-- Add RLS policies
+ALTER TABLE public.session_storage ENABLE ROW LEVEL SECURITY;
+
+-- Policy for service role access (Edge Functions use service role)
+DROP POLICY IF EXISTS "Service role full access for session_storage" ON public.session_storage;
+CREATE POLICY "Service role full access for session_storage"
+ON public.session_storage
+FOR ALL
+TO service_role
+USING (true)
+WITH CHECK (true);
+
+COMMENT ON TABLE public.session_storage IS 'Storage for session-related data like rate limiting for Edge Functions. Cleanup of expired entries should be handled by a scheduled job.';
 
 -- Verification Codes Table for Email Verification
 CREATE TABLE IF NOT EXISTS public.verification_codes (
@@ -563,6 +606,65 @@ BEGIN
   RETURN verification_code;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- -----------------------------------------------------------------------------
+-- Rate Limit Storage Table
+-- Stores rate limiting counters and timestamps for various actions.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.rate_limit_storage (
+    key TEXT PRIMARY KEY,
+    value JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+COMMENT ON TABLE public.rate_limit_storage IS 'Stores rate limiting counters and timestamps for various actions (e.g., email verification sends, code checks).';
+COMMENT ON COLUMN public.rate_limit_storage.key IS 'Unique key identifying the rate-limited action and user/entity (e.g., verification_code_send:user_id@example.com).';
+COMMENT ON COLUMN public.rate_limit_storage.value IS 'JSONB object storing count and last attempt timestamp, e.g., { "count": 1, "lastAttempt": "2023-01-01T12:00:00Z" }.';
+
+-- Enable RLS
+ALTER TABLE public.rate_limit_storage ENABLE ROW LEVEL SECURITY;
+
+-- Policies for rate_limit_storage
+-- Service roles can bypass RLS
+DROP POLICY IF EXISTS "Allow service_role to access rate_limit_storage" ON public.rate_limit_storage;
+CREATE POLICY "Allow service_role to access rate_limit_storage"
+ON public.rate_limit_storage
+FOR ALL
+USING (auth.role() = 'service_role')
+WITH CHECK (auth.role() = 'service_role');
+
+-- Authenticated users should not directly access this table; it's managed by Edge Functions.
+DROP POLICY IF EXISTS "Disallow direct access for authenticated users on rate_limit_storage" ON public.rate_limit_storage;
+CREATE POLICY "Disallow direct access for authenticated users on rate_limit_storage"
+ON public.rate_limit_storage
+FOR ALL
+USING (auth.role() = 'authenticated')
+WITH CHECK (false);
+
+DROP POLICY IF EXISTS "Disallow anon access for rate_limit_storage" ON public.rate_limit_storage;
+CREATE POLICY "Disallow anon access for rate_limit_storage"
+ON public.rate_limit_storage
+FOR ALL
+USING (auth.role() = 'anon')
+WITH CHECK (false);
+
+
+-- Trigger to update 'updated_at' timestamp
+CREATE OR REPLACE FUNCTION public.handle_rate_limit_storage_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_rate_limit_storage_updated ON public.rate_limit_storage;
+CREATE TRIGGER on_rate_limit_storage_updated
+BEFORE UPDATE ON public.rate_limit_storage
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_rate_limit_storage_updated_at();
+
 
 -- Verify successful schema updates
 DO $$
