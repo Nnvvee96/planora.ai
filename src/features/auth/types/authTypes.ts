@@ -123,6 +123,47 @@ export interface VerificationCodeStatus {
  * Authentication Service interface
  * Defines the contract for auth service implementations
  */
+/**
+ * Response from initiating signup via Edge Function
+ */
+export interface InitiateSignupResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  errorCode?: string;
+  details?: string; // For more detailed error messages from Edge Function
+  status?: number; // HTTP status code from Edge Function response
+}
+
+/**
+ * Payload for completing signup via Edge Function
+ */
+export interface CompleteSignupPayload {
+  email: string;
+  code: string;
+  password_raw: string; // Matching the Edge Function
+  firstName: string;
+  lastName: string;
+}
+
+/**
+ * Response from completing signup via Edge Function
+ */
+export interface CompleteSignupResponse {
+  success: boolean;
+  message?: string;
+  userId?: string;
+  error?: string;
+  errorCode?: string;
+  details?: string; // For more detailed error messages from Edge Function
+  status?: number; // HTTP status code from Edge Function response
+}
+
+
+/**
+ * Authentication Service interface
+ * Defines the contract for auth service implementations
+ */
 export interface AuthService {
   signInWithGoogle(): Promise<void>;
   signInWithPassword(credentials: { email: string; password: string }): Promise<{ data: any; error: Error | null }>;
@@ -152,4 +193,8 @@ export interface AuthService {
     hasTravelPreferences: boolean;
     registrationStatus: UserRegistrationStatus;
   }>;
+
+  // New methods for the new signup flow
+  initiateSignup(email: string): Promise<InitiateSignupResponse>;
+  completeSignup(payload: CompleteSignupPayload): Promise<CompleteSignupResponse>;
 }

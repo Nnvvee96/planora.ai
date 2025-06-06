@@ -17,7 +17,10 @@ import type {
   SessionInfo,
   VerificationCodeResponse,
   VerificationCodeStatus,
-  RegisterData
+  RegisterData,
+  InitiateSignupResponse,
+  CompleteSignupPayload,
+  CompleteSignupResponse
 } from './types/authTypes';
 
 // Export types for use throughout the application
@@ -28,7 +31,10 @@ export type {
   SessionInfo,
   VerificationCodeResponse,
   VerificationCodeStatus,
-  RegisterData 
+  RegisterData,
+  CompleteSignupPayload, // Added for two-phase signup
+  InitiateSignupResponse, // Added for two-phase signup
+  CompleteSignupResponse // Added for two-phase signup
 } from './types/authTypes';
 
 // Re-export useAuth hook to ensure pages can import it through the API boundary
@@ -133,6 +139,8 @@ export interface AuthService {
     hasTravelPreferences: boolean;
     registrationStatus: UserRegistrationStatus;
   }>;
+  initiateSignup(email: string): Promise<InitiateSignupResponse>;
+  completeSignup(payload: CompleteSignupPayload): Promise<CompleteSignupResponse>;
 }
 
 // Import lazy for component lazy loading
@@ -425,5 +433,28 @@ const authService = {
       console.error('Login error:', err);
       return { data: null, error: err instanceof Error ? err : new Error('Unknown error during login') };
     }
+  },
+
+  /**
+   * Initiate two-phase signup
+   * Sends a verification code to the user's email.
+   * Does not create a user account at this stage.
+   * @param data Registration data including email, password, and profile information
+   */
+  initiateSignup: async (email: string): Promise<InitiateSignupResponse> => {
+    // This will call the actual implementation in supabaseAuthService
+    // which in turn calls the Supabase Edge Function
+    return supabaseAuthService.initiateSignup(email);
+  },
+
+  /**
+   * Complete two-phase signup
+   * Verifies the code, creates the user, and their profile.
+   * @param payload Payload containing the verification code and original registration data
+   */
+  completeSignup: async (payload: CompleteSignupPayload): Promise<CompleteSignupResponse> => {
+    // This will call the actual implementation in supabaseAuthService
+    // which in turn calls the Supabase Edge Function
+    return supabaseAuthService.completeSignup(payload);
   }
 };
