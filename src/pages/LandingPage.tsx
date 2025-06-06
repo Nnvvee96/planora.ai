@@ -201,14 +201,16 @@ const LandingPage = () => {
                     <span className="group-hover:translate-x-0.5 transition-transform duration-300">Start Planning</span>
                   </Button>
                   
-                  <Button 
-                    variant="glass"
-                    size="lg"
-                    className="text-lg border-white/10 hover:border-white/30 transition-all duration-300 group"
-                  >
-                    <span>See Examples</span>
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform duration-300" />
-                  </Button>
+                  <a href="#popular-destinations">
+                    <Button 
+                      variant="glass"
+                      size="lg"
+                      className="text-lg border-white/10 hover:border-white/30 transition-all duration-300 group"
+                    >
+                      <span>See Examples</span>
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform duration-300" />
+                    </Button>
+                  </a>
                 </div>
               </div>
               
@@ -707,7 +709,7 @@ const LandingPage = () => {
             </div>
             
             {/* Popular Destinations Showcase - Clean Implementation */}
-            <div className="mb-20 relative">
+            <div id="popular-destinations" className="mb-20 relative">
               {/* Decorative tech elements */}
               <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 w-px h-16 bg-gradient-to-b from-planora-accent-purple/0 to-planora-accent-purple"></div>
               <div className="absolute top-20 -left-12 w-24 h-24 rounded-full bg-gradient-to-r from-planora-accent-blue/10 to-transparent blur-2xl opacity-60"></div>
@@ -825,6 +827,9 @@ const LandingPage = () => {
                       Destinations personalized by AI based on global travel trends
                     </span>
                   </div>
+
+                  {/* Decorative line */}
+                  <div className="relative w-px h-10 mx-auto my-6 bg-gradient-to-b from-planora-accent-purple/0 to-planora-accent-purple"></div>
                   
                   <Button 
                     variant="gradient" 
@@ -840,20 +845,7 @@ const LandingPage = () => {
               </div>
             </div>
             
-            {/* Enhanced CTA area */}
-            <div className="mt-16 text-center relative">
-              <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 w-px h-10 bg-gradient-to-t from-planora-accent-purple/0 to-planora-accent-purple"></div>
-              
-              <Button 
-                variant="gradient" 
-                size="lg" 
-                className="text-lg flex items-center gap-2 mx-auto px-8 py-6 shadow-xl shadow-planora-accent-purple/20 hover:shadow-planora-accent-purple/30 transition-all duration-300 group" 
-                onClick={handleChatWithPlanora}
-              >
-                <Plane className="w-6 h-6 group-hover:scale-110 transition-transform duration-300" />
-                <span className="group-hover:translate-x-1 transition-transform duration-300">Start Planning Your Journey</span>
-              </Button>
-            </div>
+
           </div>
         </section>
         
@@ -1023,14 +1015,15 @@ const LandingPage = () => {
                   For teams, businesses, or specialized travel requirements, our custom plans offer tailored features and dedicated support.
                 </p>
                 
-                <Button 
-                  onClick={handleChatWithPlanora} 
-                  variant="outline" 
-                  className="border-white/20 hover:bg-white/5 hover:border-white/40 transition-all duration-300 group"
-                >
-                  <Mail className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform duration-300" />
-                  <span>Contact Our Team</span>
-                </Button>
+                <a href="mailto:support@planora.app">
+                  <Button 
+                    variant="outline" 
+                    className="border-white/20 hover:bg-white/5 hover:border-white/40 transition-all duration-300 group"
+                  >
+                    <Mail className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform duration-300" />
+                    <span>Contact Our Team</span>
+                  </Button>
+                </a>
               </div>
             </div>
           </div>
@@ -1206,6 +1199,17 @@ const LandingPage = () => {
                   </div>
                 </div>
               ))}
+
+              {/* View More FAQs Button */}
+              <div className="text-center mt-8">
+                <a 
+                  href="/faq" 
+                  className="px-3 py-1 text-sm text-planora-accent-purple hover:text-planora-accent-blue transition-colors border border-planora-accent-purple/30 rounded-full hover:border-planora-accent-purple/60 inline-flex items-center"
+                >
+                  View More FAQs
+                  <ChevronRight className="w-3 h-3 ml-1" />
+                </a>
+              </div>
               
               <div className="mt-12 text-center pt-6 relative">
                 <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-24 h-px bg-gradient-to-r from-planora-accent-purple/0 via-planora-accent-purple to-planora-accent-purple/0"></div>
@@ -1300,10 +1304,15 @@ const LandingPage = () => {
                     <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
                     Chat with Planora
                   </Button>
-                  <button className="px-8 py-4 border border-white/20 bg-white/5 hover:bg-white/10 transition-colors rounded-lg text-white text-lg flex items-center gap-2">
+                  <Button 
+                    variant="glow" 
+                    size="lg" 
+                    className="border-white/20 bg-black/30 hover:bg-black/50 text-white group text-lg font-medium flex items-center gap-2 px-8 py-6" // Retained text-lg, font-medium, flex, items-center, gap-2, px-8, py-6 from original for sizing consistency with Chat with Planora
+                    // onClick={() => { /* Define action for Learn More */ }}
+                  >
                     Learn More
-                    <ArrowRight className="w-5 h-5" />
-                  </button>
+                    <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />
+                  </Button>
                 </div>
               </div>
               
