@@ -11,7 +11,7 @@ import { Logo } from '@/ui/atoms/Logo';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { GradientButton } from '@/ui/atoms/GradientButton';
+
 import {
   Eye,
   EyeOff,
@@ -342,19 +342,17 @@ function Register() {
     <div className="min-h-screen bg-planora-purple-dark flex flex-col">
       {/* Enhanced background with interactive elements */}
       <div className="absolute inset-0 overflow-hidden z-0">
-        <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-gradient-to-br from-planora-accent-purple/30 to-transparent rounded-full blur-3xl animate-pulse-slow"></div>
+        <div className="absolute top-[30px] left-1/2 -translate-x-1/2 w-[300px] h-[200px] bg-gradient-to-br from-planora-accent-purple/30 to-transparent rounded-full blur-3xl animate-pulse-slow"></div>
         <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-gradient-to-tl from-planora-accent-blue/30 to-transparent rounded-full blur-3xl animate-pulse-slow animation-delay-2000"></div>
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCA2MCBNIDYwIDMwIEwgMzAgNjAgTSAzMCAwIEwgMCAzMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDMiIHN0cm9rZS1wdmlkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-20"></div>
       </div>
       
       {/* Header with Logo */}
-      <header className="py-6 px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="flex items-center justify-start">
-          <Logo href="/" className="h-14 w-auto" />
-        </div>
-      </header>
       
-      <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
+      <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 pt-12">
+        <div className="mb-8 flex justify-center">
+          <Logo href="/" className="h-45 w-auto" />
+        </div>
         <Card className="w-full max-w-lg z-10 bg-card/60 backdrop-blur-xl border border-white/10 shadow-2xl transition-all duration-300 hover:border-white/20 hover:shadow-planora-accent-purple/20">
           <CardHeader className="space-y-3 pb-6">
             {signupPhase === 'details' ? (
@@ -459,17 +457,17 @@ function Register() {
                     )}
                     <div className="pt-4">
                       {formStep === 0 ? (
-                        <GradientButton className="w-full" type="button" onClick={async () => { const isValid = await form.trigger(["firstName", "lastName", "email", "password", "confirmPassword", "country", "city", "customCity", "birthdate"]); if (isValid) { setFormStep(1); } }} disabled={isSubmitting}>
+                        <Button className="w-full bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90 py-5 font-medium" type="button" onClick={async () => { const isValid = await form.trigger(["firstName", "lastName", "email", "password", "confirmPassword", "country", "city", "customCity", "birthdate"]); if (isValid) { setFormStep(1); } }} disabled={isSubmitting}>
                           Continue to Review
-                        </GradientButton>
+                        </Button>
                       ) : (
                         <div className="flex space-x-2">
                           <Button type="button" variant="outline" className="flex-1 border-white/10 bg-white/5 text-white hover:bg-white/10 transition-colors" onClick={() => setFormStep(0)} disabled={isSubmitting}>
                             Back to Edit
                           </Button>
-                          <GradientButton className="flex-1" type="submit" disabled={isSubmitting}>
+                          <Button className="flex-1 bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90 py-5 font-medium" type="submit" disabled={isSubmitting}>
                             {isSubmitting ? (<><Loader2 className="animate-spin mr-2 h-4 w-4" />Processing...</>) : "Create Account & Verify Email"}
-                          </GradientButton>
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -486,10 +484,10 @@ function Register() {
                 {verificationErrorText && (
                   <p className="text-sm text-red-500 flex items-center"><Shield size={16} className="mr-2 flex-shrink-0" />{verificationErrorText}</p>
                 )}
-                <GradientButton type="submit" className="w-full" disabled={isVerifying || verificationCode.length !== 6}>
+                <Button type="submit" className="w-full bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90 py-5 font-medium" disabled={isVerifying || verificationCode.length !== 6}>
                   {isVerifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle size={18} className="mr-2" />}
                   Verify & Complete Signup
-                </GradientButton>
+                </Button>
                 <Button variant="link" type="button" onClick={handleResendCode} className="w-full text-planora-blue-light hover:text-planora-blue-light/80" disabled={isResendingCode || isVerifying}>
                   {isResendingCode && !verificationErrorText ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Resend Code
