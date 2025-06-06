@@ -388,87 +388,35 @@ export function Login() {
       
       {/* Improved background with subtle gradient elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-[40%] -left-[20%] w-[70%] h-[70%] rounded-full bg-planora-accent-purple/5 blur-3xl"></div>
+        
         <div className="absolute -bottom-[30%] -right-[10%] w-[60%] h-[60%] rounded-full bg-planora-accent-blue/5 blur-3xl"></div>
         <div className="absolute top-[20%] right-[10%] w-[40%] h-[40%] rounded-full bg-planora-accent-pink/5 blur-3xl"></div>
       </div>
       
-      <div className="flex-grow flex items-center justify-center px-4 w-full">
-        <div className="relative z-10 mx-auto flex w-full flex-col justify-center space-y-6 max-w-[420px] overflow-hidden">
-          <div className="flex flex-col space-y-2 text-center">
-            <div className="text-center mb-6">
-              <div className="flex flex-col items-center">
-                <Link to="/" className="block mb-5">
-                  <Logo className="h-16 w-auto" variant="full" href="/" />
-                </Link>
-                <h1 className="text-2xl font-bold tracking-tight text-white">
-                  Welcome Back
-                </h1>
-                <p className="text-white/60 text-sm mt-2">
-                  Sign in to your account to continue your planning journey
-                </p>
-              </div>
-            
-              {/* Show session expired message with improved styling */}
-              {sessionExpired && (
-                <Alert className="mt-4 border-yellow-500/30 bg-yellow-500/10 text-yellow-200">
-                  <AlertCircle className="h-4 w-4 text-yellow-300" />
-                  <AlertTitle className="text-yellow-200 font-medium">Session Expired</AlertTitle>
-                  <AlertDescription className="text-yellow-200/90 text-sm">
-                    Your session has expired. Please log in again to continue.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
+      <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
+        <div className="w-full max-w-md">
+          {/* Centered Logo with more space */}
+          {/* Logo */}
+          <div className="relative flex justify-center mb-8">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[225px] bg-gradient-to-br from-planora-accent-purple/40 to-transparent rounded-full blur-3xl -z-10"></div>
+            <Logo className="h-45 w-auto" variant="full" href="/" />
           </div>
-          
-          {/* Verification Alert with improved styling */}
-          {verificationMessage && (
-            <Alert className="bg-planora-accent-purple/10 border-planora-accent-purple/30 text-white rounded-lg">
-              <AlertCircle className="h-4 w-4 text-planora-accent-purple" />
-              <AlertTitle className="font-medium">Email Verification</AlertTitle>
-              <AlertDescription className="text-white/80 text-sm">
-                {verificationMessage}
-              </AlertDescription>
-            </Alert>
-          )}
-          
-          {verificationNeeded ? (
-            <div className="bg-black/30 backdrop-blur-lg p-7 rounded-xl border border-white/10 shadow-lg">
-              <div className="text-center space-y-6">
-                <div className="mx-auto bg-gradient-to-r from-planora-accent-purple/20 to-planora-accent-pink/20 w-20 h-20 rounded-full flex items-center justify-center">
-                  <Mail className="h-8 w-8 text-planora-accent-purple" />
-                </div>
-                
-                <div className="space-y-3">
-                  <h3 className="text-xl font-medium text-white">Check your inbox</h3>
-                  {verificationEmail && (
-                    <p className="text-white/70 text-sm">
-                      We've sent a verification link to <span className="text-white font-medium">{verificationEmail}</span>
-                    </p>
-                  )}
-                  <p className="text-white/60 text-sm mt-2">
-                    Click the link in the email to verify your account. If you don't see it, check your spam folder.
-                  </p>
-                </div>
-                
-                <div className="pt-4">
-                  <Button 
-                    className="w-full bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90 text-white font-medium py-5"
-                    onClick={() => {
-                      setVerificationNeeded(false);
-                    }}
-                  >
-                    I've verified my email
-                  </Button>
-                </div>
-              </div>
+
+          {/* New Card Element */}
+          <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-8 sm:p-10 space-y-6">
+            {/* "Welcome Back" and "Sign in..." text */}
+            <div className="flex flex-col space-y-2 text-center">
+              <h1 className="text-3xl font-bold tracking-tight text-white">
+                Welcome Back
+              </h1>
+              <p className="text-sm text-white/70">
+                Sign in to access your Planora dashboard.
+              </p>
             </div>
-          ) : (
-            <div className="bg-black/30 backdrop-blur-lg p-7 rounded-xl border border-white/10 shadow-lg w-full">
-              <UserAuthForm className="w-full" />
-            </div>
-          )}
+
+            {/* UserAuthForm */}
+            <UserAuthForm className="w-full" />
+          </div>
           
           {/* Resend verification email option with improved styling */}
           {verificationNeeded && (
