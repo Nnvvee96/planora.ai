@@ -53,7 +53,7 @@ import { Billing } from "./pages/Billing";
 import { TravelPreferencesPage } from "./pages/TravelPreferencesPage";
 import { Notifications } from "./pages/Settings/Notifications";
 import { PrivacySecurity } from "./pages/Settings/PrivacySecurity";
-import { Support } from "./pages/Support";
+import { SupportPage } from "./pages/SupportPage";
 import { DebugScreen } from "./pages/DebugScreen";
 import AccountRecoveryPage from "./features/user-profile/components/AccountRecoveryPage";
 
@@ -198,13 +198,14 @@ const App = () => {
                     </ProtectedRoute>
                   </Suspense>
                 } />
-                <Route path="/support" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading support...</div>}>
-                    <ProtectedRoute>
-                      <Support />
-                    </ProtectedRoute>
-                  </Suspense>
-                } />
+                <Route 
+                  path="/support"
+                  element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading support...</div>}>
+                      <SupportPage />
+                    </Suspense>
+                  }
+                />
                 
                 {/* Catch-all route */}
                 <Route path="*" element={<NotFound />} />
