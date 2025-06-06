@@ -247,9 +247,10 @@ CREATE TABLE IF NOT EXISTS public.verification_codes (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   code VARCHAR(6) NOT NULL,
+  code_type TEXT NOT NULL, -- Type of verification (e.g., 'signup_verification', 'email_change')
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'verified', 'expired', 'cancelled')), -- Status of the code
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
-  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  used BOOLEAN DEFAULT FALSE
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
 -- Create indexes for better query performance
@@ -263,7 +264,8 @@ CREATE INDEX IF NOT EXISTS email_change_user_id_idx ON public.email_change_track
 CREATE INDEX IF NOT EXISTS email_change_status_idx ON public.email_change_tracking(status);
 CREATE INDEX IF NOT EXISTS verification_codes_user_id_idx ON public.verification_codes(user_id);
 CREATE INDEX IF NOT EXISTS verification_codes_email_idx ON public.verification_codes(email);
-CREATE INDEX IF NOT EXISTS verification_codes_used_idx ON public.verification_codes(used);
+CREATE INDEX IF NOT EXISTS verification_codes_status_idx ON public.verification_codes(status);
+CREATE INDEX IF NOT EXISTS verification_codes_code_type_idx ON public.verification_codes(code_type);
 
 -- Automatic Profile Creation Trigger
 -- This ensures that when a new user signs up, a profile is automatically created

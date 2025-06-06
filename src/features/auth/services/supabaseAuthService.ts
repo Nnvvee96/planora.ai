@@ -14,7 +14,11 @@ import {
   RegisterData,
   AuthProviderType,
   VerificationCodeResponse,
-  VerificationCodeStatus
+  VerificationCodeStatus,
+  // Added for new signup flow
+  InitiateSignupResponse,
+  CompleteSignupPayload,
+  CompleteSignupResponse
 } from '../types/authTypes';
 
 /**
@@ -991,6 +995,121 @@ export const supabaseAuthService = {
         hasCompletedOnboarding: false,
         hasTravelPreferences: false,
         registrationStatus: UserRegistrationStatus.ERROR
+      };
+    }
+  },
+  
+  /**
+   * Initiates the signup process by sending a verification code.
+   * Calls the 'verification-code-handler' Edge Function.
+   * @param email The user's email address.
+   */
+  async initiateSignup(email: string): Promise<InitiateSignupResponse> {
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke('verification-code-handler', {
+        body: {
+          action: 'initiate-signup',
+          email: email,
+        },
+      });
+
+      if (invokeError) {
+        console.error('Error invoking initiate-signup Edge Function:', invokeError);
+        const errorMessage = invokeError.message || 'Failed to invoke Edge Function.';
+        // Attempt to get more specific error from function context if available
+        const contextError = (invokeError as any).context?.function_error || (invokeError as any).context?.message;
+        return { 
+          success: false, 
+          error: `Initiate signup failed: ${contextError || errorMessage}`, 
+          errorCode: 'INVOKE_ERROR',
+          status: (invokeError as any).context?.status || 500 
+        };
+      }
+      
+      let responseData = data;
+      if (typeof data === 'string') { 
+        try {
+          responseData = JSON.parse(data);
+        } catch (e) {
+          console.error('Failed to parse response from initiate-signup:', e, "Raw data:", data);
+          return { success: false, error: 'Failed to parse server response.', errorCode: 'PARSE_ERROR', status: 500 };
+        }
+      }
+      
+      if (typeof responseData?.success === 'undefined') {
+        console.error('Malformed response from initiate-signup:', responseData);
+        return { success: false, error: 'Malformed server response.', errorCode: 'MALFORMED_RESPONSE', status: 500 };
+      }
+
+      if (!responseData.success) {
+        console.warn('Initiate signup was not successful via Edge Function:', responseData.error, responseData.errorCode);
+      }
+      return responseData as InitiateSignupResponse;
+
+    } catch (e: any) {
+      console.error('Unexpected client-side error in initiateSignup service:', e);
+      return { 
+        success: false, 
+        error: e.message || 'An unexpected client-side error occurred.', 
+        errorCode: 'CLIENT_UNEXPECTED_ERROR',
+        status: 500 
+      };
+    }
+  },
+
+  /**
+   * Completes the signup process by verifying the code and creating the user.
+   * Calls the 'verification-code-handler' Edge Function.
+   * @param payload The necessary data to complete signup.
+   */
+  async completeSignup(payload: CompleteSignupPayload): Promise<CompleteSignupResponse> {
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke('verification-code-handler', {
+        body: {
+          action: 'complete-signup',
+          ...payload,
+        },
+      });
+
+      if (invokeError) {
+        console.error('Error invoking complete-signup Edge Function:', invokeError);
+        const errorMessage = invokeError.message || 'Failed to invoke Edge Function.';
+        const contextError = (invokeError as any).context?.function_error || (invokeError as any).context?.message;
+        return { 
+          success: false, 
+          error: `Complete signup failed: ${contextError || errorMessage}`, 
+          errorCode: 'INVOKE_ERROR',
+          status: (invokeError as any).context?.status || 500 
+        };
+      }
+      
+      let responseData = data;
+      if (typeof data === 'string') { 
+        try {
+          responseData = JSON.parse(data);
+        } catch (e) {
+          console.error('Failed to parse response from complete-signup:', e, "Raw data:", data);
+          return { success: false, error: 'Failed to parse server response.', errorCode: 'PARSE_ERROR', status: 500 };
+        }
+      }
+
+      if (typeof responseData?.success === 'undefined') {
+        console.error('Malformed response from complete-signup:', responseData);
+        return { success: false, error: 'Malformed server response.', errorCode: 'MALFORMED_RESPONSE', status: 500 };
+      }
+      
+      if (!responseData.success) {
+        console.warn('Complete signup was not successful via Edge Function:', responseData.error, responseData.errorCode);
+      }
+      return responseData as CompleteSignupResponse;
+
+    } catch (e: any) {
+      console.error('Unexpected client-side error in completeSignup service:', e);
+      return { 
+        success: false, 
+        error: e.message || 'An unexpected client-side error occurred.', 
+        errorCode: 'CLIENT_UNEXPECTED_ERROR',
+        status: 500
       };
     }
   },
