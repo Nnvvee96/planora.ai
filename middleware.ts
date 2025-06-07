@@ -55,7 +55,7 @@ export function middleware(request: NextRequest) {
 
   try {
     // Browsers send 'Basic base64string'
-    const auth = Buffer.from(authHeader.split(' ')[1], 'base64').toString();
+    const auth = atob(authHeader.split(' ')[1]);
     const [user, pwd] = auth.split(':');
 
     if (user === basicAuthUser && pwd === basicAuthPassword) {
