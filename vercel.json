@@ -3,19 +3,10 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install --legacy-peer-deps",
-  "cleanUrls": false,
+  "cleanUrls": true,
   "trailingSlash": false,
-  "functions": { 
-    "api/auth.ts": {
-      "memory": 128
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/((?!api/|_vercel/|assets/|images/|js/|css/|media/|fonts/|favicon\\.ico|site\\.webmanifest|robots\\.txt|sitemap\\.xml|sw\\.js|workbox-.*\\.js).*)",
-      "destination": "/api/auth"
-    }
-  ],
+  "functions": {},
+  "rewrites": [],
   "headers": [
     {
       "source": "/api/(.*)",
