@@ -12,11 +12,8 @@
   },
   "rewrites": [
     {
-      "source": "/((?!_next/static/|_next/image/|api/|_vercel/|assets/|images/|js/|css/|media/|fonts/|favicon\\.ico|site\\.webmanifest|robots\\.txt|sitemap\\.xml|sw\\.js|workbox-.*\\.js).*)",
-      "destination": "/api/auth",
-      "missing": [ 
-        { "type": "file" }
-      ]
+      "source": "/((?!api/|_vercel/|assets/|images/|js/|css/|media/|fonts/|favicon\\.ico|site\\.webmanifest|robots\\.txt|sitemap\\.xml|sw\\.js|workbox-.*\\.js).*)",
+      "destination": "/api/auth"
     },
     {
       "source": "/(.*)",
