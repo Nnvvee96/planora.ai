@@ -26,7 +26,7 @@ import { Footer } from '@/ui/organisms/Footer';
 // Import from feature API boundaries only, following architectural principles
 import { useAuth, AppUser, getAuthService } from '@/features/auth/authApi';
 import { getUserProfileMenuComponent, UserProfile } from '@/features/user-profile/userProfileApi';
-import { useUserProfileIntegration } from '@/features/user-profile/hooks/useUserProfileIntegration';
+import { useUserProfileIntegration } from '@/features/user-profile/userProfileApi';
 
 const Dashboard = () => {
   const navigate = useNavigate();

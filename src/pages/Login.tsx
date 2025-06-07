@@ -11,7 +11,7 @@ import { Apple, Mail, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Footer } from '@/ui/organisms/Footer';
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/authApi";
-import type { GoogleLoginButton as GoogleLoginButtonType } from "@/features/auth/components/GoogleLoginButton";
+import type { GoogleLoginButton as GoogleLoginButtonType } from "@/features/auth/authApi";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 // Database access should be through feature APIs, not direct imports
 

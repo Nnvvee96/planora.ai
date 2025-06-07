@@ -91,10 +91,13 @@ function printHeader(title) {
 /**
  * Print validation result
  */
-function printResult(name, success, message = '') {
+function printResult(name, success, message = '', details = '') {
   const icon = success ? '✅' : '❌';
   const color = success ? colors.green : colors.red;
   console.log(`${icon} ${color}${name}${colors.reset}${message ? ': ' + message : ''}`);
+  if (!success && details) {
+    console.log(`${colors.yellow}Details:\n${details}${colors.reset}`);
+  }
   return success;
 }
 
@@ -140,7 +143,7 @@ if (!options.featuresOnly && (!options.quick || options.depsOnly)) {
     : 'npx depcruise --validate ./.dependency-cruiser.cjs src';
   const depCheck = runCommand(depCommand, { silent: true });
   allValidationsPassed = printResult('Dependency boundaries', depCheck.success, 
-    depCheck.success ? '' : 'Found architectural boundary violations') && allValidationsPassed;
+    depCheck.success ? '' : 'Found architectural boundary violations', depCheck.success ? '' : (depCheck.output || depCheck.error)) && allValidationsPassed;
 }
 
 // 2. ESLint Architecture Rules

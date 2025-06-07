@@ -11,8 +11,8 @@ import { DatePickerInput } from '@/components/ui/DatePickerInput';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { getAuthService, AuthService } from '@/features/auth/authApi';
 // Properly import from API boundary
-import { userProfileService } from '@/features/user-profile/userProfileApi';
-import { useUserProfileIntegration } from '@/features/user-profile/hooks/useUserProfileIntegration';
+import { userProfileService } from '../../services/userProfileService';
+import { useUserProfileIntegration } from '../../hooks/useUserProfileIntegration';
 import { useToast } from '@/components/ui/use-toast';
 import { Select } from '@/components/ui/select';
 import { countryOptions, getCityOptions } from '@/features/location-data/data/countryCityData';

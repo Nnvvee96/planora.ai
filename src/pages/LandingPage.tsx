@@ -34,13 +34,12 @@ import { Autoplay } from 'swiper/modules';
 // import 'swiper/css/pagination';
 // import 'swiper/css/navigation'; // Ensure navigation CSS is also removed/commented
 import 'swiper/css';
-import { Card } from '@/ui/atoms/Card';
+import { Input } from '@/ui/atoms/Input';
 
 // Define a type for the review data including id, extending ReviewCardProps
 interface ReviewData extends ReviewCardProps {
   id: string;
 }
-import { Input } from '@/ui/atoms/Input';
 
 const mockReviews: ReviewData[] = [
   {
@@ -199,8 +198,7 @@ const LandingPage = () => {
         <div className="absolute top-[25%] right-[15%] w-1.5 h-1.5 bg-planora-accent-pink rounded-full animate-float-delay opacity-50"></div>
         <div className="absolute bottom-[20%] left-[20%] w-1 h-1 bg-planora-accent-blue rounded-full animate-float-slow opacity-40"></div>
         
-        {/* Grid pattern overlay */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjA1IiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-30"></div>
+        {/* Grid pattern overlay - REMOVED */}
       </div>
       
       <div className="relative z-10 flex flex-col min-h-screen">
@@ -211,8 +209,7 @@ const LandingPage = () => {
         <section id="hero" className="min-h-screen flex items-center py-12 md:py-24 px-4 md:px-6 relative overflow-hidden">
           {/* Tech-inspired background elements */}
           <div className="absolute inset-0 z-0">
-            {/* Digital grid pattern */}
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCA2MCBNIDYwIDMwIEwgMzAgNjAgTSAzMCAwIEwgMCAzMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDMiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-20"></div>
+            {/* Digital grid pattern - REMOVED */}
             
             {/* Neural network-inspired nodes */}
             <div className="absolute top-1/4 left-1/4 w-4 h-4 rounded-full bg-planora-accent-purple/20 shadow-[0_0_20px_rgba(139,92,246,0.3)] animate-pulse-slow"></div>
@@ -284,28 +281,10 @@ const LandingPage = () => {
               <div className="relative h-[400px] md:h-[500px] flex items-center justify-center order-1 lg:order-2">
                 <div className="absolute inset-0 bg-gradient-to-br from-planora-accent-purple/5 to-planora-accent-blue/5 rounded-2xl opacity-30 blur-xl"></div>
                 
-                <div className="relative w-full max-w-[400px] mx-auto h-full flex items-center justify-center">
-                  {/* Orbital rings */}
-                  <div className="absolute w-[280px] h-[280px] md:w-[350px] md:h-[350px] border border-white/5 rounded-full animate-spin-slow"></div>
-                  <div className="absolute w-[240px] h-[240px] md:w-[300px] md:h-[300px] border border-planora-accent-purple/10 rounded-full animate-spin-slow-reverse"></div>
-                  <div className="absolute w-[200px] h-[200px] md:w-[250px] md:h-[250px] border border-planora-accent-blue/10 rounded-full animate-spin-very-slow"></div>
-                  
-                  {/* Glow points on orbits */}
-                  <div className="absolute w-[280px] h-[280px] md:w-[350px] md:h-[350px] rounded-full">
-                    <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-3 h-3 rounded-full bg-planora-accent-purple animate-pulse-slow shadow-[0_0_10px_rgba(139,92,246,0.7)]"></div>
-                  </div>
-                  
-                  <div className="absolute w-[240px] h-[240px] md:w-[300px] md:h-[300px] rounded-full">
-                    <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-3 h-3 rounded-full bg-planora-accent-pink animate-pulse shadow-[0_0_10px_rgba(217,70,239,0.7)]"></div>
-                  </div>
-                  
-                  <div className="absolute w-[200px] h-[200px] md:w-[250px] md:h-[250px] rounded-full">
-                    <div className="absolute top-1/2 right-0 transform -translate-y-1/2 w-3 h-3 rounded-full bg-planora-accent-blue animate-pulse-slow-reverse shadow-[0_0_10px_rgba(30,174,219,0.7)]"></div>
-                  </div>
-                  
-                  {/* Center logo */}
-                  <div className="relative w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink shadow-[0_0_40px_rgba(139,92,246,0.5)] flex items-center justify-center backdrop-blur-xl border border-white/20 group hover:shadow-[0_0_60px_rgba(139,92,246,0.7)] transition-all duration-500 animate-float-slow">
-                    <Logo className="w-14 h-14 md:w-16 md:h-16 group-hover:scale-110 transition-transform duration-300" variant="icon" />
+                <div className="relative h-full aspect-square flex items-center justify-center">
+                  {/* Placeholder for new 3D Earth Animation */}
+                  <div className="w-full h-full bg-planora-purple-dark/30 rounded-lg flex items-center justify-center text-planora-white/50">
+                    <p>3D Earth Animation Coming Soon!</p>
                   </div>
                 </div>
               </div>

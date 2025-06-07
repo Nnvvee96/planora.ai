@@ -14,8 +14,6 @@ import { Logo } from '@/ui/atoms/Logo';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 // Import service directly to avoid circular dependency
 import { supabaseAuthService } from '../services/supabaseAuthService';
-// Import through the proper API boundary
-import { userProfileService } from '@/features/user-profile/userProfileApi';
 
 /**
  * EmailChangeVerification component handles the verification of email changes
@@ -85,31 +83,9 @@ const EmailChangeVerification: React.FC = () => {
         
         // Store email for display
         setEmail(user.email);
-        
-        // Now we need to sync the database profile with the new email
-        // This ensures the database is updated even if the user didn't wait
-        // for the verification before closing the browser
-        try {
-          // Update both directly through the profile service and through the auth service
-          // for maximum resilience
-          await userProfileService.updateUserProfile(user.id, {
-            email: user.email,
-            emailVerified: true // Use the property name from UserProfile type
-            // No updatedAt - it will be handled by the service
-          });
-          
-          // We've already updated the user profile above, but we also need to complete the email change process
-          try {
-            // Use the userProfileService to handle the database operations instead of direct Supabase access
-            await userProfileService.completeEmailChange(user.id);
-          } catch (dbErr) {
-            // Non-critical error, just log it
-            console.warn('Error completing email change process:', dbErr);
-          }
-        } catch (profileErr) {
-          console.warn('Error updating profile during verification:', profileErr);
-          // Non-critical error, continue with the process
-        }
+
+        // The supabaseAuthService.verifyEmail method is expected to handle all necessary profile updates,
+        // including setting the new email in the 'profiles' table and clearing pending flags.
         
         // Set verification as successful
         setVerificationSuccess(true);

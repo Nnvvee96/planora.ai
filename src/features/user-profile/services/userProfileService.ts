@@ -917,12 +917,13 @@ export const userProfileService = {
    * @param userId The user ID to complete the email change for
    * @returns True if the email change was successfully completed
    */
-  completeEmailChange: async (userId: string): Promise<boolean> => {
+  completeEmailChange: async (userId: string, newEmail: string): Promise<boolean> => {
     try {
       // Clear email change fields in the profile
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
+          email: newEmail, // Update the email field
           pending_email_change: null,
           email_change_requested_at: null,
           email_verified: true,

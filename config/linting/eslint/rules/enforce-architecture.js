@@ -161,7 +161,7 @@ export default {
             const currentFeature = featureMatch[1];
             const importFeatureMatch = importPath.match(/features\/([^/]+)/);
             
-            if (importFeatureMatch && importFeatureMatch[1] !== currentFeature) {
+            if (importFeatureMatch && importFeatureMatch[1] !== currentFeature && !importPath.endsWith('Api.ts') && !importPath.match(/\/[^/]+Api$/)) {
               context.report({
                 node,
                 messageId: "noCrossFeatureImport"

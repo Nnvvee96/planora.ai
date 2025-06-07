@@ -6,6 +6,7 @@ import { Input } from '@/ui/atoms/Input';
 import { Textarea } from '@/ui/atoms/Textarea';
 import { Label } from '@/ui/atoms/Label';
 import { Mail, MessageSquare, User, Tag, Send } from 'lucide-react';
+import { FaqAccordion } from '@/ui/organisms/FaqAccordion';
 
 const SupportPage = () => {
   useEffect(() => {
@@ -118,6 +119,11 @@ const SupportPage = () => {
               Please provide as much detail as possible so we can assist you effectively.
             </p>
           </div>
+        </div>
+
+        {/* FAQ Section */}
+        <div className="max-w-5xl mx-auto mt-12 md:mt-16">
+          <FaqAccordion />
         </div>
       </main>
 
