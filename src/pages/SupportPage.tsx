@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigation } from '@/ui/organisms/Navigation';
 import { Footer } from '@/ui/organisms/Footer';
 import { Button } from '@/ui/atoms/Button';
@@ -8,6 +8,9 @@ import { Label } from '@/ui/atoms/Label';
 import { Mail, MessageSquare, User, Tag, Send } from 'lucide-react';
 
 const SupportPage = () => {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     // Handle form submission logic (e.g., send data to an API)

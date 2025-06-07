@@ -696,9 +696,9 @@ const LandingPage = () => {
                   
                   <div className="mt-6">
                     <Button 
-                      variant="glass" 
-                      className="w-full group border-white/10 hover:border-white/30 flex items-center justify-center gap-1"
-                      onClick={handleChatWithPlanora}
+                      variant="glow" 
+                      className="w-full group border-white/20 bg-black/30 hover:bg-black/50 text-white flex items-center justify-center gap-1"
+                      onClick={() => navigate('/stories')}
                     >
                       Read More Stories
                       <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-300" />
@@ -709,7 +709,7 @@ const LandingPage = () => {
             </div>
             
             {/* Popular Destinations Showcase - Clean Implementation */}
-            <div id="popular-destinations" className="mb-20 relative">
+            <div id="popular-destinations" className="mb-20 relative scroll-mt-20">
               {/* Decorative tech elements */}
               <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 w-px h-16 bg-gradient-to-b from-planora-accent-purple/0 to-planora-accent-purple"></div>
               <div className="absolute top-20 -left-12 w-24 h-24 rounded-full bg-gradient-to-r from-planora-accent-blue/10 to-transparent blur-2xl opacity-60"></div>
@@ -833,7 +833,7 @@ const LandingPage = () => {
                   
                   <Button 
                     variant="gradient" 
-                    className="border-white/20 hover:border-white/40 shadow-lg hover:shadow-planora-accent-purple/20 transition-all duration-300 group"
+                    className="px-10 py-5 text-xl border-white/20 hover:border-white/40 shadow-lg hover:shadow-planora-accent-purple/20 transition-all duration-300 group"
                     size="lg"
                     onClick={handleChatWithPlanora}
                   >
@@ -1308,7 +1308,7 @@ const LandingPage = () => {
                     variant="glow" 
                     size="lg" 
                     className="border-white/20 bg-black/30 hover:bg-black/50 text-white group text-lg font-medium flex items-center gap-2 px-8 py-6" // Retained text-lg, font-medium, flex, items-center, gap-2, px-8, py-6 from original for sizing consistency with Chat with Planora
-                    // onClick={() => { /* Define action for Learn More */ }}
+                    onClick={() => navigate('/faq')}
                   >
                     Learn More
                     <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />
