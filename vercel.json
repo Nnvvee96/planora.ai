@@ -12,11 +12,16 @@
   },
   "rewrites": [
     {
-      "source": "/((?!api/auth|_vercel/|favicon\\.ico|robots\\.txt|manifest\\.json|assets/|images/).*)",
-      "destination": "/api/auth"
+      "source": "/((?!_next/static/|_next/image/|api/|_vercel/|assets/|images/|js/|css/|media/|fonts/|favicon\\.ico|site\\.webmanifest|robots\\.txt|sitemap\\.xml|sw\\.js|workbox-.*\\.js).*)",
+      "destination": "/api/auth",
+      "missing": [ 
+        { "type": "file" }
+      ]
     },
-    { "source": "/assets/(.*)", "destination": "/assets/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
