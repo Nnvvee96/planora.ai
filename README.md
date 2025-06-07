@@ -12,6 +12,7 @@ Planora is an intelligent travel planning platform that helps users discover, pl
 - **Location Intelligence**: Advanced country-city selection with customizable options
 - **Preference Synchronization**: Seamless synchronization between profile location and travel preferences
 - **Supabase Integration**: Secure authentication and data storage with Supabase
+- **User Reviews and Feedback**: View community reviews and submit your own experiences through an intuitive modal interface.
 
 ## Technology Stack
 
@@ -47,13 +48,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-## Documentation
 
-We maintain comprehensive documentation to help developers understand and contribute to the project:
-
-- [Architecture Guide](./docs/ARCHITECTURE.md) - Core architectural principles and code organization
-- [Developer Guide](./docs/developer/guide.md) - Development workflow, testing, and troubleshooting
-- [Setup Guides](./docs/setup/) - Environment setup including Supabase configuration
 
 ## Development Tools
 
@@ -90,16 +85,32 @@ npm run scaffold:integration
 ```
 planora.ai/
 ├── src/                    # Source code
-│   ├── components/         # Third-party UI components (shadcn)
-│   ├── database/           # Database structure and client
+│   ├── App.css             # Main application styles
+│   ├── App.tsx             # Main application component
+│   ├── __tests__/          # Test files
+│   ├── components/         # Third-party/library components
+│   │   └── ui/             # Shadcn/UI components
+│   ├── constants/          # Global constants
+│   ├── database/           # Database structure, client, and functions
 │   │   ├── client/         # Supabase client configuration
-│   │   └── schema/         # SQL schema and policies
-│   ├── features/           # Feature modules (auth, travel-planning, etc.)
-│   ├── ui/                 # Custom UI components (atoms, molecules, organisms)
-│   ├── lib/                # Shared utilities and services
-│   ├── hooks/              # Custom React hooks
+│   │   ├── functions/      # Supabase edge functions or DB functions
+│   │   ├── schema/         # SQL schema and policies
+│   │   └── databaseApi.ts  # API for database interactions
+│   ├── features/           # Feature modules (auth, reviews, travel-planning, etc.)
+│   ├── hooks/              # Custom React hooks (global or integration)
+│   ├── lib/                # Shared utilities (e.g., cn utility)
+│   ├── pages/              # Page components (e.g., LandingPage, ReviewsPage)
 │   ├── store/              # State management (Redux)
-│   └── types/              # TypeScript type definitions
+│   ├── types/              # TypeScript type definitions
+│   ├── ui/                 # Custom UI components (atomic design)
+│   │   ├── atoms/          # Fundamental building blocks
+│   │   ├── hooks/          # UI-specific hooks
+│   │   ├── molecules/      # Combinations of atoms
+│   │   └── organisms/      # Complex UI sections
+│   ├── utils/              # General utility functions
+│   ├── index.css           # Global CSS entry point
+│   ├── main.tsx            # Main application entry point
+│   └── vite-env.d.ts       # Vite environment type definitions
 ├── config/                 # Configuration files
 │   ├── dependencies/       # Dependency management configs (.npmrc, .dependency-cruiser.cjs)
 │   │   └── reports/        # Architecture validation reports
@@ -116,7 +127,6 @@ planora.ai/
 ## Development Guidelines
 
 - Follow the guidelines in [ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- Adhere to the [style guide](docs/developer/styleguide.md)
 - Use TypeScript for type safety
 - Follow the established component patterns
 - Write tests for new features
@@ -125,10 +135,15 @@ planora.ai/
 
 For detailed documentation, please refer to the following:
 
-- [Architecture](docs/ARCHITECTURE.md) - Project architecture and design decisions
-- [Database](docs/database/DATABASE.md) - Database structure and Supabase integration
-- [Setup Guide](docs/setup/) - Environment setup and configuration
-- [Developer Guide](docs/developer/) - Coding standards and best practices
+- [Project Overview & Setup](README.md) - This file: general info, setup, and project structure.
+- [Architecture Guide](docs/ARCHITECTURE.md) - Core architectural principles, patterns, and code organization.
+- [Database Guide](docs/database/DATABASE.md) - Database schema, Supabase integration details, and data management.
+- [Developer Guide](docs/developer/guide.md) - Development workflow, coding standards, testing, and troubleshooting.
+- **Setup Guides**:
+  - [Configuration Guide](docs/setup/configuration-guide.md) - Detailed environment and application configuration.
+  - [Deployment Guide](docs/setup/deployment-guide.md) - Instructions for deploying the application.
+  - [Email Verification Setup](docs/setup/email-verification.md) - Setting up email verification with Supabase.
+  - [Supabase Setup](docs/setup/supabase-setup.md) - Comprehensive guide to setting up and managing Supabase services.
 
 ## License
 

@@ -31,7 +31,7 @@ Planora.ai includes several configuration files that are essential for deploymen
 | `vercel.build.json` | Configures build options with legacy-peer-deps |
 | `vercel-deploy.sh` | Shell script for manual deployments with Vercel CLI |
 
-These files ensure proper deployment with all necessary dependencies and configurations.
+These files ensure proper deployment with all necessary dependencies and configurations. They are located in the project's root directory. For a comprehensive overview of all project configuration files and their locations, please refer to the `docs/setup/configuration-guide.md`.
 
 ## Deployment Steps
 

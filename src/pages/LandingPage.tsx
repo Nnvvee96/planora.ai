@@ -27,9 +27,75 @@ import {
   Mail,
   Plus
 } from 'lucide-react';
-import { Button } from '@/ui/atoms/Button';
+import { Button } from "@/ui/atoms/Button";
+import { ReviewCard, ReviewCardProps } from '@/ui/organisms/ReviewCard'; 
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Autoplay } from 'swiper/modules'; 
+// import 'swiper/css/pagination';
+// import 'swiper/css/navigation'; // Ensure navigation CSS is also removed/commented
+import 'swiper/css';
 import { Card } from '@/ui/atoms/Card';
+
+// Define a type for the review data including id, extending ReviewCardProps
+interface ReviewData extends ReviewCardProps {
+  id: string;
+}
 import { Input } from '@/ui/atoms/Input';
+
+const mockReviews: ReviewData[] = [
+  {
+    id: '1',
+    authorName: 'Sarah L.',
+    authorAvatarUrl: 'https://randomuser.me/api/portraits/women/68.jpg',
+    rating: 5,
+    reviewText: "Planora made my Euro trip planning a breeze! I discovered so many hidden gems I wouldn't have found otherwise. The itinerary was perfectly paced.",
+    date: 'June 2024',
+    source: 'Planora App'
+  },
+  {
+    id: '2',
+    authorName: 'Mike P.',
+    authorAvatarUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
+    rating: 4,
+    reviewText: 'Really intuitive and helpful for organizing complex trips. Saved me hours of research. The collaboration feature is a plus for group travel!',
+    date: 'May 2024',
+    source: 'Google Play'
+  },
+  {
+    id: '3',
+    authorName: 'Jessica Chen',
+    rating: 5,
+    reviewText: "I used to dread planning vacations, but Planora actually made it fun! The AI suggestions were spot on. Highly recommend this app.",
+    date: 'May 2024',
+    source: 'App Store'
+  },
+  {
+    id: '4',
+    authorName: 'David K.',
+    authorAvatarUrl: 'https://randomuser.me/api/portraits/men/45.jpg',
+    rating: 4,
+    reviewText: "A solid travel planner with a sleek interface. The offline maps were a lifesaver during my trip. Would love to see more direct booking integrations.",
+    date: 'April 2024',
+    source: 'Planora App'
+  },
+  {
+    id: '5',
+    authorName: 'Emily R.',
+    authorAvatarUrl: 'https://randomuser.me/api/portraits/women/44.jpg',
+    rating: 5,
+    reviewText: "Absolutely essential for anyone who loves to travel but hates the hassle of planning. My go-to app for all my adventures now!",
+    date: 'April 2024',
+    source: 'Google Play'
+  },
+  {
+    id: '6',
+    authorName: 'Tom B.',
+    rating: 4,
+    reviewText: "Great for discovering new destinations and activities. The budget tracker is also a nice touch. Overall, a very useful tool for travelers.",
+    date: 'March 2024',
+    source: 'App Store'
+  }
+];
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -529,7 +595,7 @@ const LandingPage = () => {
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-16">
-              {/* Interactive Travel Planning - Modern AI Chat Interface */}
+              {/* Left side - Destination Cards */}
               <div className="lg:col-span-3 relative group">
                 <div className="absolute inset-0 bg-gradient-to-r from-planora-accent-purple/20 to-planora-accent-blue/10 rounded-2xl blur-xl opacity-50 group-hover:opacity-70 transition-opacity duration-300"></div>
                 
@@ -698,7 +764,7 @@ const LandingPage = () => {
                     <Button 
                       variant="glow" 
                       className="w-full group border-white/20 bg-black/30 hover:bg-black/50 text-white flex items-center justify-center gap-1"
-                      onClick={() => navigate('/stories')}
+                      onClick={() => { const el = document.getElementById('user-stories'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }}
                     >
                       Read More Stories
                       <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-300" />
@@ -712,8 +778,6 @@ const LandingPage = () => {
             <div id="popular-destinations" className="mb-20 relative scroll-mt-20">
               {/* Decorative tech elements */}
               <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 w-px h-16 bg-gradient-to-b from-planora-accent-purple/0 to-planora-accent-purple"></div>
-              <div className="absolute top-20 -left-12 w-24 h-24 rounded-full bg-gradient-to-r from-planora-accent-blue/10 to-transparent blur-2xl opacity-60"></div>
-              <div className="absolute bottom-10 -right-12 w-32 h-32 rounded-full bg-gradient-to-r from-planora-accent-purple/10 to-transparent blur-2xl opacity-60"></div>
               
               {/* Main section header */}
               <div className="text-center mb-12 relative">
@@ -988,13 +1052,13 @@ const LandingPage = () => {
                         
                         <Button
                           variant={tier.highlighted ? "gradient" : "glass"} 
-                          className={`w-full group/button transition-all duration-300 ${tier.highlighted 
+                          className={`w-full group transition-all duration-300 ${tier.highlighted 
                             ? 'shadow-lg shadow-planora-accent-purple/20 hover:shadow-planora-accent-purple/30' 
                             : 'border-white/10 hover:border-white/30'}`}
                           onClick={handleChatWithPlanora}
                         >
-                          <span className="group-hover/button:mr-1 transition-all duration-300">Get Started</span>
-                          <ChevronRight className="w-4 h-4 opacity-0 group-hover/button:opacity-100 -ml-4 group-hover/button:ml-0 transition-all duration-300" />
+                          <span className="group-hover:mr-1 transition-all duration-300">Get Started</span>
+                          <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 -ml-4 group-hover:ml-0 transition-all duration-300" />
                         </Button>
                       </div>
                     </div>
@@ -1223,6 +1287,66 @@ const LandingPage = () => {
                   <ChevronRight className="transition-transform duration-300 group-hover:translate-x-1" />
                 </Button>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* User Stories Section Placeholder */}
+        <section id="user-stories" className="py-16 md:py-24 bg-black/30 backdrop-blur-lg relative overflow-hidden text-white">
+          {/* Tech-inspired background elements (simplified from pricing) */}
+          <div className="absolute inset-0 z-0">
+            <div className="absolute top-0 right-0 w-full h-[400px] bg-gradient-to-b from-planora-accent-blue/5 to-transparent opacity-20"></div>
+            <div className="absolute bottom-0 left-0 w-[300px] h-[300px] rounded-full bg-planora-accent-purple/5 blur-3xl"></div>
+          </div>
+
+          {/* Content container needs to be relative and have a z-index to sit above the background elements */}
+          <div className="container mx-auto px-4 text-center relative z-10">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 gradient-text">Hear From Our Travelers</h2>
+            <p className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto mb-12">
+              Discover how Planora has transformed their travel planning experience.
+            </p>
+            {/* Swiper Carousel */}
+            <div className="max-w-5xl mx-auto">
+              <Swiper
+                modules={[Autoplay]} 
+                spaceBetween={30}
+                slidesPerView={1}
+                loop={true}
+                autoplay={{
+                  delay: 1, // Set delay to a very small number for continuous effect
+                  disableOnInteraction: true, // Pauses on interaction
+                }}
+                // pagination={{ clickable: true }} // Optional: adds dots for pagination
+                // navigation={true} // Optional: adds prev/next arrows
+                breakpoints={{
+                  // when window width is >= 768px
+                  768: {
+                    slidesPerView: 2,
+                    spaceBetween: 30
+                  },
+                  // when window width is >= 1024px
+                  1024: {
+                    slidesPerView: 3,
+                    spaceBetween: 40
+                  }
+                }}
+                speed={8000} // Set a long transition speed (in ms)
+                // className="pb-12" // Pagination is off, so remove padding
+              >
+                {mockReviews.map((review) => {
+                  const { id, ...reviewProps } = review; // Destructure id
+                  return (
+                    <SwiperSlide key={id}>
+                      <ReviewCard {...reviewProps} /> {/* Pass remaining props */}
+                    </SwiperSlide>
+                  );
+                })}
+              </Swiper>
+            </div>
+            <div className="mt-12">
+              <Button variant="outline" size="lg" onClick={() => navigate('/reviews')} className="border-white/30 hover:border-white/60 hover:bg-white/10">
+                View All Reviews
+              </Button>
             </div>
           </div>
         </section>

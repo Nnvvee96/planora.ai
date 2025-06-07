@@ -95,16 +95,35 @@ features/
 ```
 planora.ai/
 ├── src/
-│   ├── components/     # Third-party UI components (shadcn)
-│   ├── features/       # Feature modules (auth, travel-planning, etc.)
-│   ├── ui/             # Custom UI components (atoms, molecules, organisms)
-│   ├── lib/            # Shared utilities and services
-│   ├── hooks/          # Custom React hooks
-│   ├── store/          # State management (Redux)
-│   └── types/          # TypeScript type definitions
-├── docs/               # Project documentation
-├── public/             # Static assets
-└── tests/              # Test files
+│   ├── App.css             # Main application styles
+│   ├── App.tsx             # Main application component
+│   ├── __tests__/          # Test files (typically co-located or here)
+│   ├── components/         # Third-party/library components
+│   │   └── ui/             # Shadcn/UI components
+│   ├── constants/          # Global constants
+│   ├── database/           # Database structure, client, and functions
+│   │   ├── client/         # Supabase client configuration
+│   │   ├── functions/      # Supabase edge functions or DB functions
+│   │   ├── schema/         # SQL schema and policies
+│   │   └── databaseApi.ts  # API for database interactions
+│   ├── features/           # Feature modules (auth, reviews, travel-planning, etc.)
+│   ├── hooks/              # Custom React hooks (global or integration)
+│   ├── lib/                # Shared utilities (e.g., cn utility)
+│   ├── pages/              # Page components (e.g., LandingPage, ReviewsPage)
+│   ├── store/              # State management (Redux)
+│   ├── types/              # TypeScript type definitions
+│   ├── ui/                 # Custom UI components (atomic design)
+│   │   ├── atoms/          # Fundamental building blocks
+│   │   ├── hooks/          # UI-specific hooks (not tied to a specific feature)
+│   │   ├── molecules/      # Combinations of atoms
+│   │   └── organisms/      # Complex UI sections
+│   ├── utils/              # General utility functions
+│   ├── index.css           # Global CSS entry point
+│   ├── main.tsx            # Main application entry point
+│   └── vite-env.d.ts       # Vite environment type definitions
+├── config/                 # Configuration files (symlinked to root where needed)
+├── docs/                   # Project documentation
+└── public/                 # Static assets
 ```
 
 ### Feature Module Structure
@@ -201,16 +220,10 @@ We use a hybrid approach for UI components:
    - Structure:
      ```
      ui/
-     ├── atoms/       # Fundamental building blocks
-     │   ├── GradientButton.tsx  # Custom button variant
-     │   └── Logo.tsx           # Application logo
-     ├── molecules/   # Combinations of atoms
-     │   ├── FeatureCard.tsx    # Feature showcase card
-     │   └── OrbAnimation.tsx   # Animated background
-     └── organisms/   # Complex UI sections
-         ├── Footer.tsx         # Page footer
-         ├── Navigation.tsx     # Main navigation
-         └── ErrorBoundary.tsx  # Error boundary component
+       ├── atoms/          # Fundamental building blocks
+       ├── molecules/      # Combinations of atoms
+       ├── organisms/      # Complex UI sections
+       └── hooks/          # UI-specific hooks (e.g., for complex non-feature related UI logic)
      ```
 
 ### When to Use Which
@@ -362,7 +375,6 @@ config/
 | `dependency-violations.html` | `config/dependencies/reports/` | Generated dependency violation reports |
 | `.lintstagedrc.json` | `config/linting/` | Configures pre-commit linting for TypeScript and JavaScript files |
 | `.npmrc` | `config/dependencies/` | Sets npm configuration (legacy-peer-deps=true) |
-| `components.json` | `config/ui/` | shadcn/ui component library configuration |
 | `plopfile.js` | `config/plop/` | Code generator configuration (symlinked to root) |
 | `*.hbs templates` | `config/plop/` | Code generation templates for features, components, etc. |
 | `vercel.build.json` | `config/deployment/` | Vercel deployment configuration with legacy-peer-deps support |

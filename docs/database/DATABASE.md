@@ -36,11 +36,13 @@ The database implementation follows Planora's architectural principles:
 src/database/
 ├── client/
 │   └── supabaseClient.ts    # Supabase client configuration
+├── functions/               # Directory for database-related Edge Functions (locally defined part, if any)
 ├── schema/
-│   ├── schema.sql           # Main database schema with tables definitions
-│   ├── rls-policies.sql     # Row Level Security policies
-│   └── database-setup.sql   # Complete database setup script
-└── databaseExports.ts       # Named exports for database components
+│   ├── consolidated-email-verification.sql  # Main comprehensive schema (profiles, travel_preferences, auth support tables)
+│   ├── chat-tables.sql                      # Schema definitions for chat features (messages, conversations)
+│   ├── supabase-database-setup.sql        # Older/supplemental setup script (verify if still primary or part of consolidated)
+│   └── unified-user-data-update.sql       # Specific data migration/update scripts
+└── databaseApi.ts           # Public API for database exports (e.g., Supabase client)
 ```
 
 ## Tables
@@ -88,16 +90,69 @@ Stores user travel preferences:
 - `created_at`: TIMESTAMP WITH TIME ZONE
 - `updated_at`: TIMESTAMP WITH TIME ZONE
 
+### verification_codes
+
+Stores codes for various verification processes (email, password reset, etc.).
+- `id`: BIGSERIAL (Primary Key)
+- `user_id`: UUID (Can be null if code is for an unauthenticated action like initial email verification)
+- `email`: TEXT (Email address the code was sent to)
+- `code`: TEXT (The verification code itself)
+- `type`: TEXT (e.g., 'EMAIL_VERIFICATION', 'PASSWORD_RESET', 'EMAIL_CHANGE')
+- `expires_at`: TIMESTAMP WITH TIME ZONE
+- `created_at`: TIMESTAMP WITH TIME ZONE DEFAULT now()
+- `used_at`: TIMESTAMP WITH TIME ZONE (Null if not used)
+
+### account_deletion_requests
+
+Tracks user requests for account deletion.
+- `id`: UUID (Primary Key, references auth.users)
+- `requested_at`: TIMESTAMP WITH TIME ZONE DEFAULT now()
+- `processed_at`: TIMESTAMP WITH TIME ZONE
+- `status`: TEXT (e.g., 'PENDING', 'PROCESSING', 'COMPLETED', 'CANCELLED')
+- `notes`: TEXT (Administrative notes)
+
+### email_change_tracking
+
+Stores information about pending email changes for users.
+- `id`: BIGSERIAL (Primary Key)
+- `user_id`: UUID (References auth.users)
+- `old_email`: TEXT
+- `new_email`: TEXT
+- `verification_token`: TEXT (Token sent to the new email)
+- `token_expires_at`: TIMESTAMP WITH TIME ZONE
+- `status`: TEXT (e.g., 'PENDING_VERIFICATION', 'VERIFIED', 'EXPIRED')
+- `created_at`: TIMESTAMP WITH TIME ZONE DEFAULT now()
+- `updated_at`: TIMESTAMP WITH TIME ZONE
+
+### session_storage
+
+Could be used for storing custom session-related data if needed beyond Supabase's built-in session management.
+- `id`: UUID (Primary Key)
+- `user_id`: UUID (References auth.users)
+- `session_data`: JSONB (Flexible store for session attributes)
+- `last_active`: TIMESTAMP WITH TIME ZONE
+- `created_at`: TIMESTAMP WITH TIME ZONE DEFAULT now()
+- `expires_at`: TIMESTAMP WITH TIME ZONE
+
+### messages & conversations
+
+These tables support the chat functionality. Their detailed structure is defined in `src/database/schema/chat-tables.sql`.
+- **conversations**: Stores metadata about a chat conversation.
+- **messages**: Stores individual messages within conversations.
+
 ## Database Setup
 
-The database can be set up by executing the SQL scripts in the Supabase SQL Editor. The recommended approach is to use the `database-setup.sql` script, which combines table creation, triggers, and RLS policies in one script.
+The database can be set up by executing the SQL scripts in the Supabase SQL Editor. The primary script for initial setup is `consolidated-email-verification.sql`, which defines core tables (profiles, travel_preferences, auth support tables), triggers, and RLS policies.
+
+Other scripts like `chat-tables.sql` should be run subsequently if those features are needed.
 
 ### Setup Steps
 
-1. Log in to your Supabase dashboard
-2. Navigate to the SQL Editor
-3. Copy the contents of `src/database/schema/database-setup.sql`
-4. Execute the script in the SQL Editor
+1. Log in to your Supabase dashboard.
+2. Navigate to the SQL Editor.
+3. **Core Schema**: Copy the contents of `src/database/schema/consolidated-email-verification.sql` and execute it.
+4. **Chat Schema**: If chat functionality is required, copy the contents of `src/database/schema/chat-tables.sql` and execute it.
+5. Review other scripts in `src/database/schema/` (like `unified-user-data-update.sql` or `supabase-database-setup.sql`) for any specific migrations or supplemental setups that might be needed depending on the project's history or state.
 
 ### Important Components
 
@@ -167,7 +222,7 @@ To use the database client in feature code:
 
 ```typescript
 // Import the Supabase client
-import { supabase } from '@/database/databaseExports';
+import { supabase } from '@/database/databaseApi';
 
 // Example query
 const fetchUserProfile = async (userId: string) => {

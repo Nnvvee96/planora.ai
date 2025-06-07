@@ -1,6 +1,8 @@
 # Supabase Email Verification Setup
 
-This guide will walk you through setting up proper email verification in Supabase for Planora.ai.
+This guide will walk you through setting up email verification in Supabase for Planora.ai. It primarily covers Supabase dashboard configurations for standard email flows (like initial signup confirmation and password resets).
+
+It's important to note that the Planora application also implements custom logic for managing verification codes for various purposes (e.g., email changes, potentially two-factor authentication). This involves a dedicated `verification_codes` table in the database and helper functions (like `public.generate_verification_code`) defined in the main schema script (`src/database/schema/consolidated-email-verification.sql`). For details on these application-level components, please refer to `docs/database/DATABASE.md`.
 
 ## 1. Access Your Supabase Project
 
@@ -89,6 +91,7 @@ If email verification is not working:
 1. Check the **Auth Logs** in Supabase dashboard
 2. Verify your site URL and redirect URL settings
 3. Ensure your auth callback route (`/auth/callback`) is properly set up in your application
-4. Check that your SMTP settings are correct (if using a custom provider)
+4. Check that your SMTP settings are correct (if using a custom provider).
+5. Review the application's `verification_codes` table and any related Edge Functions or services (e.g., `verification-code-handler` if used) for issues in custom verification flows. Consult `docs/database/DATABASE.md` for schema details.
 
 For development purposes, you can also manually confirm user emails in the Supabase dashboard under **Authentication** → **Users** → select user → **Actions** → **Confirm user email**.

@@ -28,6 +28,7 @@ import { useEffect } from 'react';
 
 // Import dev tools
 import { getTestModeIndicatorComponent } from '@/features/dev-tools/devToolsApi';
+import { ScrollToTop } from './utils/ScrollToTop'; // Adjusted import path
 
 // Print environment variables to console (without keys)
 const DebugComponent = () => {
@@ -54,6 +55,7 @@ import { TravelPreferencesPage } from "./pages/TravelPreferencesPage";
 import { Notifications } from "./pages/Settings/Notifications";
 import { PrivacySecurity } from "./pages/Settings/PrivacySecurity";
 import { SupportPage } from "./pages/SupportPage";
+import { ReviewsPage } from "./pages/ReviewsPage";
 import { DebugScreen } from "./pages/DebugScreen";
 import AccountRecoveryPage from "./features/user-profile/components/AccountRecoveryPage";
 
@@ -77,6 +79,7 @@ const App = () => {
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
+          <ScrollToTop />
           <Suspense fallback={<div className="flex items-center justify-center h-screen bg-planora-background-dark">
             <div className="p-6 rounded-lg bg-planora-background-light border border-planora-accent-purple/20 shadow-lg">
               <div className="animate-pulse flex flex-col items-center gap-4">
@@ -102,6 +105,7 @@ const App = () => {
                   </Suspense>
                 } />
                 <Route path="/login" element={<Login />} />
+                <Route path="/reviews" element={<ReviewsPage />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/auth/callback" element={<Suspense fallback={<div className="flex items-center justify-center h-screen">Processing authentication...</div>}><AuthCallback /></Suspense>} />
                 <Route path="/auth/email-confirmation" element={
