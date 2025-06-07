@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer';
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import * as vercelNode from '@vercel/node';
 
-export function handler(req: VercelRequest, res: VercelResponse) {
+export function handler(req: vercelNode.VercelRequest, res: vercelNode.VercelResponse) {
   console.log(`[AUTH FUNCTION INVOKED] Path: ${req.url}, Headers: ${JSON.stringify(req.headers)}`);
 
   const expectedUser = process.env.BASIC_AUTH_USER;
