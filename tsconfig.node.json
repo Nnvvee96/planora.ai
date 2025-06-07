@@ -16,7 +16,6 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
     "outDir": "./dist/serverless", // Output directory for compiled JS
