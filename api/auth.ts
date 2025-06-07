@@ -8,8 +8,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!user || !password) {
     console.error('[AUTH FUNCTION ERROR] - Basic auth credentials not set in environment variables.');
-    res.status(500).send('Authentication configuration error.');
-    return;
+    return res.status(500).send('Authentication configuration error.');
   }
 
   const authHeader = req.headers.authorization;
@@ -17,8 +16,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   if (!authHeader) {
     console.log('[AUTH FUNCTION] - No authorization header, prompting for credentials.');
     res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
-    res.status(401).send('Authentication required.');
-    return;
+    return res.status(401).send('Authentication required.');
   }
 
   try {
@@ -33,11 +31,11 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     } else {
       console.warn('[AUTH FUNCTION] - Invalid credentials.');
       res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
-      res.status(401).send('Invalid credentials.');
+      return res.status(401).send('Invalid credentials.');
     }
   } catch (error) {
     console.error('[AUTH FUNCTION ERROR] - Error processing auth header:', error);
     res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
-    res.status(401).send('Authentication error.');
+    return res.status(401).send('Authentication error.');
   }
 }

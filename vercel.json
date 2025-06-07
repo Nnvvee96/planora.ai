@@ -14,10 +14,6 @@
     {
       "source": "/((?!api/|_vercel/|assets/|images/|js/|css/|media/|fonts/|favicon\\.ico|site\\.webmanifest|robots\\.txt|sitemap\\.xml|sw\\.js|workbox-.*\\.js).*)",
       "destination": "/api/auth"
-    },
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
     }
   ],
   "headers": [
