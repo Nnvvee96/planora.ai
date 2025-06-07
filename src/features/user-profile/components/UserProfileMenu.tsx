@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 
 // Properly import from API boundaries
-import { userProfileService } from '@/features/user-profile/userProfileApi';
+import { userProfileService } from '../services/userProfileService';
 import { getAuthService } from '@/features/auth/authApi';
 import { useUserProfileIntegration } from '../hooks/useUserProfileIntegration';
 

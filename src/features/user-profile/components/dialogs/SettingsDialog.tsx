@@ -11,8 +11,8 @@ import * as z from 'zod';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select } from '@/components/ui/select';
 import { getAuthService, AuthService, AuthProviderType } from '@/features/auth/authApi';
-import { userProfileService } from '@/features/user-profile/userProfileApi';
-import { useUserProfileIntegration } from '@/features/user-profile/hooks/useUserProfileIntegration';
+import { userProfileService } from '../../services/userProfileService';
+import { useUserProfileIntegration } from '../../hooks/useUserProfileIntegration';
 // DeleteAccountDialog is lazy loaded below
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { InfoIcon, AlertCircle } from 'lucide-react';

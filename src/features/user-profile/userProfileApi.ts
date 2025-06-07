@@ -156,15 +156,18 @@ export const userProfileService = {
    * @param userId The user ID to complete the email change for
    * @returns True if the email change was successfully completed
    */
-  completeEmailChange: async (userId: string): Promise<boolean> => {
+  completeEmailChange: async (userId: string, newEmail: string): Promise<boolean> => {
     try {
-      return await userProfileServiceImpl.completeEmailChange(userId);
+      return await userProfileServiceImpl.completeEmailChange(userId, newEmail);
     } catch (error) {
       console.error('Error completing email change:', error);
       return false;
     }
   }
 };
+
+// Re-export hooks
+export { useUserProfileIntegration } from './hooks/useUserProfileIntegration';
 
 // Export the user data manager
 export { userDataManager };

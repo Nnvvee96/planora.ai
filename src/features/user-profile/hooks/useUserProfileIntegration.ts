@@ -7,7 +7,7 @@
  */
 
 import { useCallback } from 'react';
-import { userProfileService } from '../userProfileApi';
+import { userProfileService } from '../services/userProfileService';
 import { getAuthService } from '@/features/auth/authApi';
 import type { UserProfile } from '../types/profileTypes';
 import type { AppUser } from '@/features/auth/types/authTypes';
