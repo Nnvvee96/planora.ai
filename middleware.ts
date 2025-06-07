@@ -1,29 +1,7 @@
 // middleware.ts
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _vercel (Vercel internals)
-     * - assets (your static assets)
-     * - images (your static assets)
-     * - js (your static assets)
-     * - css (your static assets)
-     * - media (your static assets)
-     * - fonts (your static assets)
-     * - favicon.ico (favicon file)
-     * - site.webmanifest
-     * - robots.txt
-     * - sitemap.xml
-     * - sw.js
-     * - workbox-*.js (service worker files)
-     *
-     * This ensures that only actual page requests are subject to auth.
-     */
-    '/((?!api|_next/static|_vercel|assets|images|js|css|media|fonts|favicon.ico|site.webmanifest|robots.txt|sitemap.xml|sw.js|workbox-.*\\.js).*)',
-  ],
+  matcher: '/(.*)', // Match all paths for diagnostics
 };
 
 export function middleware(request: Request) {
