@@ -46,7 +46,7 @@ This guide provides comprehensive information for developers working on the Plan
    npm run scaffold:integration
    ```
    
-   All code generation templates are located in `config/plop/` and configured in `config/plop/plopfile.js` (with a symlink in the project root). They enforce Planora's architectural principles automatically.
+   All code generation templates are located in `config/plop/` and configured in `config/plop/plopfile.js`. The `npm run scaffold:*` commands in `package.json` are set up to use these paths. They enforce Planora's architectural principles automatically.
 
 ## Project Organization
 
@@ -54,14 +54,14 @@ Planora.ai is organized with a clear separation of concerns:
 
 ```
 planora.ai/
-├── src/              # Source code organized by feature
-├── config/           # Configuration files organized by purpose
-│   ├── dependencies/ # Dependency management (.dependency-cruiser.cjs, .npmrc)
-│   ├── deployment/   # Deployment configuration (vercel.json, etc.)
-│   └── linting/      # Code quality tools (.lintstagedrc.json, etc.)
-├── tools/            # Development tools
-│   └── plop/         # Code generation templates and configuration
-└── docs/             # Project documentation
+├── src/              # Source code (see detailed structure below)
+├── config/           # Houses specific tool configurations, reports, and scripts
+│   ├── dependencies/ # Contains generated reports (e.g., from Dependency Cruiser)
+│   ├── deployment/   # Contains deployment-related utility scripts (e.g., check-secrets.sh)
+│   ├── linting/      # Contains detailed ESLint setup (e.g., eslint.config.js, custom rules)
+│   └── plop/         # Contains Plop.js code generation templates and plopfile.js
+├── docs/             # Project documentation
+└── ... (other root files and directories like package.json, vite.config.ts, etc.)
 ```
 
 ## Architecture Overview
@@ -136,37 +136,51 @@ Our architecture creates clear boundaries between different parts of the system 
 
 ```
 src/
-├── ui/                      # Custom UI components following atomic design
-│   ├── atoms/               # Basic building blocks (Button, Logo, etc.)
-│   ├── molecules/           # Combinations of atoms (FeatureCard, TravelCards, etc.)
-│   ├── organisms/           # Complex UI sections (Navigation, Footer, etc.)
-│   └── templates/           # Page layouts (DashboardLayout, AuthLayout, etc.)
+├── ui/                      # Custom UI components (atomic design)
+│   ├── atoms/               # Fundamental building blocks (e.g., Button, Input)
+│   ├── molecules/           # Combinations of atoms (e.g., SearchBar, UserAvatar)
+│   ├── organisms/           # Complex UI sections (e.g., Header, Sidebar, CardList)
+│   └── templates/           # Page layouts (e.g., DashboardPageLayout)
 │
-├── components/              # Third-party/library components
-│   └── ui/                  # Low-level shadcn/ui components
+├── components/              # Third-party or library-integrated components
+│   └── ui/                  # Wrapper components for external UI libraries (e.g., shadcn/ui)
 │
-├── features/               # Feature-specific code organized by domain
-│   ├── auth/                # Authentication feature
-│   │   ├── authApi.ts       # Public API exports for the feature (standardized naming)
-│   │   ├── types/           # Feature-specific type definitions
-│   │   ├── components/      # Feature-specific components
-│   │   ├── services/        # Feature-related services
-│   │   ├── hooks/           # Custom React hooks for feature
-│   │   └── utils/           # Utility functions for feature
-│   │
-│   ├── travel-planning/     # Travel planning feature
-│   ├── travel-preferences/  # Travel preferences feature
-│   └── user-profile/        # User profile feature
+├── features/                # Feature-specific code by domain
+│   └── [feature-name]/      # Example: auth, dashboard, user-profile
+│       ├── api.ts           # Feature's public API boundary (exports hooks, services, types)
+│       ├── components/      # React components specific to this feature
+│       ├── services/        # Business logic, API calls specific to this feature
+│       ├── hooks/           # React hooks specific to this feature
+│       ├── types/           # TypeScript types and interfaces for this feature
+│       └── utils/           # Utility functions specific to this feature
 │
-├── pages/                  # Page components that use features and UI components
-├── store/                   # Global state management
-│   ├── storeApi.ts          # Redux store configuration (standardized API naming)
-│   ├── slices/              # Redux slices organized by feature
-│   └── hooks/               # Typed hooks for Redux
-├── lib/                     # Shared utilities and services
-├── hooks/                   # Shared React hooks
-└── types/                   # Global type definitions
-    └── typesApi.ts         # Global shared types API (standardized naming)
+├── pages/                   # Top-level page components, assemble features and UI templates
+│                            # (e.g., HomePage.tsx, LoginPage.tsx, ProfilePage.tsx)
+│
+├── services/                # Global, shared services (e.g., apiClient, notificationService)
+│
+├── hooks/                   # Global, shared custom React hooks
+│   └── integration/         # Hooks designed for complex cross-feature communication
+│
+├── store/                   # Global state management (e.g., Redux, Zustand)
+│   ├── store.ts             # Main store configuration
+│   ├── slices/              # State slices, often feature-related but managed globally
+│   └── selectors/           # Global selectors
+│
+├── lib/                     # Shared, low-level utility functions, libraries, or configurations
+│                            # (e.g., dateUtils, stringUtils, axios instances)
+│
+├── utils/                   # General utility functions (consider moving to lib/ or feature-specific utils/)
+│
+├── constants/               # Application-wide constants (e.g., API_URLS, ROUTES)
+│
+├── types/                   # Global TypeScript types, interfaces, enums
+│
+└── database/                # Database-related modules
+    ├── client/              # Supabase client setup (e.g., supabaseClient.ts)
+    ├── schema/              # SQL schema files (e.g., consolidated-email-verification.sql)
+    ├── functions/           # Database functions or specific query builders
+    └── databaseApi.ts       # Public API for database interactions
 ```
 
 ## Coding Style Guide
@@ -301,42 +315,52 @@ Closes #123
 2. **Type Errors**
    - Check type definitions
    - Ensure all props are properly typed
-   - Use type guards for complex types
-
-3. **Build Failures**
-   - Check for TypeScript errors
-   - Ensure all required environment variables are set
-   - Review recent changes for breaking changes
-
-```
 src/
-├── ui/                      # UI components following atomic design
-│   ├── atoms/               # Basic building blocks
-│   ├── molecules/           # Combinations of atoms
-│   ├── organisms/           # Complex UI sections
-│   └── templates/           # Page layouts
+├── ui/                      # Custom UI components (atomic design)
+│   ├── atoms/               # Fundamental building blocks (e.g., Button, Input)
+│   ├── molecules/           # Combinations of atoms (e.g., SearchBar, UserAvatar)
+│   ├── organisms/           # Complex UI sections (e.g., Header, Sidebar, CardList)
+│   └── templates/           # Page layouts (e.g., DashboardPageLayout)
 │
-├── features/                # Feature-specific code organized by domain
-│   ├── auth/                # Authentication feature
-│   │   ├── api.ts           # Public API exports
-│   │   ├── types.ts         # Feature-specific types
-│   │   ├── components/      # Feature-specific components
-│   │   ├── services/        # Feature-related services
-│   │   ├── hooks/           # Custom React hooks
-│   │   └── utils/           # Utility functions
-│   │
-│   ├── travel-planning/     # Travel planning feature
-│   └── user-profile/        # User profile feature
+├── components/              # Third-party or library-integrated components
+│   └── ui/                  # Wrapper components for external UI libraries (e.g., shadcn/ui)
 │
-├── pages/                   # Page components
-├── store/                   # Global state management
-├── hooks/                   # Shared React hooks
-│   └── integration/         # Feature integration hooks
+├── features/                # Feature-specific code by domain
+│   └── [feature-name]/      # Example: auth, dashboard, user-profile
+│       ├── api.ts           # Feature's public API boundary (exports hooks, services, types)
+│       ├── components/      # React components specific to this feature
+│       ├── services/        # Business logic, API calls specific to this feature
+│       ├── hooks/           # React hooks specific to this feature
+│       ├── types/           # TypeScript types and interfaces for this feature
+│       └── utils/           # Utility functions specific to this feature
 │
-├── styles/                  # Global styles
-├── types/                   # Global TypeScript types
-├── utils/                   # Shared utility functions
-└── constants/               # Application constants
+├── pages/                   # Top-level page components, assemble features and UI templates
+│                            # (e.g., HomePage.tsx, LoginPage.tsx, ProfilePage.tsx)
+│
+├── services/                # Global, shared services (e.g., apiClient, notificationService)
+│
+├── hooks/                   # Global, shared custom React hooks
+│   └── integration/         # Hooks designed for complex cross-feature communication
+│
+├── store/                   # Global state management (e.g., Redux, Zustand)
+│   ├── store.ts             # Main store configuration
+│   ├── slices/              # State slices, often feature-related but managed globally
+│   └── selectors/           # Global selectors
+│
+├── lib/                     # Shared, low-level utility functions, libraries, or configurations
+│                            # (e.g., dateUtils, stringUtils, axios instances)
+│
+├── utils/                   # General utility functions (consider moving to lib/ or feature-specific utils/)
+│
+├── constants/               # Application-wide constants (e.g., API_URLS, ROUTES)
+│
+├── types/                   # Global TypeScript types, interfaces, enums
+│
+└── database/                # Database-related modules
+    ├── client/              # Supabase client setup (e.g., supabaseClient.ts)
+    ├── schema/              # SQL schema files (e.g., consolidated-email-verification.sql)
+    ├── functions/           # Database functions or specific query builders
+    └── databaseApi.ts       # Public API for database interactions
 ```
 
 ## Key Architectural Rules
