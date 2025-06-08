@@ -113,9 +113,6 @@ Below is a reference for key configuration files in the Planora.ai project:
 | `.dependency-cruiser.cjs` | Root (`./`)               | Dependency Cruiser rules for architecture validation.                   |
 | `.npmrc`                  | Root (`./`)               | NPM configuration (e.g., registry settings).                            |
 | `.gitignore`              | Root (`./`)               | Specifies intentionally untracked files that Git should ignore.         |
-| `vercel.json`             | Root (`./`)               | Vercel deployment configuration (routing, headers, builds).             |
-| `vercel.build.json`       | Root (`./`)               | Vercel build-specific settings (deprecated if using `vercel.json` builds).|
-| `vercel-deploy.sh`        | Root (`./`)               | Custom deployment script for Vercel (if needed).                        |
 | `jest.config.js`          | Root (`./`)               | Jest testing framework configuration.                                   |
 | `plopfile.js`             | `config/plop/`            | Plop.js code generation configuration and templates.                    |
 

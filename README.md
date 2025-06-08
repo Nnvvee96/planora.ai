@@ -21,7 +21,7 @@ Planora is an intelligent travel planning platform that helps users discover, pl
 - **State Management**: Redux Toolkit
 - **Authentication**: Supabase Auth
 - **Database**: Supabase PostgreSQL
-- **Deployment**: Vercel
+- **Deployment**: Cloudflare Pages
 
 ## Getting Started
 
@@ -114,7 +114,7 @@ planora.ai/
 ├── config/                 # Configuration files
 │   ├── dependencies/       # Dependency management configs (.npmrc, .dependency-cruiser.cjs)
 │   │   └── reports/        # Architecture validation reports
-│   ├── deployment/         # Deployment configs (vercel.json, vercel.build.json)
+│   ├── deployment/         # Deployment configs (e.g., for Cloudflare Pages)
 │   ├── linting/            # Linting configs (.lintstagedrc.json, eslint configs)
 │   └── plop/               # Code generation templates and configuration
 ├── docs/                   # Project documentation

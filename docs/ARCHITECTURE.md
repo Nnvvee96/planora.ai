@@ -347,10 +347,7 @@ config/
 │   └── reports/        # Architecture validation reports
 │       └── dependency-violations.html  # Generated dependency violation reports
 │
-├── deployment/         # Deployment configuration
-│   ├── vercel.json     # Vercel configuration
-│   ├── vercel.build.json  # Vercel build settings
-│   └── vercel-deploy.sh   # Deployment script
+├── deployment/         # Deployment configuration (e.g., for Cloudflare Pages)
 │
 ├── linting/            # Code quality tools
 │   └── .lintstagedrc.json  # Pre-commit lint configuration
@@ -377,8 +374,6 @@ config/
 | `.npmrc` | `config/dependencies/` | Sets npm configuration (legacy-peer-deps=true) |
 | `plopfile.js` | `config/plop/` | Code generator configuration (symlinked to root) |
 | `*.hbs templates` | `config/plop/` | Code generation templates for features, components, etc. |
-| `vercel.build.json` | `config/deployment/` | Vercel deployment configuration with legacy-peer-deps support |
-| `vercel.json` | `config/deployment/` | Vercel routing and headers configuration |
 | `check-secrets.sh` | `config/deployment/` | Security script to prevent credential leakage |
 | `tsconfig.*.json` | `config/typescript/` | TypeScript configuration files for different parts of the application |
 

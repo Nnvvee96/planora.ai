@@ -57,13 +57,20 @@ VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-## 5. Deploy to Vercel
+## 5. Deploy to Cloudflare Pages
 
-1. Push your code to a GitHub repository
-2. Create a new project in [Vercel](https://vercel.com/)
-3. Import your GitHub repository
-4. Add the environment variables from your `.env` file
-5. Deploy the application
+1. Push your code to a GitHub repository.
+2. Log in to your Cloudflare dashboard.
+3. Navigate to Workers & Pages > Create application > Pages > Connect to Git.
+4. Select your GitHub repository and begin setup.
+5. Configure your build settings:
+   - Project name: `planora-ai` (or your preferred name)
+   - Production branch: `main` (or your production branch)
+   - Framework preset: `Vite`
+   - Build command: `npm run build`
+   - Build output directory: `dist`
+6. Add your environment variables (e.g., `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) in Settings > Environment variables.
+7. Save and Deploy.
 
 ## Testing Authentication
 
