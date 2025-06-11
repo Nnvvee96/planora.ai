@@ -24,12 +24,18 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   email_verified BOOLEAN DEFAULT FALSE, -- Tracks if the user's email has been verified
   general_country TEXT, -- User's general country of residence
   general_city TEXT,    -- User's general city of residence
+  onboarding_departure_country TEXT, -- User's departure country set during onboarding
+  onboarding_departure_city TEXT,    -- User's departure city set during onboarding
+  deactivated_at TIMESTAMP WITH TIME ZONE, -- Tracks when a user account is deactivated for scheduled deletion
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
 COMMENT ON TABLE public.profiles IS 'Stores public user profile information linked to auth.users.';
 COMMENT ON COLUMN public.profiles.general_country IS 'User''s general country of residence.';
 COMMENT ON COLUMN public.profiles.general_city IS 'User''s general city of residence.';
+COMMENT ON COLUMN public.profiles.onboarding_departure_country IS 'User''s departure country set during onboarding.';
+COMMENT ON COLUMN public.profiles.onboarding_departure_city IS 'User''s departure city set during onboarding.';
+COMMENT ON COLUMN public.profiles.deactivated_at IS 'Tracks when a user account is deactivated for scheduled deletion.';
 
 -- Create Travel Preferences Table
 -- Stores user preferences for travel planning.
@@ -582,6 +588,8 @@ BEGIN
                            ELSE email_verified END,
       general_country = COALESCE(p_profile_data->>'generalCountry', general_country),
       general_city = COALESCE(p_profile_data->>'generalCity', general_city),
+      onboarding_departure_country = COALESCE(p_profile_data->>'onboardingDepartureCountry', onboarding_departure_country),
+      onboarding_departure_city = COALESCE(p_profile_data->>'onboardingDepartureCity', onboarding_departure_city),
       updated_at = NOW()
     WHERE id = p_user_id;
     
