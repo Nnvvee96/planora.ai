@@ -114,9 +114,11 @@ initializePreferencesModule();
  */
 const mapDbToTravelPreferences = (dbData: Record<string, unknown>): TravelPreferences => {
   // Set default values that match our enums exactly
-  const defaultTravelDuration = TravelDurationType.WEEK;
-  const defaultDateFlexibility = DateFlexibilityType.FLEXIBLE_FEW;
+  const defaultTravelDuration = TravelDurationType.WEEKEND;
+  const defaultDateFlexibility = DateFlexibilityType.FIXED;
   const defaultPlanningIntent = PlanningIntent.EXPLORING;
+  const defaultAccommodationType = AccommodationType.HOTEL;
+  const defaultComfortPreference = ComfortPreference.PRIVATE_ROOM;
   const defaultLocationPreference = LocationPreference.CENTER;
   const defaultFlightType = FlightType.DIRECT;
   
@@ -141,15 +143,14 @@ const mapDbToTravelPreferences = (dbData: Record<string, unknown>): TravelPrefer
     customDateFlexibility: dbData.custom_date_flexibility ? String(dbData.custom_date_flexibility) : undefined,
     planningIntent: safeEnumCast(dbData.planning_intent, PlanningIntent, defaultPlanningIntent),
     accommodationTypes: Array.isArray(dbData.accommodation_types) ? 
-      dbData.accommodation_types.filter((type): type is AccommodationType => 
-        typeof type === 'string' && Object.values(AccommodationType).includes(type as AccommodationType)) : [],
+      dbData.accommodation_types.map(t => safeEnumCast(t, AccommodationType, defaultAccommodationType)) : [defaultAccommodationType],
     accommodationComfort: Array.isArray(dbData.accommodation_comfort) ? 
-      dbData.accommodation_comfort.filter((type): type is ComfortPreference => 
-        typeof type === 'string' && Object.values(ComfortPreference).includes(type as ComfortPreference)) : [],
+      dbData.accommodation_comfort.map(c => safeEnumCast(c, ComfortPreference, defaultComfortPreference)) : [defaultComfortPreference],
     locationPreference: safeEnumCast(dbData.location_preference, LocationPreference, defaultLocationPreference),
     flightType: safeEnumCast(dbData.flight_type, FlightType, defaultFlightType),
     preferCheaperWithStopover: Boolean(dbData.prefer_cheaper_with_stopover),
     departureCity: String(dbData.departure_city || ''),
+    departureCountry: String(dbData.departure_country || ''),
     createdAt: dbData.created_at ? String(dbData.created_at) : undefined,
     updatedAt: dbData.updated_at ? String(dbData.updated_at) : undefined
   };
