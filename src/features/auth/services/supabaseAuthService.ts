@@ -6,7 +6,7 @@
  */
 
 import { User } from '@supabase/supabase-js';
-import { supabase } from '@/database/databaseApi';
+import { supabase } from './supabaseClient';
 import { 
   AuthResponse, 
   UserRegistrationStatus, 
