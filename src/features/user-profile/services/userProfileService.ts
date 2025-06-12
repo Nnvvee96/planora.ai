@@ -5,7 +5,7 @@
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import { supabase } from '@/database/databaseApi';
+import { supabase } from '@/features/auth/services/supabaseClient';
 import { UserProfile, DbUserProfile } from '../types/profileTypes';
 // Import directly from service to avoid circular dependency through API
 import { travelPreferencesService } from '@/features/travel-preferences/services/travelPreferencesService';
