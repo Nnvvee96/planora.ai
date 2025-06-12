@@ -6,7 +6,7 @@
  */
 
 import { supabaseAuthService } from './supabaseAuthService';
-import { supabase } from '@/database/databaseApi';
+import { supabase } from './supabaseClient';
 
 /**
  * Session Manager Service

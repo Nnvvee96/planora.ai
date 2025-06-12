@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { UserRegistrationStatus } from '../types/authTypes';
 import { AuthRedirect } from './AuthRedirect';
 import { googleAuthHelper } from '../helpers/googleAuthHelper';
-import { supabase } from '@/database/databaseApi';
+import { supabase } from '../services/supabaseClient';
 // Import service directly to avoid circular dependency
 import { supabaseAuthService } from '../services/supabaseAuthService';
 
