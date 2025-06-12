@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    // These settings are specific to Supabase Edge Functions
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    // The types will be available from the locally installed package
+    "types": ["@supabase/functions-js"]
+  },
+  "include": [
+    "./**/*.ts"
+  ]
+}

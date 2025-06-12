@@ -1,0 +1,22 @@
+name: Call Scheduled Account Deleter
+
+on:
+  # Runs every day at 5:00 AM UTC
+  schedule:
+    - cron: '0 5 * * *'
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  call-supabase-function:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Scheduled Deleter Function
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -i -X POST \
+            'https://novpyuaglalpilbnhgqi.supabase.co/functions/v1/scheduled-account-deleter' \
+            -H 'Authorization: Bearer ${{ env.CRON_SECRET }}' \
+            -H 'Content-Type: application/json' \
+            -d '{}'

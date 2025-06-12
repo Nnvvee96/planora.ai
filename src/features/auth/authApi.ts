@@ -111,7 +111,7 @@ export interface AuthService {
   getCurrentUser(): Promise<AppUser | null>;
   logout(): Promise<void>;
   handleAuthCallback(): Promise<AuthResponse>;
-  register(data: RegisterData): Promise<{ user: SupabaseUser | null, emailConfirmationRequired: boolean }>;
+
   verifyEmail(token: string): Promise<boolean>;
   resendVerificationEmail(email: string): Promise<boolean>;
   sendPasswordResetEmail(email: string): Promise<boolean>;
@@ -341,14 +341,7 @@ const authService = {
     }
   },
 
-  /**
-   * Register a new user
-   * @param data Registration data including email, password, and profile information
-   * @returns Object with user data and email confirmation status
-   */
-  register: async (data: RegisterData): Promise<{ user: SupabaseUser | null, emailConfirmationRequired: boolean }> => {
-    return supabaseAuthService.register(data);
-  },
+
 
   /**
    * Update user password

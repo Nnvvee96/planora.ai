@@ -114,12 +114,14 @@ ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 
 -- RLS for 'roles' table
 -- Authenticated users can view all available roles.
+DROP POLICY IF EXISTS "Authenticated users can view roles" ON public.roles;
 CREATE POLICY "Authenticated users can view roles" ON public.roles
   FOR SELECT
   TO authenticated
   USING (true);
 
 -- Only service_role (or a future admin role with specific grants) can manage roles.
+DROP POLICY IF EXISTS "Service account can manage roles" ON public.roles;
 CREATE POLICY "Service account can manage roles" ON public.roles
   FOR ALL -- Covers INSERT, UPDATE, DELETE
   USING (auth.role() = 'service_role') -- For SELECT, UPDATE, DELETE conditions
@@ -127,12 +129,14 @@ CREATE POLICY "Service account can manage roles" ON public.roles
 
 -- RLS for 'user_roles' table
 -- Users can view their own role assignments (implicitly through get_user_roles).
+DROP POLICY IF EXISTS "Users can view their own role assignments" ON public.user_roles;
 CREATE POLICY "Users can view their own role assignments" ON public.user_roles
   FOR SELECT
   TO authenticated
-  USING (auth.uid() = user_id); 
+  USING (auth.uid() = user_id);
 
 -- Only service_role (or a future admin role) can manage role assignments.
+DROP POLICY IF EXISTS "Service account can manage user role assignments" ON public.user_roles;
 CREATE POLICY "Service account can manage user role assignments" ON public.user_roles
   FOR ALL
   USING (auth.role() = 'service_role')

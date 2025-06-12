@@ -29,21 +29,25 @@ CREATE INDEX IF NOT EXISTS messages_created_at_idx ON public.messages(created_at
 -- RLS Policies for conversations table
 ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own conversations" ON public.conversations;
 CREATE POLICY "Users can view their own conversations"
   ON public.conversations
   FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own conversations" ON public.conversations;
 CREATE POLICY "Users can insert their own conversations"
   ON public.conversations
   FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own conversations" ON public.conversations;
 CREATE POLICY "Users can update their own conversations"
   ON public.conversations
   FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own conversations" ON public.conversations;
 CREATE POLICY "Users can delete their own conversations"
   ON public.conversations
   FOR DELETE
@@ -52,6 +56,7 @@ CREATE POLICY "Users can delete their own conversations"
 -- RLS Policies for messages table
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view messages in their conversations" ON public.messages;
 CREATE POLICY "Users can view messages in their conversations"
   ON public.messages
   FOR SELECT
@@ -63,6 +68,7 @@ CREATE POLICY "Users can view messages in their conversations"
     )
   );
 
+DROP POLICY IF EXISTS "Users can insert messages in their conversations" ON public.messages;
 CREATE POLICY "Users can insert messages in their conversations"
   ON public.messages
   FOR INSERT
@@ -75,12 +81,14 @@ CREATE POLICY "Users can insert messages in their conversations"
   );
 
 -- Service role can view and manage all conversations and messages
+DROP POLICY IF EXISTS "Service role can view all conversations" ON public.conversations;
 CREATE POLICY "Service role can view all conversations"
   ON public.conversations
   FOR ALL
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "Service role can view all messages" ON public.messages;
 CREATE POLICY "Service role can view all messages"
   ON public.messages
   FOR ALL

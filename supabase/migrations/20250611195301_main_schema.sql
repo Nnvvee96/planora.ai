@@ -59,15 +59,6 @@ CREATE TABLE IF NOT EXISTS public.travel_preferences (
 COMMENT ON TABLE public.travel_preferences IS 'Stores user-specific travel preferences for trip planning.';
 
 -- Create Account Deletion Requests Table
--- Stores requests for account deletion.
-CREATE TABLE IF NOT EXISTS public.account_deletion_requests (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
-  status TEXT DEFAULT 'pending', -- e.g., 'pending', 'processed', 'cancelled'
-  requested_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
-  processed_at TIMESTAMP WITH TIME ZONE
-);
-COMMENT ON TABLE public.account_deletion_requests IS 'Tracks user requests for account deletion.';
 
 -- Create Email Change Tracking Table
 -- Stores tracking information for email change requests.
@@ -213,7 +204,6 @@ AS $$
 BEGIN
   -- Delete related data from other tables. Profiles table has ON DELETE CASCADE.
   DELETE FROM public.travel_preferences WHERE user_id = OLD.id;
-  DELETE FROM public.account_deletion_requests WHERE user_id = OLD.id;
   DELETE FROM public.email_change_tracking WHERE user_id = OLD.id;
   DELETE FROM public.session_storage WHERE user_id = OLD.id;
   DELETE FROM public.verification_codes WHERE user_id = OLD.id;
@@ -440,61 +430,41 @@ COMMENT ON FUNCTION public.verify_code(UUID, TEXT, TEXT, TEXT) IS 'Verifies a gi
 -- Enable RLS for all relevant tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.travel_preferences ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.account_deletion_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.email_change_tracking ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.session_storage ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.verification_codes ENABLE ROW LEVEL SECURITY;
 
 -- Profiles RLS
--- Users can view their own profile.
-CREATE POLICY "Users can view their own profile" ON public.profiles
-  FOR SELECT USING (auth.uid() = id);
--- Users can update their own profile.
-CREATE POLICY "Users can update their own profile" ON public.profiles
-  FOR UPDATE USING (auth.uid() = id)
-  WITH CHECK (auth.uid() = id AND email = (SELECT u.email FROM auth.users u WHERE u.id = id)); -- Prevent changing email directly here, use email change flow
--- Note: Profile creation is handled by a trigger (handle_new_user).
--- Note: Profile deletion is handled by a trigger (handle_user_deletion) via auth.users.
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
+CREATE POLICY "Users can view their own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
+CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
+CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
 -- Travel Preferences RLS
--- Users can manage their own travel preferences.
-CREATE POLICY "Users can manage their own travel preferences" ON public.travel_preferences
-  FOR ALL USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-
--- Account Deletion Requests RLS
--- Users can create and view their own deletion requests.
-CREATE POLICY "Users can manage their own account deletion requests" ON public.account_deletion_requests
-  FOR ALL USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
--- Service role can manage all deletion requests (example for admin functionality)
-CREATE POLICY "Service role can manage all account deletion requests" ON public.account_deletion_requests
-  FOR ALL USING (auth.role() = 'service_role')
-  WITH CHECK (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "Allow users to manage their own travel preferences" ON public.travel_preferences;
+CREATE POLICY "Allow users to manage their own travel preferences" ON public.travel_preferences FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- Email Change Tracking RLS
--- Users can manage their own email change tracking records.
-CREATE POLICY "Users can manage their own email change records" ON public.email_change_tracking
-  FOR ALL USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
--- Service role can view all email change records (for support/auditing)
-CREATE POLICY "Service role can view all email change records" ON public.email_change_tracking
-  FOR SELECT USING (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "Allow users to manage their own email change requests" ON public.email_change_tracking;
+CREATE POLICY "Allow users to manage their own email change requests" ON public.email_change_tracking FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Allow service role to manage all email change requests" ON public.email_change_tracking;
+CREATE POLICY "Allow service role to manage all email change requests" ON public.email_change_tracking FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
 -- Session Storage RLS
--- Users can manage their own session data.
-CREATE POLICY "Users can manage their own session data" ON public.session_storage
-  FOR ALL USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Allow users to manage their own session data" ON public.session_storage;
+CREATE POLICY "Allow users to manage their own session data" ON public.session_storage FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- Verification Codes RLS
--- Users can manage their own verification codes (primarily through functions).
-CREATE POLICY "Users can manage their own verification codes" ON public.verification_codes
-  FOR ALL USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
--- Service role can view all verification codes (for support/auditing)
-CREATE POLICY "Service role can view verification codes" ON public.verification_codes
-  FOR SELECT USING (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "Allow users to manage their own verification codes" ON public.verification_codes;
+CREATE POLICY "Allow users to manage their own verification codes" ON public.verification_codes FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Allow service role to manage all verification codes" ON public.verification_codes;
+CREATE POLICY "Allow service role to manage all verification codes" ON public.verification_codes FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
 -- Grant usage on schema public to supabase_auth_admin (used by Edge Functions)
 -- This is important for Edge Functions that need to operate on these tables with elevated privileges.
@@ -512,7 +482,7 @@ GRANT EXECUTE ON FUNCTION public.request_email_change(UUID, TEXT) TO authenticat
 GRANT EXECUTE ON FUNCTION public.confirm_email_change(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_verification_code(UUID, TEXT, TEXT, INTEGER) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.verify_code(UUID, TEXT, TEXT, TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.update_user_data_unified(UUID,JSONB,JSONB,JSONB) TO authenticated;
+
 
 -- Grant usage for anon users (if any public data or functions are available)
 GRANT USAGE ON SCHEMA public TO anon;
