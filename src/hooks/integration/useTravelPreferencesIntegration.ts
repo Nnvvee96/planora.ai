@@ -9,6 +9,7 @@
 // Import only from the feature's public API
 import { 
   TravelPreferences,
+  TravelPreferencesFormValues,
   getUserTravelPreferences,
   saveTravelPreferences
 } from '@/features/travel-preferences/travelPreferencesApi';
