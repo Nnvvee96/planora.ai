@@ -7,7 +7,7 @@
  */
 
 // Import only from the feature's public API
-import { UserProfile } from '@/features/user-profile/userProfileApi';
+import { UserProfile } from '@/features/user-profile/types/profileTypes';
 import { useAuthIntegration } from './useAuthIntegration';
 
 /**
@@ -17,7 +17,7 @@ import { useAuthIntegration } from './useAuthIntegration';
  */
 export function useUserProfileIntegration() {
   // Use the auth integration to get necessary user info
-  const { user, isAuthenticated, userName } = useAuthIntegration();
+  const { user, isAuthenticated } = useAuthIntegration();
   
   // In a real app, we would have a useUserProfile hook in the user-profile feature
   // that would fetch the user's profile data based on their authentication
@@ -25,21 +25,13 @@ export function useUserProfileIntegration() {
   // For now, simulate a user profile based on authentication data
   const userProfile: UserProfile | null = isAuthenticated ? {
     id: user?.id || '',
-    userName: userName || '',
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
     email: user?.email || '',
-    settings: {
-      notifications: {
-        email: true,
-        push: true,
-        sms: false
-      },
-      privacy: {
-        shareProfile: false,
-        showTravelHistory: true
-      },
-      theme: 'dark',
-      language: 'en'
-    }
+    avatarUrl: user?.avatarUrl,
+    hasCompletedOnboarding: user?.hasCompletedOnboarding || false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   } : null;
   
   // Return a clean interface that other features can use
@@ -52,7 +44,7 @@ export function useUserProfileIntegration() {
     // updateProfile: (updates) => { ... },
     
     // Derived data that might be useful for other features
-    displayName: userProfile?.userName || 'Guest',
-    profileInitial: userProfile?.userName ? userProfile.userName.charAt(0).toUpperCase() : 'G',
+    displayName: `${userProfile?.firstName || ''} ${userProfile?.lastName || ''}`.trim() || 'Guest',
+    profileInitial: userProfile?.firstName ? userProfile.firstName.charAt(0).toUpperCase() : 'G',
   };
 }
