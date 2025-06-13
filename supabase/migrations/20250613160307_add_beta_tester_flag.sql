@@ -1,0 +1,2 @@
+ALTER TABLE public.profiles
+ADD COLUMN is_beta_tester BOOLEAN DEFAULT FALSE NOT NULL;

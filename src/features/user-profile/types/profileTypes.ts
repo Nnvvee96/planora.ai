@@ -16,6 +16,7 @@ export interface UserProfile {
   country?: string; // User's country
   city?: string; // User's city
   customCity?: string; // Custom city input when city is "Other"
+  isBetaTester: boolean;
   hasCompletedOnboarding: boolean;
   emailVerified?: boolean;
   createdAt?: string;
@@ -36,6 +37,7 @@ export interface DbUserProfile {
   country?: string; // User's country
   city?: string; // User's city
   custom_city?: string; // Custom city input when city is "Other"
+  is_beta_tester: boolean;
   has_completed_onboarding: boolean;
   email_verified?: boolean;
   created_at?: string;
