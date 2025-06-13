@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/ui/atoms/Button';
+import { GradientButton } from '@/ui/atoms/GradientButton';
 import { Input } from '@/ui/atoms/Input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/ui/atoms/Card';
-import { Label } from '@/ui/atoms/Label'; // Added for verification code input
+import { Label } from '@/ui/atoms/Label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select } from '@/components/ui/select';
 import { Logo } from '@/ui/atoms/Logo';
@@ -21,36 +21,26 @@ import {
   Lock,
   MapPin,
   Calendar,
-  ShieldCheck, 
-  ExternalLink,
+  ShieldCheck,
   Apple,
   CheckCircle,
-  Shield // Added for verification error display
+  Shield,
 } from 'lucide-react';
 import { DatePickerInput } from "@/components/ui/DatePickerInput";
 import { Footer } from '@/ui/organisms/Footer';
 import { useToast } from "@/components/ui/use-toast";
-// Import everything through API boundaries for proper architectural organization
 import {
-  RegisterData, // Import type through API boundary
-  useAuth, // Import hook through API boundary
-  type InitiateSignupResponse, // For two-phase signup
-  type CompleteSignupPayload, // For two-phase signup
-  type CompleteSignupResponse // For two-phase signup
+  useAuth,
+  type InitiateSignupResponse,
+  type CompleteSignupPayload,
 } from "@/features/auth/authApi";
-
-// Import location data through its API boundary
 import { 
   countryOptions, 
   getCityOptions, 
   isCustomCityNeeded,
-  CountryOption, 
-  CityOption 
+  type CityOption 
 } from "@/features/location-data/locationDataApi";
 
-// Country and city options are imported from location-data feature
-
-// Calculate minimum birthdate (16 years ago from today)
 const today = new Date();
 const sixteenYearsAgo = new Date(today.getFullYear() - 16, today.getMonth(), today.getDate());
 
@@ -72,7 +62,6 @@ const formSchema = z.object({
   path: ["confirmPassword"],
 })
 .refine((data) => {
-  // Check if user is at least 16 years old
   return data.birthdate <= sixteenYearsAgo;
 }, {
   message: "You must be at least 16 years old to use Planora",
@@ -81,16 +70,12 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-function Register() {
+export const Register = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  // Use auth hook directly instead of managing authService state
   const { authService, signInWithGoogle } = useAuth();
-  const [formStep, setFormStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // State for two-phase signup flow
   const [signupPhase, setSignupPhase] = useState<'details' | 'verify'>('details');
   const [pendingRegistrationData, setPendingRegistrationData] = useState<FormValues | null>(null);
   const [verificationCode, setVerificationCode] = useState('');
@@ -99,8 +84,6 @@ function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isResendingCode, setIsResendingCode] = useState(false);
-  
-  // State for city selection
   const [cityOptions, setCityOptions] = useState<CityOption[]>([]);
   const [showCustomCityInput, setShowCustomCityInput] = useState(false);
   
@@ -118,23 +101,18 @@ function Register() {
     },
   });
 
-  // Watch country to update city options
   const selectedCountry = form.watch('country');
   const selectedCity = form.watch('city');
   
-  // Update city options when country changes
   useEffect(() => {
     if (selectedCountry) {
       const options = getCityOptions(selectedCountry);
       setCityOptions(options);
-      
-      // Reset city selection when country changes
       form.setValue('city', '');
       setShowCustomCityInput(false);
     }
   }, [selectedCountry, form]);
   
-  // Show custom city input when "Other" is selected
   useEffect(() => {
     if (selectedCity) {
       setShowCustomCityInput(isCustomCityNeeded(selectedCity));
@@ -143,55 +121,16 @@ function Register() {
       }
     }
   }, [selectedCity, form]);
-
-
   
   const onSubmit = async (data: FormValues) => {
-    if (formStep < 1) {
-      setFormStep(1);
-      return;
-    }
-    
-    // Process registration for final step
     try {
       setIsSubmitting(true);
       setError(null);
       
-      // Validate age again on submit
-      if (data.birthdate > sixteenYearsAgo) {
-        throw new Error('You must be at least 16 years old to use Planora');
-      }
-      
-      // Use the provided first and last name directly
-      // Prepare registration data following our auth feature type
-      const registerData: RegisterData = {
-        email: data.email,
-        password: data.password,
-        username: data.email.split('@')[0], // Default username from email
-        firstName: data.firstName,
-        lastName: data.lastName
-      };
-      
-      // Determine the actual city (from dropdown or custom input)
-      const actualCity = isCustomCityNeeded(data.city) && data.customCity 
-        ? data.customCity
-        : data.city;
-        
-      // Add metadata for city, country, and birthdate
-      registerData.metadata = {
-        city: actualCity,
-        country: data.country,
-        birthdate: data.birthdate.toISOString()
-      };
-      
-      // Initiate signup process (Phase 1)
-      // The 'registerData' object contains all form fields including password, name, etc.
-      // We are sending only the email to initiateSignup as per the updated authService method.
-      // The full 'data' (FormValues) will be stored in pendingRegistrationData.
-      const initiateResponse: InitiateSignupResponse = await authService.initiateSignup(data.email);
+      const initiateResponse = await authService.initiateSignup(data.email, data.password);
 
       if (initiateResponse.success) {
-        setPendingRegistrationData(data); // Store all form data for phase 2
+        setPendingRegistrationData(data);
         setSignupPhase('verify');
         setError(null);
         toast({
@@ -222,7 +161,7 @@ function Register() {
   };
 
   const handleVerificationSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); // Prevent default form submission if it's part of a form
+    e.preventDefault();
     if (!pendingRegistrationData) {
       setVerificationErrorText("Error: No pending registration data found. Please start over.");
       toast({
@@ -242,6 +181,13 @@ function Register() {
       password_raw: pendingRegistrationData.password, 
       firstName: pendingRegistrationData.firstName,
       lastName: pendingRegistrationData.lastName,
+      metadata: {
+        country: pendingRegistrationData.country,
+        city: isCustomCityNeeded(pendingRegistrationData.city) && pendingRegistrationData.customCity 
+          ? pendingRegistrationData.customCity
+          : pendingRegistrationData.city,
+        birthdate: pendingRegistrationData.birthdate.toISOString(),
+      }
     };
 
     try {
@@ -253,7 +199,6 @@ function Register() {
           description: "Finalizing your account and logging you in...",
         });
 
-        // Auto-login the user
         const signInResponse = await authService.signInWithPassword({
           email: pendingRegistrationData.email,
           password: pendingRegistrationData.password,
@@ -267,7 +212,7 @@ function Register() {
             description: `Account created, but auto-login failed. Please log in.`, 
             variant: "destructive",
           });
-          navigate('/login'); // Redirect to login page
+          navigate('/login');
         } else {
           toast({
             title: "Signup Successful!",
@@ -310,7 +255,7 @@ function Register() {
     try {
       setIsResendingCode(true);
       setError(null);
-      const initiateResponse = await authService.initiateSignup(pendingRegistrationData.email);
+      const initiateResponse = await authService.initiateSignup(pendingRegistrationData.email, pendingRegistrationData.password);
       if (initiateResponse.success) {
         toast({
           title: "Verification Code Resent",
@@ -318,7 +263,7 @@ function Register() {
         });
       } else {
         const errorMsg = initiateResponse.error || initiateResponse.details || "Failed to resend code.";
-        setError(errorMsg); // Use main error state for resend issues
+        setError(errorMsg);
         toast({
           title: "Resend Failed",
           description: errorMsg,
@@ -340,19 +285,19 @@ function Register() {
 
   return (
     <div className="min-h-screen bg-planora-purple-dark flex flex-col">
-      {/* Enhanced background with interactive elements */}
       <div className="absolute inset-0 overflow-hidden z-0">
-        <div className="absolute top-[30px] left-1/2 -translate-x-1/2 w-[300px] h-[200px] bg-gradient-to-br from-planora-accent-purple/30 to-transparent rounded-full blur-3xl animate-pulse-slow"></div>
+        <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-gradient-to-br from-planora-accent-purple/30 to-transparent rounded-full blur-3xl animate-pulse-slow"></div>
         <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-gradient-to-tl from-planora-accent-blue/30 to-transparent rounded-full blur-3xl animate-pulse-slow animation-delay-2000"></div>
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCA2MCBNIDYwIDMwIEwgMzAgNjAgTSAzMCAwIEwgMCAzMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDMiIHN0cm9rZS1wdmlkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-20"></div>
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCA2MCBNIDYwIDMwIEwgMzAgNjAgTSAzMCAwIEwgMCAzMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDMiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-20"></div>
       </div>
       
-      {/* Header with Logo */}
-      
-      <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 pt-12">
-        <div className="mb-8 flex justify-center">
-          <Logo href="/" className="h-45 w-auto" />
+      <header className="py-6 px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="flex items-center justify-start">
+          <Logo href="/" className="h-14 w-auto" />
         </div>
+      </header>
+      
+      <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
         <Card className="w-full max-w-lg z-10 bg-card/60 backdrop-blur-xl border border-white/10 shadow-2xl transition-all duration-300 hover:border-white/20 hover:shadow-planora-accent-purple/20">
           <CardHeader className="space-y-3 pb-6">
             {signupPhase === 'details' ? (
@@ -361,12 +306,8 @@ function Register() {
                   Create Your Planora Account
                 </CardTitle>
                 <CardDescription className="text-center text-muted-foreground">
-                  {formStep === 0 ? 'Start by telling us a bit about yourself.' : 'Almost there! Just a few more details.'}
+                  Start by telling us about yourself.
                 </CardDescription>
-                <div className="flex justify-center space-x-3 pt-2">
-                  <div className={`h-1.5 w-20 rounded-full transition-all duration-300 ${formStep === 0 ? 'bg-gradient-to-r from-planora-accent-purple to-planora-accent-blue' : 'bg-white/20'}`}></div>
-                  <div className={`h-1.5 w-20 rounded-full transition-all duration-300 ${formStep === 1 ? 'bg-gradient-to-r from-planora-accent-purple to-planora-accent-blue' : 'bg-white/20'}`}></div>
-                </div>
               </>
             ) : (
               <>
@@ -381,18 +322,9 @@ function Register() {
           </CardHeader>
           
           <CardContent className="grid gap-6">
-            {signupPhase === 'details' && (
-              <>
-                {error && (
-                  <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-md text-sm text-red-500 flex items-center">
-                    <Shield size={16} className="mr-2 flex-shrink-0" /> 
-                    {error}
-                  </div>
-                )}
+            {signupPhase === 'details' ? (
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    {formStep === 0 ? (
-                      <>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FormField control={form.control} name="lastName" render={({ field }) => (
                             <FormItem><FormLabel className="text-white/80 flex items-center gap-1"><User className="h-3.5 w-3.5 text-planora-accent-purple/80" />Last Name</FormLabel><FormControl><Input placeholder="Doe" {...field} className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"/></FormControl><FormMessage className="text-planora-accent-pink" /></FormItem>
@@ -437,45 +369,14 @@ function Register() {
                             <FormItem><FormLabel className="text-white/80">Date of Birth</FormLabel><FormControl><DatePickerInput value={field.value} onChange={field.onChange} placeholder="MM / DD / YYYY" className="w-full bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"/></FormControl><FormMessage className="text-planora-accent-pink" /><div className="text-xs text-white/50 mt-1">You must be at least 16 years old to use Planora</div></FormItem>
                           )}/>
                         </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="bg-planora-accent-purple/10 border border-planora-accent-purple/20 rounded-xl p-4 text-white/80 mt-4">
-                          <h3 className="text-base font-medium mb-2 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-planora-accent-purple" />Review Your Information</h3>
-                          <p className="text-sm mb-3">Please confirm your account details before creating your account.</p>
-                          <div className="mb-4 p-3 bg-white/5 rounded-md">
-                            <div className="grid grid-cols-2 gap-2 text-xs text-white/80">
-                              <div><div className="text-white/50 mb-1">Name</div><div>{form.getValues().firstName} {form.getValues().lastName}</div></div>
-                              <div><div className="text-white/50 mb-1">Email</div><div>{form.getValues().email}</div></div>
-                              <div><div className="text-white/50 mb-1">Location</div><div>{form.getValues().customCity || form.getValues().city}, {form.getValues().country}</div></div>
-                              <div><div className="text-white/50 mb-1">Date of Birth</div><div>{form.getValues().birthdate ? form.getValues().birthdate.toLocaleDateString() : 'Not provided'}</div></div>
-                            </div>
-                          </div>
-                          <div className="text-sm text-white/70"><p>By signing up, you agree to our <Link to="/terms" className="text-planora-accent-purple hover:underline transition-colors">Terms of Service</Link> and <Link to="/privacy" className="text-planora-accent-purple hover:underline transition-colors">Privacy Policy</Link>.</p></div>
-                        </div>
-                      </>
-                    )}
                     <div className="pt-4">
-                      {formStep === 0 ? (
-                        <Button className="w-full bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90 py-5 font-medium" type="button" onClick={async () => { const isValid = await form.trigger(["firstName", "lastName", "email", "password", "confirmPassword", "country", "city", "customCity", "birthdate"]); if (isValid) { setFormStep(1); } }} disabled={isSubmitting}>
-                          Continue to Review
-                        </Button>
-                      ) : (
-                        <div className="flex space-x-2">
-                          <Button type="button" variant="outline" className="flex-1 border-white/10 bg-white/5 text-white hover:bg-white/10 transition-colors" onClick={() => setFormStep(0)} disabled={isSubmitting}>
-                            Back to Edit
-                          </Button>
-                          <Button className="flex-1 bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90 py-5 font-medium" type="submit" disabled={isSubmitting}>
+                        <GradientButton className="w-full" type="submit" disabled={isSubmitting}>
                             {isSubmitting ? (<><Loader2 className="animate-spin mr-2 h-4 w-4" />Processing...</>) : "Create Account & Verify Email"}
-                          </Button>
-                        </div>
-                      )}
+                        </GradientButton>
                     </div>
                   </form>
                 </Form>
-              </>
-            )}
-            {signupPhase === 'verify' && (
+            ) : (
               <form onSubmit={handleVerificationSubmit} className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="verificationCode" className="text-muted-foreground">Verification Code</Label>
@@ -484,10 +385,10 @@ function Register() {
                 {verificationErrorText && (
                   <p className="text-sm text-red-500 flex items-center"><Shield size={16} className="mr-2 flex-shrink-0" />{verificationErrorText}</p>
                 )}
-                <Button type="submit" className="w-full bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90 py-5 font-medium" disabled={isVerifying || verificationCode.length !== 6}>
+                <GradientButton type="submit" className="w-full" disabled={isVerifying || verificationCode.length !== 6}>
                   {isVerifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle size={18} className="mr-2" />}
                   Verify & Complete Signup
-                </Button>
+                </GradientButton>
                 <Button variant="link" type="button" onClick={handleResendCode} className="w-full text-planora-blue-light hover:text-planora-blue-light/80" disabled={isResendingCode || isVerifying}>
                   {isResendingCode && !verificationErrorText ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Resend Code
@@ -500,9 +401,9 @@ function Register() {
           </CardContent>
           
           <CardFooter className="flex flex-col gap-4 pt-2 pb-6">
-            <div className="w-full flex items-center gap-3">
+            <div className="flex items-center w-full">
               <div className="h-px bg-white/10 flex-grow"></div>
-              <span className="text-xs text-white/40">or continue with</span>
+              <span className="text-xs text-white/40 px-4">or continue with</span>
               <div className="h-px bg-white/10 flex-grow"></div>
             </div>
             <div className="grid grid-cols-2 gap-3 w-full">
@@ -524,13 +425,6 @@ function Register() {
           </CardFooter>
         </Card>
       </div>
-      
-      {/* Footer */}
-      <div className="mt-auto relative z-10">
-        <Footer />
-      </div>
     </div>
   );
 };
-
-export { Register };

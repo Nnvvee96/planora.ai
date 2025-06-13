@@ -785,37 +785,13 @@ export const supabaseAuthService = {
   },
 
   /**
-   * Refresh the current auth session
-   * Ensures we have the latest session state
-   * @returns The refreshed session data with session and error properties
+   * Refreshes the current session.
    */
-  refreshSession: async () => {
-    try {
-      // Check if we have a session before trying to refresh it
-      const { data: sessionData } = await supabase.auth.getSession();
-      
-      // Only try to refresh if we have an existing session
-      if (sessionData?.session) {
-        const { data, error } = await supabase.auth.refreshSession();
-        
-        if (error) {
-          console.error('Error refreshing session:', error);
-          return { session: null, error };
-        }
-        
-        return { session: data.session, error: null };
-      } else {
-        // No session to refresh, return gracefully without error
-        return { session: null, error: null };
-      }
-    } catch (err) {
-      // If error is AuthSessionMissingError, don't log it as an error
-      if (err instanceof Error && err.message.includes('Auth session missing')) {
-        console.log('No auth session to refresh, user is not logged in');
-      } else {
-        console.error('Failed to refresh session:', err);
-      }
-      return { session: null, error: err as Error };
+  refreshSession: async (): Promise<void> => {
+    const { error } = await supabase.auth.refreshSession();
+    if (error) {
+      console.error('Error refreshing session:', error);
+      throw error;
     }
   },
   
@@ -1000,116 +976,105 @@ export const supabaseAuthService = {
   },
   
   /**
-   * Initiates the signup process by sending a verification code.
-   * Calls the 'verification-code-handler' Edge Function.
-   * @param email The user's email address.
+   * Initiates the first step of the two-phase signup process.
+   * Sends user's email and password to the backend to generate and dispatch a verification code.
+   * @param {string} email - The user's email address.
+   * @param {string} password - The user's chosen raw password.
+   * @returns {Promise<InitiateSignupResponse>} The response from the backend.
    */
-  async initiateSignup(email: string): Promise<InitiateSignupResponse> {
+  async initiateSignup(email: string, password_raw: string): Promise<InitiateSignupResponse> {
     try {
-      const { data, error: invokeError } = await supabase.functions.invoke('verification-code-handler', {
+      if (!email || !password_raw) {
+        throw new Error("Email and password are required to initiate signup.");
+      }
+
+      const { data, error } = await supabase.functions.invoke('verification-code-handler', {
         body: {
           action: 'initiate-signup',
-          email: email,
+          payload: {
+            email,
+            password: password_raw, // Send the raw password to the backend
+          },
         },
       });
 
-      if (invokeError) {
-        console.error('Error invoking initiate-signup Edge Function:', invokeError);
-        const errorMessage = invokeError.message || 'Failed to invoke Edge Function.';
-        // Attempt to get more specific error from function context if available
-        const contextError = (invokeError as any).context?.function_error || (invokeError as any).context?.message;
-        return { 
-          success: false, 
-          error: `Initiate signup failed: ${contextError || errorMessage}`, 
-          errorCode: 'INVOKE_ERROR',
-          status: (invokeError as any).context?.status || 500 
+      if (error) {
+        // Log the detailed error from the function invocation
+        console.error('Error invoking initiate-signup function:', error);
+        // Attempt to parse a more specific error message from the function's response
+        const functionError = error.context?.function_error || 'An unknown error occurred.';
+        return {
+          success: false,
+          message: null,
+          error: "Failed to initiate signup.",
+          details: functionError,
         };
       }
       
-      let responseData = data;
-      if (typeof data === 'string') { 
-        try {
-          responseData = JSON.parse(data);
-        } catch (e) {
-          console.error('Failed to parse response from initiate-signup:', e, "Raw data:", data);
-          return { success: false, error: 'Failed to parse server response.', errorCode: 'PARSE_ERROR', status: 500 };
-        }
-      }
-      
-      if (typeof responseData?.success === 'undefined') {
-        console.error('Malformed response from initiate-signup:', responseData);
-        return { success: false, error: 'Malformed server response.', errorCode: 'MALFORMED_RESPONSE', status: 500 };
-      }
-
-      if (!responseData.success) {
-        console.warn('Initiate signup was not successful via Edge Function:', responseData.error, responseData.errorCode);
-      }
-      return responseData as InitiateSignupResponse;
-
-    } catch (e: any) {
-      console.error('Unexpected client-side error in initiateSignup service:', e);
+      // The backend function returns a success message
       return { 
-        success: false, 
-        error: e.message || 'An unexpected client-side error occurred.', 
-        errorCode: 'CLIENT_UNEXPECTED_ERROR',
-        status: 500 
+        success: true, 
+        message: data.message || "Verification code sent.",
+        error: null,
+        details: null,
+      };
+
+    } catch (err: any) {
+      console.error('Unexpected error in initiateSignup service:', err);
+      return {
+        success: false,
+        message: null,
+        error: "An unexpected error occurred during signup initiation.",
+        details: err.message || String(err),
       };
     }
   },
 
   /**
-   * Completes the signup process by verifying the code and creating the user.
-   * Calls the 'verification-code-handler' Edge Function.
-   * @param payload The necessary data to complete signup.
+   * Completes the second step of the two-phase signup process.
+   * Sends the verification code and full user details to create the account.
+   * @param {CompleteSignupPayload} payload - The user details including email, code, names, etc.
+   * @returns {Promise<CompleteSignupResponse>} The final response from the backend.
    */
   async completeSignup(payload: CompleteSignupPayload): Promise<CompleteSignupResponse> {
     try {
-      const { data, error: invokeError } = await supabase.functions.invoke('verification-code-handler', {
+      if (!payload.email || !payload.code) {
+        throw new Error("Email and verification code are required to complete signup.");
+      }
+
+      const { data, error } = await supabase.functions.invoke('verification-code-handler', {
         body: {
           action: 'complete-signup',
-          ...payload,
+          payload: payload, // Forward the entire payload
         },
       });
 
-      if (invokeError) {
-        console.error('Error invoking complete-signup Edge Function:', invokeError);
-        const errorMessage = invokeError.message || 'Failed to invoke Edge Function.';
-        const contextError = (invokeError as any).context?.function_error || (invokeError as any).context?.message;
-        return { 
-          success: false, 
-          error: `Complete signup failed: ${contextError || errorMessage}`, 
-          errorCode: 'INVOKE_ERROR',
-          status: (invokeError as any).context?.status || 500 
+      if (error) {
+        console.error('Error invoking complete-signup function:', error);
+        const functionError = error.context?.function_error || 'An unknown error occurred.';
+        return {
+          success: false,
+          userId: null,
+          error: "Failed to complete signup.",
+          details: functionError,
         };
       }
-      
-      let responseData = data;
-      if (typeof data === 'string') { 
-        try {
-          responseData = JSON.parse(data);
-        } catch (e) {
-          console.error('Failed to parse response from complete-signup:', e, "Raw data:", data);
-          return { success: false, error: 'Failed to parse server response.', errorCode: 'PARSE_ERROR', status: 500 };
-        }
-      }
 
-      if (typeof responseData?.success === 'undefined') {
-        console.error('Malformed response from complete-signup:', responseData);
-        return { success: false, error: 'Malformed server response.', errorCode: 'MALFORMED_RESPONSE', status: 500 };
-      }
-      
-      if (!responseData.success) {
-        console.warn('Complete signup was not successful via Edge Function:', responseData.error, responseData.errorCode);
-      }
-      return responseData as CompleteSignupResponse;
-
-    } catch (e: any) {
-      console.error('Unexpected client-side error in completeSignup service:', e);
+      // Backend returns userId on success
       return { 
-        success: false, 
-        error: e.message || 'An unexpected client-side error occurred.', 
-        errorCode: 'CLIENT_UNEXPECTED_ERROR',
-        status: 500
+        success: true, 
+        userId: data.userId,
+        error: null,
+        details: null,
+      };
+
+    } catch (err: any) {
+      console.error('Unexpected error in completeSignup service:', err);
+      return {
+        success: false,
+        userId: null,
+        error: "An unexpected error occurred during signup completion.",
+        details: err.message || String(err),
       };
     }
   },

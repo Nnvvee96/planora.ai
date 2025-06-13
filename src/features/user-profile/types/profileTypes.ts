@@ -20,6 +20,9 @@ export interface UserProfile {
   emailVerified?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  // Onboarding-specific location data (one-way sync)
+  onboardingDepartureCountry?: string;
+  onboardingDepartureCity?: string;
 }
 
 // Database representation uses snake_case
@@ -37,6 +40,9 @@ export interface DbUserProfile {
   email_verified?: boolean;
   created_at?: string;
   updated_at?: string;
+  // Onboarding-specific location data (one-way sync)
+  onboarding_departure_country?: string;
+  onboarding_departure_city?: string;
 }
 
 // Common profile data interface for form inputs

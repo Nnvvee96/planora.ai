@@ -431,80 +431,65 @@ export const userProfileService = {
    * Update a user's profile
    * @param userId User ID to update profile for
    * @param profileData Profile data to update
+   * @returns The updated user profile or null on error
    */
-  updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Promise<boolean> => {
+  async updateUserProfile(userId: string, profileData: Partial<UserProfile>): Promise<UserProfile | null> {
+    if (!userId) {
+      console.error('User ID is required to update a profile');
+      return null;
+    }
+    
     try {
-      if (!userId) {
-        console.error('User ID is required to update profile');
-        return false;
-      }
+      const dbProfileUpdate = mapUserProfileToDbProfile(profileData);
       
-      // Create a copy of profileData to avoid mutating the original
-      const profileUpdate = { ...profileData };
-      
-      // Format the standardized birthdate field
-      const formatDate = (dateStr: string | null | undefined): string | null => {
-        if (!dateStr) return null;
-        try {
-          const date = new Date(dateStr);
-          if (!isNaN(date.getTime())) {
-            return date.toISOString().split('T')[0];
-          }
-          console.warn('Invalid date format:', dateStr);
-          return null;
-        } catch (e) {
-          console.error('Error formatting date:', e);
-          return null;
+      // One-way sync logic for onboarding location
+      // If we are marking onboarding as complete, copy the general location to the onboarding location.
+      if (dbProfileUpdate.has_completed_onboarding === true) {
+        // Fetch the current profile to get the general location
+        const { data: currentProfile, error: fetchError } = await supabase
+          .from('profiles')
+          .select('country, city')
+          .eq('id', userId)
+          .single();
+
+        if (fetchError) {
+          console.error('Error fetching current profile for location sync:', fetchError);
+          // Continue without sync, or handle error as required
+        } else if (currentProfile) {
+          // Add the onboarding location to the update payload
+          dbProfileUpdate.onboarding_departure_country = currentProfile.country;
+          dbProfileUpdate.onboarding_departure_city = currentProfile.city;
         }
-      };
-      
-      // Format birthdate if provided
-      if (profileUpdate.birthdate !== undefined) {
-        profileUpdate.birthdate = formatDate(profileUpdate.birthdate);
       }
+
+      // Add updatedAt timestamp to every update
+      dbProfileUpdate.updated_at = new Date().toISOString();
       
-      // Store location data for sync with travel preferences
-      const locationUpdated = profileUpdate.country !== undefined || profileUpdate.city !== undefined;
-      const locationData = {
-        country: profileUpdate.country,
-        city: profileUpdate.city === 'Other' ? profileUpdate.customCity : profileUpdate.city
-      };
-      
-      // Convert profile data to database format
-      const dbProfile = mapUserProfileToDbProfile(profileUpdate);
-      
-      // Add updated timestamp
-      dbProfile.updated_at = new Date().toISOString();
-      
-      // First try: Update with all fields
-      let updateResult = await supabase
+      const { data, error } = await supabase
         .from('profiles')
-        .update({
-          ...dbProfile,
-          updated_at: new Date().toISOString()
-        })
+        .update(dbProfileUpdate)
         .eq('id', userId)
         .select();
       
-      if (updateResult.error) {
-        console.error('Error updating profile in database:', updateResult.error);
+      if (error) {
+        console.error('Error updating profile in database:', error);
         
         // Try more specific error handling approaches
-        if (updateResult.error.code === 'PGRST204' || 
-            (updateResult.error.message?.includes('column') && 
-             updateResult.error.message?.includes('does not exist'))) {
+        if (error.code === 'PGRST204' || 
+            (error.message?.includes('column') && 
+             error.message?.includes('does not exist'))) {
              
           console.log('Column error detected - trying fallback update strategy');
           
           // Strategy 1: Try without the specific field that's causing problems
-          if (updateResult.error.message?.includes('birthdate')) {
+          if (error.message?.includes('birthdate')) {
             console.log('Birthdate column issue detected - removing problematic field');
             const { error: retryError1 } = await supabase
               .from('profiles')
               .update({
-                first_name: dbProfile.first_name,
-                last_name: dbProfile.last_name,
-                email: dbProfile.email,
+                first_name: dbProfileUpdate.first_name,
+                last_name: dbProfileUpdate.last_name,
+                email: dbProfileUpdate.email,
                 updated_at: new Date().toISOString(),
                 // Explicitly exclude birthdate
               })
@@ -512,7 +497,7 @@ export const userProfileService = {
               
             if (!retryError1) {
               console.log('Successfully updated profile with limited fields');
-              return true;
+              return data[0];
             }
           }
           
@@ -521,30 +506,30 @@ export const userProfileService = {
           const { error: retryError2 } = await supabase
             .from('profiles')
             .update({
-              first_name: dbProfile.first_name,
-              last_name: dbProfile.last_name,
+              first_name: dbProfileUpdate.first_name,
+              last_name: dbProfileUpdate.last_name,
               updated_at: new Date().toISOString()
             })
             .eq('id', userId);
             
           if (!retryError2) {
             console.log('Successfully updated profile with names only');
-            return true;
+            return data[0];
           }
           
           // Strategy 3: Last resort - try to create profile if it doesn't exist
-          if (updateResult.error.message?.includes('not found') || 
-              updateResult.error.code === 'PGRST104' || 
-              updateResult.error.code === 'PGRST116') {
+          if (error.message?.includes('not found') || 
+              error.code === 'PGRST104' || 
+              error.code === 'PGRST116') {
             console.log('Profile might not exist - trying to create instead');
             
             // Construct a minimal profile from the update data
             const minimalProfile: UserProfile = {
               id: userId,
-              firstName: profileUpdate.firstName || '',
-              lastName: profileUpdate.lastName || '',
-              email: profileUpdate.email || '',
-              birthdate: profileUpdate.birthdate as string | null | undefined,
+              firstName: profileData.firstName || '',
+              lastName: profileData.lastName || '',
+              email: profileData.email || '',
+              birthdate: profileData.birthdate as string | null | undefined,
               // Standardized on birthdate field only
               hasCompletedOnboarding: false,
               emailVerified: true, // Set to true for new profiles since we have verified emails
@@ -553,16 +538,16 @@ export const userProfileService = {
             const success = await userProfileService.createUserProfile(minimalProfile);
             if (success) {
               console.log('Successfully created profile as fallback for update');
-              return true;
+              return data[0];
             }
           }
         }
         
-        return false;
+        return null;
       }
       
       // Sync profile location with travel preferences if location was updated
-      if (locationUpdated && locationData.country) {
+      if (dbProfileUpdate.country || dbProfileUpdate.city) {
         try {
           // First check if travel preferences exist
           const prefsExist = await travelPreferencesService.checkTravelPreferencesExist(userId);
@@ -574,8 +559,8 @@ export const userProfileService = {
             if (currentPrefs) {
               // Update travel preferences with new location data
               await travelPreferencesService.saveTravelPreferences(userId, {
-                departureCountry: locationData.country,
-                departureCity: locationData.city || currentPrefs.departureCity
+                departureCountry: dbProfileUpdate.country,
+                departureCity: dbProfileUpdate.city === 'Other' ? dbProfileUpdate.custom_city : dbProfileUpdate.city
               });
               console.log('Successfully synced profile location with travel preferences');
             }
@@ -586,13 +571,13 @@ export const userProfileService = {
         }
       }
       
-      return true;
+      return data[0];
     } catch (error) {
       console.error('Unexpected error updating profile:', error);
       if (error instanceof Error) {
         console.error('Error details:', error.message);
       }
-      return false;
+      return null;
     }
   },
   
@@ -960,6 +945,58 @@ export const userProfileService = {
     } catch (error) {
       console.error('Unexpected error completing email change:', error);
       return false;
+    }
+  },
+  
+  /**
+   * Initiates the account deletion process for the currently authenticated user.
+   * This calls the 'account-management' Edge Function to start the 30-day deletion countdown.
+   * @returns {Promise<{ success: boolean; error?: any }>} An object indicating success or failure.
+   */
+  async initiateAccountDeletion(): Promise<{ success: boolean; error?: any }> {
+    try {
+      const { data, error } = await supabase.functions.invoke('account-management', {
+        body: {
+          action: 'initiate-account-deletion',
+          payload: {}, // No payload needed for this action
+        },
+      });
+
+      if (error) {
+        console.error('Error invoking account deletion function:', error);
+        throw error;
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to initiate account deletion:', error);
+      return { success: false, error };
+    }
+  },
+
+  /**
+   * Unbinds an OAuth provider from the user's account.
+   * @param provider The OAuth provider to unbind (e.g., 'google').
+   */
+  async unbindOAuthProvider(provider: string): Promise<{ success: boolean; error?: any }> {
+    try {
+      const { error } = await supabase.functions.invoke('account-management', {
+        body: {
+          action: 'unbind-oauth-provider',
+          payload: { provider },
+        },
+      });
+
+      if (error) {
+        console.error(`Error unbinding OAuth provider '${provider}':`, error);
+        // The edge function returns a structured error, so we pass it along.
+        return { success: false, error: { message: error.message } };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error(`Unexpected error while unbinding OAuth provider '${provider}':`, error);
+      return { success: false, error };
     }
   }
 };

@@ -29,7 +29,9 @@ const mapUserToAppUser = (user: User | null): AppUser | null => {
     firstName: metadata.first_name || '',
     lastName: metadata.last_name || '',
     avatarUrl: metadata.avatar_url || '',
-    hasCompletedOnboarding: metadata.has_completed_onboarding === true
+    hasCompletedOnboarding: metadata.has_completed_onboarding === true,
+    user_metadata: user.user_metadata,
+    app_metadata: user.app_metadata,
   };
 };
 
@@ -51,13 +53,15 @@ export const useAuth = () => {
     // Create adapter for supabaseAuthService to match AuthService interface
     const authServiceAdapter: AuthService = {
       ...supabaseAuthService,
-      // Adapt method names to match our interface
+      // Adapt method names and signatures to match our interface
       logout: supabaseAuthService.signOut,
       getCurrentUser: async () => {
-        // Get the raw user and map to our app user type
         const user = await supabaseAuthService.getCurrentUser();
         return mapUserToAppUser(user);
-      }
+      },
+      // Ensure the initiateSignup signature matches the AuthService interface
+      initiateSignup: (email: string, password_raw: string) => 
+        supabaseAuthService.initiateSignup(email, password_raw),
     };
     
     setAuthService(authServiceAdapter);
@@ -224,6 +228,36 @@ export const useAuth = () => {
   }, [authService, user]);
   
   /**
+   * Refreshes the current user data from the server.
+   */
+  const refreshUser = useCallback(async () => {
+    try {
+      if (!authService) return;
+
+      setLoading(true);
+      // First, refresh the session to get the latest data from Supabase Auth
+      await supabaseAuthService.refreshSession();
+      
+      // Then, get the updated user data
+      const refreshedUser = await authService.getCurrentUser();
+      
+      if (refreshedUser) {
+        setUser(refreshedUser);
+        setIsAuthenticated(true);
+      } else {
+        // If no user is found after refresh, treat as logged out
+        setUser(null);
+        setIsAuthenticated(false);
+      }
+    } catch (err) {
+      console.error('Error refreshing user data:', err);
+      // Don't clear user state on refresh error to avoid logging out on transient network issues
+    } finally {
+      setLoading(false);
+    }
+  }, [authService]);
+  
+  /**
    * Get the auth service instance
    * Provides access to the full auth service API
    */
@@ -236,7 +270,10 @@ export const useAuth = () => {
         getCurrentUser: async () => {
           const user = await supabaseAuthService.getCurrentUser();
           return mapUserToAppUser(user);
-        }
+        },
+        // Ensure the initiateSignup signature matches the AuthService interface
+        initiateSignup: (email: string, password_raw: string) => 
+          supabaseAuthService.initiateSignup(email, password_raw),
       };
       return authServiceAdapter;
     }
@@ -252,8 +289,7 @@ export const useAuth = () => {
     logout,
     handleAuthCallback,
     updateOnboardingStatus,
-    getAuthService: getAuthServiceInstance,
-    // Add direct access to auth service for convenience
-    authService
+    refreshUser,
+    authService: getAuthServiceInstance(),
   };
 };

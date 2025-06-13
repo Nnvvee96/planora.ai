@@ -4,7 +4,7 @@ import { Button } from '@/ui/atoms/Button';
 import { Input } from '@/ui/atoms/Input';
 import { useToast } from '@/components/ui/use-toast';
 import { userProfileService } from '../../services/userProfileService';
-import { getAuthService, AuthService } from '@/features/auth/authApi';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 interface DeleteAccountDialogProps {
   isOpen: boolean;
@@ -21,85 +21,64 @@ interface DeleteAccountDialogProps {
 const DeleteAccountDialog: React.FC<DeleteAccountDialogProps> = ({ isOpen, onClose }) => {
   const [confirmation, setConfirmation] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-  const [authService, setAuthService] = useState<AuthService | null>(null);
-  const [currentUser, setCurrentUser] = useState<{ id: string; email: string } | null>(null);
+  const { logout } = useAuth();
   const { toast } = useToast();
-  
-  // Initialize auth service on component mount
-  useEffect(() => {
-    setAuthService(getAuthService());
-  }, []);
-  
-  // Get current user when auth service is available
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
-      if (!authService) return;
-      
-      try {
-        const user = await authService.getCurrentUser();
-        if (user && user.id && user.email) {
-          setCurrentUser({
-            id: user.id,
-            email: user.email
-          });
-        }
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to get user information. Please try again later.",
-          variant: "destructive"
-        });
-      }
-    };
-    
-    fetchCurrentUser();
-  }, [authService, toast]);
   
   const isConfirmed = confirmation.toLowerCase() === 'delete';
   
   const handleDeleteAccount = async () => {
-    if (!currentUser || !isConfirmed) return;
+    if (!isConfirmed) return;
     
     setIsDeleting(true);
     
     try {
-      // Request account deletion
-      const deleted = await userProfileService.deleteUserProfile(currentUser.id);
+      // Call the new service method that invokes the Edge Function
+      const { success, error } = await userProfileService.initiateAccountDeletion();
       
-      if (deleted) {
+      if (success) {
         toast({
-          title: "Account Deletion Requested",
-          description: "Your account will be deleted after a 30-day recovery period. You will receive an email confirmation.",
-          duration: 5000,
+          title: "Account Deletion Initiated",
+          description: "Your account deletion has been scheduled. You will receive an email with instructions on how to cancel this process if you change your mind.",
+          duration: 8000,
         });
         
         // Close the modal and sign out the user
         onClose();
-        if (authService) {
-          await authService.logout();
-          // Redirect to home page will happen via auth state change
-        }
+        // The user's session is still valid, so we log them out gracefully.
+        await logout();
+        // The useAuth hook will handle redirecting to the home page.
       } else {
-        throw new Error("Failed to delete account");
+        // Use a more specific error message if available from the function
+        const errorMessage = error?.context?.function_error || 'Failed to request account deletion. Please try again later.';
+        throw new Error(errorMessage);
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to request account deletion. Please try again later.",
+        description: error.message,
         variant: "destructive",
       });
+    } finally {
       setIsDeleting(false);
     }
   };
   
+  // Reset state when the dialog is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setConfirmation('');
+      setIsDeleting(false);
+    }
+  }, [isOpen]);
+
   return (
-    <Dialog open={isOpen} onOpenChange={value => !isDeleting && !value && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Delete Account</DialogTitle>
+          <DialogTitle>Delete Your Account</DialogTitle>
           <DialogDescription>
-            This action cannot be undone immediately. Your account will enter a 30-day recovery period.
-            After 30 days, all your data will be permanently deleted.
+            This action will schedule your account for permanent deletion in 30 days. 
+            You will receive an email with a link to cancel this process.
           </DialogDescription>
         </DialogHeader>
         
@@ -129,9 +108,9 @@ const DeleteAccountDialog: React.FC<DeleteAccountDialogProps> = ({ isOpen, onClo
           <Button 
             variant="destructive" 
             onClick={handleDeleteAccount} 
-            disabled={!isConfirmed || isDeleting || !currentUser}
+            disabled={!isConfirmed || isDeleting}
           >
-            {isDeleting ? "Processing..." : "Delete My Account"}
+            {isDeleting ? "Processing..." : "Schedule Deletion"}
           </Button>
         </DialogFooter>
       </DialogContent>

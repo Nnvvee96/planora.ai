@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -58,6 +57,7 @@ import { SupportPage } from "./pages/SupportPage";
 import { ReviewsPage } from "./pages/ReviewsPage";
 import { DebugScreen } from "./pages/DebugScreen";
 import AccountRecoveryPage from "./features/user-profile/components/AccountRecoveryPage";
+import { AdminPage } from "./pages/Admin/AdminPage";
 
 const queryClient = new QueryClient();
 
@@ -132,6 +132,13 @@ const App = () => {
                 <Route path="/debug" element={<DebugScreen />} />
                 
                 {/* Protected routes that require authentication */}
+                <Route path="/admin" element={
+                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading Admin Dashboard...</div>}>
+                    <ProtectedRoute>
+                      <AdminPage />
+                    </ProtectedRoute>
+                  </Suspense>
+                } />
                 <Route path="/onboarding" element={
                   <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading onboarding...</div>}>
                     <ProtectedRoute>

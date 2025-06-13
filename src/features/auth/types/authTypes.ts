@@ -19,6 +19,10 @@ export interface AppUser {
   lastName: string;
   hasCompletedOnboarding: boolean; // Required to match authApi.ts interface
   avatarUrl?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  user_metadata?: Record<string, any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app_metadata?: Record<string, any>;
 }
 
 /**
@@ -144,6 +148,11 @@ export interface CompleteSignupPayload {
   password_raw: string; // Matching the Edge Function
   firstName: string;
   lastName: string;
+  metadata?: {
+    city: string;
+    country: string;
+    birthdate: string;
+  };
 }
 
 /**
@@ -185,7 +194,7 @@ export interface AuthService {
   sendVerificationCode(userId: string, email: string): Promise<VerificationCodeResponse>;
   verifyCode(userId: string, code: string): Promise<VerificationCodeResponse>;
   checkCodeStatus(userId: string, code: string): Promise<VerificationCodeStatus>;
-  refreshSession(): Promise<{session: any, error: Error | null}>;
+  refreshSession(): Promise<void>;
   checkUserRegistrationStatus(userId: string): Promise<{
     isNewUser: boolean;
     hasProfile: boolean;
@@ -195,6 +204,6 @@ export interface AuthService {
   }>;
 
   // New methods for the new signup flow
-  initiateSignup(email: string): Promise<InitiateSignupResponse>;
+  initiateSignup(email: string, password_raw: string): Promise<InitiateSignupResponse>;
   completeSignup(payload: CompleteSignupPayload): Promise<CompleteSignupResponse>;
 }

@@ -1,140 +1,58 @@
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check } from "lucide-react";
-import { useNavigate } from 'react-router-dom';
+import { Check, Loader2 } from "lucide-react";
 import { useAuth } from '@/features/auth/authApi';
+import { 
+  getActiveSubscription, 
+  getActiveProductsWithPrices,
+  ProductWithPrices,
+  Subscription
+} from '@/features/subscriptions/api';
+import { supabase } from '@/features/auth/services/supabaseClient';
+// We will use these later when we fetch live data
+// import { useNavigate } from 'react-router-dom';
+// import { useAuth } from '@/features/auth/authApi';
 
 const Billing: React.FC = () => {
-  const navigate = useNavigate();
-  // Get auth state from the auth hook
-  const { user, loading: authLoading } = useAuth();
-  
-  // Redirect logic for new Google sign-ins
+  const { user } = useAuth();
+  const [products, setProducts] = useState<ProductWithPrices[]>([]);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+
   useEffect(() => {
-    const checkUserAndRedirect = async () => {
-      try {
-        // Wait until auth is no longer loading before making decisions
-        if (authLoading) return;
-        
-        if (!user) {
-          console.log('No authenticated user, redirecting to login');
-          navigate('/login', { replace: true });
-          return;
-        }
-        
-        // Check both Supabase metadata and localStorage to determine onboarding status
-        const hasCompletedInitialFlow = localStorage.getItem('hasCompletedInitialFlow') === 'true';
-        
-        // The user object from useAuth hook already has the mapped hasCompletedOnboarding from Supabase metadata
-        const hasCompletedOnboarding = user.hasCompletedOnboarding === true;
-        // Note: user_metadata is not directly available in AppUser type, it's already mapped to hasCompletedOnboarding
-        const hasSuabaseMetadataOnboarding = hasCompletedOnboarding;
-        
-        console.log('Billing page user check:', { 
-          email: user.email,
-          id: user.id,
-          hasCompletedInitialFlow,
-          hasCompletedOnboarding,
-          hasSuabaseMetadataOnboarding
-        });
-        
-        // For Google sign-ins, we prioritize Supabase metadata over localStorage
-        // This fixes issues where localStorage is empty but user exists in Supabase
-        if (hasCompletedOnboarding && !hasCompletedInitialFlow) {
-          // Sync localStorage with Supabase metadata
-          console.log('Syncing localStorage with Supabase metadata');
-          localStorage.setItem('hasCompletedInitialFlow', 'true');
-        }
-        
-        // If user has completed onboarding, redirect to dashboard
-        if (hasCompletedOnboarding || hasSuabaseMetadataOnboarding || hasCompletedInitialFlow) {
-          console.log('User has completed onboarding, redirecting from Billing to Dashboard');
-          navigate('/dashboard', { replace: true });
-          return;
-        }
-        
-        // If user hasn't completed onboarding according to any source, redirect to onboarding
-        console.log('User has not completed onboarding, redirecting from Billing to Onboarding');
-        navigate('/onboarding', { replace: true });
-        return;
-      } catch (error) {
-        console.error('Error checking user in Billing component:', error);
-        navigate('/login', { replace: true });
+    const fetchData = async () => {
+      if (user) {
+        setLoading(true);
+        const [sub, prods] = await Promise.all([
+          getActiveSubscription(),
+          getActiveProductsWithPrices()
+        ]);
+        setSubscription(sub);
+        setProducts(prods);
+        setLoading(false);
       }
     };
-    
-    checkUserAndRedirect();
-  }, [navigate, user, authLoading]);
-  
-  // Sample subscription data
-  const currentPlan = "Professional";
-  
-  // Sample payment history
-  const paymentHistory = [
-    { id: 1, date: "May 1, 2025", amount: "$19.99", status: "Successful" },
-    { id: 2, date: "April 1, 2025", amount: "$19.99", status: "Successful" },
-    { id: 3, date: "March 1, 2025", amount: "$19.99", status: "Successful" },
-  ];
-  
-  // Sample plans
-  const plans = [
-    {
-      name: "Basic",
-      price: "$9.99",
-      period: "month",
-      description: "Perfect for casual travelers",
-      features: [
-        "5 trips per month",
-        "Basic itinerary planning",
-        "Email support"
-      ],
-      current: false
-    },
-    {
-      name: "Professional",
-      price: "$19.99",
-      period: "month",
-      description: "For frequent travelers",
-      features: [
-        "Unlimited trips",
-        "Advanced itinerary planning",
-        "24/7 priority support",
-        "Custom travel recommendations",
-        "Flight and hotel price alerts"
-      ],
-      current: true
-    },
-    {
-      name: "Enterprise",
-      price: "$49.99",
-      period: "month",
-      description: "For travel agencies and businesses",
-      features: [
-        "Everything in Professional",
-        "Multiple user accounts",
-        "API access",
-        "Dedicated account manager",
-        "Custom branding options"
-      ],
-      current: false
-    }
-  ];
+    fetchData();
+  }, [user]);
 
-  // Helper function to determine button label based on plan comparison
-  const getButtonLabel = (planName: string): string => {
-    if (currentPlan === planName) return "Current Plan";
-    
-    const planOrder = { "Basic": 1, "Professional": 2, "Enterprise": 3 };
-    const currentPlanRank = planOrder[currentPlan as keyof typeof planOrder];
-    const targetPlanRank = planOrder[planName as keyof typeof planOrder];
-    
-    if (currentPlanRank < targetPlanRank) return "Upgrade";
-    if (currentPlanRank > targetPlanRank) return "Downgrade";
-    return "Select Plan";
+  const getButtonLabel = (priceId: string): string => {
+    if (subscription?.price_id === priceId) {
+      return "Current Plan";
+    }
+    // This logic can be enhanced later
+    return "Upgrade";
   };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto py-8 px-4 flex justify-center items-center h-full">
+        <Loader2 className="h-16 w-16 animate-spin text-planora-accent-purple" />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -143,63 +61,44 @@ const Billing: React.FC = () => {
       {/* Current Plan Section */}
       <section className="mb-10">
         <h2 className="text-2xl font-semibold mb-4">Current Plan</h2>
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle>Professional Plan</CardTitle>
-                <CardDescription>Billed monthly · Renews on June 1, 2025</CardDescription>
+        {subscription ? (
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>
+                    {products.find(p => p.prices.some(pr => pr.id === subscription.price_id))?.product.name} Plan
+                  </CardTitle>
+                  <CardDescription>
+                    Renews on {new Date(subscription.current_period_end).toLocaleDateString()}
+                  </CardDescription>
+                </div>
+                <Badge variant="secondary" className="text-white bg-planora-accent-purple capitalize">{subscription.status}</Badge>
               </div>
-              <Badge variant="secondary" className="text-white bg-planora-accent-purple">Active</Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-end mb-4">
-              <span className="text-3xl font-bold">$19.99</span>
-              <span className="text-muted-foreground ml-2">/month</span>
-            </div>
-            <p className="text-muted-foreground mb-4">Your next payment will be on June 1, 2025</p>
-            <div className="flex gap-3">
-              <Button variant="outline">Update Payment Method</Button>
-              <Button variant="destructive">Cancel Subscription</Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              {/* Add more subscription details here if needed */}
+              <div className="flex gap-3">
+                <Button variant="outline">Manage Subscription</Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>No Active Subscription</CardTitle>
+              <CardDescription>You are currently on the free plan.</CardDescription>
+            </CardHeader>
+          </Card>
+        )}
       </section>
       
-      {/* Payment History */}
+      {/* Payment History - Placeholder */}
       <section className="mb-10">
         <h2 className="text-2xl font-semibold mb-4">Payment History</h2>
         <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="px-6 py-3 text-left text-sm font-medium">Date</th>
-                    <th className="px-6 py-3 text-left text-sm font-medium">Amount</th>
-                    <th className="px-6 py-3 text-left text-sm font-medium">Status</th>
-                    <th className="px-6 py-3 text-left text-sm font-medium">Receipt</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paymentHistory.map(payment => (
-                    <tr key={payment.id} className="border-b">
-                      <td className="px-6 py-4 text-sm">{payment.date}</td>
-                      <td className="px-6 py-4 text-sm">{payment.amount}</td>
-                      <td className="px-6 py-4 text-sm">
-                        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
-                          {payment.status}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <Button variant="link" size="sm" className="h-auto p-0">Download</Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <CardContent className="p-6">
+            <p className="text-muted-foreground">Your payment history will appear here.</p>
           </CardContent>
         </Card>
       </section>
@@ -208,37 +107,44 @@ const Billing: React.FC = () => {
       <section>
         <h2 className="text-2xl font-semibold mb-4">Available Plans</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {plans.map((plan) => (
-            <Card key={plan.name} className={plan.current ? "border-planora-accent-purple" : ""}>
-              <CardHeader>
-                <CardTitle>{plan.name}</CardTitle>
-                <CardDescription>{plan.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-end mb-4">
-                  <span className="text-3xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground ml-2">/{plan.period}</span>
-                </div>
-                <ul className="space-y-2">
-                  {plan.features.map((feature, index) => (
-                    <li key={index} className="flex items-start">
-                      <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-              <CardFooter>
-                {plan.current ? (
-                  <Button className="w-full" disabled>Current Plan</Button>
-                ) : (
-                  <Button variant="outline" className="w-full">
-                    {getButtonLabel(plan.name)}
+          {products.map(({ product, prices }) => {
+            const price = prices[0]; // Assuming one price per product for simplicity
+            if (!price) return null;
+
+            return (
+              <Card key={product.id} className={subscription?.price_id === price.id ? "border-planora-accent-purple" : ""}>
+                <CardHeader>
+                  <CardTitle>{product.name}</CardTitle>
+                  <CardDescription>{product.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-end mb-4">
+                    <span className="text-3xl font-bold">
+                      ${price.unit_amount ? (price.unit_amount / 100).toFixed(2) : '0.00'}
+                    </span>
+                    <span className="text-muted-foreground ml-2">/{price.interval}</span>
+                  </div>
+                  {/* Features can be stored in product metadata */}
+                  <ul className="space-y-2">
+                    {(product.metadata?.features as string[])?.map((feature, index) => (
+                      <li key={index} className="flex items-start">
+                        <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+                <CardFooter>
+                  <Button 
+                    className="w-full" 
+                    disabled={subscription?.price_id === price.id}
+                  >
+                    {getButtonLabel(price.id)}
                   </Button>
-                )}
-              </CardFooter>
-            </Card>
-          ))}
+                </CardFooter>
+              </Card>
+            );
+          })}
         </div>
       </section>
     </div>
