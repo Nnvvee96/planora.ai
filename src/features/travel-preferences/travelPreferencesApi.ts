@@ -34,3 +34,4 @@ export const checkTravelPreferencesExist = travelPreferencesService.checkTravelP
 export const getUserTravelPreferences = travelPreferencesService.getUserTravelPreferences;
 export const saveTravelPreferences = travelPreferencesService.saveTravelPreferences;
 export const updateOnboardingStatus = travelPreferencesService.updateOnboardingStatus;
+export const deleteUserTravelPreferences = travelPreferencesService.deleteUserTravelPreferences;

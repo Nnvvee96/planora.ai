@@ -1,8 +1,8 @@
 {
   "*.{ts,tsx}": [
-    "eslint --fix"
+    "eslint --fix --config config/linting/eslint/eslint.config.js"
   ],
   "*.{js,jsx}": [
-    "eslint --fix"
+    "eslint --fix --config config/linting/eslint/eslint.config.js"
   ]
 }

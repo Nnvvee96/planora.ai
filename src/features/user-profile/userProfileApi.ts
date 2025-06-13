@@ -12,7 +12,7 @@ import { lazy } from 'react';
 
 // Import services
 import { userProfileService as userProfileServiceImpl } from './services/userProfileService';
-import { userDataManager } from './services/userDataManager';
+import { userDataManager as userDataManagerImpl } from './services/userDataManager';
 
 // Re-export types
 export type { UserProfile, DbUserProfile };
@@ -53,7 +53,10 @@ export const getDeleteAccountDialogComponent = () => {
   })));
 };
 
-
+export { UserProfileMenu } from './components/UserProfileMenu';
+export { SettingsDialog } from './components/dialogs/SettingsDialog';
+export { ProfileDialog } from './components/dialogs/ProfileDialog';
+export { DeleteAccountDialog } from './components/dialogs/DeleteAccountDialog';
 
 /**
  * User profile service
@@ -166,8 +169,11 @@ export const userProfileService = {
   }
 };
 
-// Re-export hooks
-export { useUserProfileIntegration } from './hooks/useUserProfileIntegration';
+// Export services as a single API object
+export const userProfileApi = {
+  ...userProfileServiceImpl,
+  ...userDataManagerImpl
+};
 
-// Export the user data manager
-export { userDataManager };
+// Export hooks
+export { useUserProfileIntegration } from './hooks/useUserProfileIntegration';

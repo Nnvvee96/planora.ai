@@ -10,3 +10,5 @@
 
 // Initially, this may be empty. As we build out the admin feature,
 // we will export services, hooks, and types from here. 
+
+export { AdminDashboard } from './components/AdminDashboard'; 

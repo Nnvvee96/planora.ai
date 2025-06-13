@@ -9,8 +9,8 @@ import {
   getActiveProductsWithPrices,
   ProductWithPrices,
   Subscription
-} from '@/features/subscriptions/api';
-import { supabase } from '@/features/auth/services/supabaseClient';
+} from '@/features/subscriptions/subscriptionsApi';
+import { supabase } from '@/lib/supabase';
 // We will use these later when we fetch live data
 // import { useNavigate } from 'react-router-dom';
 // import { useAuth } from '@/features/auth/authApi';

@@ -5,7 +5,7 @@
  * This service follows Planora's architectural principles of separation of concerns.
  */
 
-import { supabase } from '@/features/auth/services/supabaseClient';
+import { supabase } from '@/lib/supabase';
 import { 
   Conversation, 
   Message, 
@@ -41,9 +41,9 @@ export const getConversations = async (userId: string): Promise<Conversation[]> 
       updatedAt: new Date(conversation.updated_at),
       lastMessageTime: new Date(conversation.last_message_time),
     }));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in getConversations:', error);
-    throw error;
+    return [];
   }
 };
 

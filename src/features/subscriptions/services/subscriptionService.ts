@@ -1,4 +1,4 @@
-import { supabase } from '@/features/auth/services/supabaseClient';
+import { supabase } from '@/lib/supabase';
 import { ProductWithPrices, Subscription } from '../types/subscriptionTypes';
 
 /**

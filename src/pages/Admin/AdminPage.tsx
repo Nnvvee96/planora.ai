@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { AdminDashboard } from '@/features/admin/components/AdminDashboard';
-import { supabase } from '@/features/auth/services/supabaseClient';
+import { useAuth } from '@/features/auth/authApi';
+import { supabase } from '@/lib/supabase';
+import { AdminDashboard } from '@/features/admin/adminApi';
 
 const AdminPage: React.FC = () => {
   const { user, loading } = useAuth();

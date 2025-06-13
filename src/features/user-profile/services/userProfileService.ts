@@ -5,10 +5,10 @@
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import { supabase } from '@/features/auth/services/supabaseClient';
+import { supabase } from '@/lib/supabase';
 import { UserProfile, DbUserProfile } from '../types/profileTypes';
 // Import directly from service to avoid circular dependency through API
-import { travelPreferencesService } from '@/features/travel-preferences/services/travelPreferencesService';
+import { travelPreferencesService } from '@/features/travel-preferences/travelPreferencesApi';
 
 /**
  * Converts snake_case database profile to camelCase application profile
@@ -808,69 +808,26 @@ export const userProfileService = {
   },
   
   /**
-   * Permanently delete a user profile and all associated data
-   * @param userId User ID to delete
-   * @param deleteAuth Whether to also delete the auth user
-   * @returns True if deletion was successful
+   * Deletes a user's profile and their associated travel preferences.
+   * @param userId The ID of the user to delete.
+   * @returns A promise that resolves with the result of the operation.
    */
-  deleteUserProfile: async (userId: string, deleteAuth: boolean = false): Promise<boolean> => {
+  deleteUserProfile: async (userId: string): Promise<{ success: boolean; error?: Error | null; }> => {
     try {
-      if (!userId) {
-        console.error('User ID is required to delete profile');
-        return false;
-      }
-      
-      // Delete travel preferences
-      const { error: travelError } = await supabase
-        .from('travel_preferences')
-        .delete()
-        .eq('user_id', userId);
-        
-      if (travelError) {
-        console.warn('Error deleting travel preferences:', travelError);
-        // Continue with deletion even if this fails
-      }
-      
-      // Mark deletion requests as completed
-      const { error: requestError } = await supabase
-        .from('account_deletion_requests')
-        .update({
-          status: 'completed',
-          purged_at: new Date().toISOString()
-        })
-        .eq('user_id', userId)
-        .eq('status', 'pending');
-        
-      if (requestError) {
-        console.warn('Error updating deletion requests:', requestError);
-        // Continue with deletion even if this fails
-      }
-      
-      // Delete profile
-      const { error: profileError } = await supabase
+      // First, delete related travel preferences using the feature's public API
+      await travelPreferencesService.deleteUserTravelPreferences(userId);
+
+      // Then, delete the user profile
+      const { error } = await supabase
         .from('profiles')
         .delete()
         .eq('id', userId);
         
-      if (profileError) {
-        console.error('Error deleting profile:', profileError);
-        return false;
-      }
-      
-      // Delete auth user if requested
-      if (deleteAuth) {
-        const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-        
-        if (authError) {
-          console.error('Error deleting auth user:', authError);
-          return false;
-        }
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Unexpected error deleting user profile:', error);
-      return false;
+      if (error) throw error;
+      return { success: true, error: null };
+    } catch (error: unknown) {
+      console.error('Error deleting user profile:', error);
+      return { success: false, error: error as Error };
     }
   },
   
@@ -949,54 +906,57 @@ export const userProfileService = {
   },
   
   /**
-   * Initiates the account deletion process for the currently authenticated user.
-   * This calls the 'account-management' Edge Function to start the 30-day deletion countdown.
-   * @returns {Promise<{ success: boolean; error?: any }>} An object indicating success or failure.
+   * Initiates the account deletion process by calling a Supabase Edge Function.
+   * @returns A promise that resolves with the result of the operation.
    */
-  async initiateAccountDeletion(): Promise<{ success: boolean; error?: any }> {
+  initiateAccountDeletion: async (): Promise<{ success: boolean; error?: Error | null }> => {
     try {
-      const { data, error } = await supabase.functions.invoke('account-management', {
-        body: {
-          action: 'initiate-account-deletion',
-          payload: {}, // No payload needed for this action
-        },
+      const { data, error } = await supabase.functions.invoke('delete-user-account', {
+        method: 'POST',
       });
 
-      if (error) {
-        console.error('Error invoking account deletion function:', error);
-        throw error;
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error('Failed to initiate account deletion:', error);
-      return { success: false, error };
+      if (error) throw error;
+      return { success: true, error: null };
+    } catch (error: unknown) {
+      console.error('Error initiating account deletion:', error);
+      return { success: false, error: error as Error };
     }
   },
 
   /**
    * Unbinds an OAuth provider from the user's account.
    * @param provider The OAuth provider to unbind (e.g., 'google').
+   * @returns A promise that resolves with the result of the operation.
    */
-  async unbindOAuthProvider(provider: string): Promise<{ success: boolean; error?: any }> {
+  unbindOAuthProvider: async (provider: string): Promise<{ success: boolean; error?: Error | null }> => {
     try {
-      const { error } = await supabase.functions.invoke('account-management', {
-        body: {
-          action: 'unbind-oauth-provider',
-          payload: { provider },
-        },
-      });
+      // First, get all linked identities for the user
+      const { data: identities, error: identitiesError } = await supabase.auth.getUserIdentities();
 
-      if (error) {
-        console.error(`Error unbinding OAuth provider '${provider}':`, error);
-        // The edge function returns a structured error, so we pass it along.
-        return { success: false, error: { message: error.message } };
+      if (identitiesError) {
+        throw identitiesError;
       }
 
-      return { success: true };
-    } catch (error) {
-      console.error(`Unexpected error while unbinding OAuth provider '${provider}':`, error);
-      return { success: false, error };
+      // Find the specific identity to unlink
+      const identityToUnlink = identities.identities.find(
+        (identity) => identity.provider === provider
+      );
+
+      if (!identityToUnlink) {
+        return { success: false, error: new Error(`No linked identity found for provider: ${provider}`) };
+      }
+
+      // Unlink the identity
+      const { error: unlinkError } = await supabase.auth.unlinkIdentity(identityToUnlink);
+
+      if (unlinkError) {
+        throw unlinkError;
+      }
+
+      return { success: true, error: null };
+    } catch (error: unknown) {
+      console.error(`Error unbinding ${provider}:`, error);
+      return { success: false, error: error as Error };
     }
   }
 };

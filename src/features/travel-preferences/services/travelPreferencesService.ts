@@ -5,7 +5,7 @@
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import { supabase } from '@/features/auth/services/supabaseClient';
+import { supabase } from '@/lib/supabase';
 import { 
   TravelPreferences,
   TravelPreferencesFormValues,
@@ -19,6 +19,7 @@ import {
   FlightType
 } from '../types/travelPreferencesTypes';
 import { AppUser } from "@/features/auth/types/authTypes";
+import { AuthError, User } from '@supabase/supabase-js';
 
 /**
  * Initializes the module and sets up auto-migration of travel preferences
@@ -432,6 +433,28 @@ export const travelPreferencesService = {
     } catch (error) {
       console.error('Error updating onboarding status:', error);
       return false;
+    }
+  },
+
+  /**
+   * Deletes all travel preferences for a specific user.
+   * @param userId The ID of the user whose preferences should be deleted.
+   * @returns A promise that resolves when the operation is complete.
+   */
+  deleteUserTravelPreferences: async (userId: string): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from('travel_preferences')
+        .delete()
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error(`Error deleting travel preferences for user ${userId}:`, error);
+        throw error;
+      }
+    } catch (error) {
+      console.error(`Unexpected error deleting travel preferences for user ${userId}:`, error);
+      throw error;
     }
   }
 };

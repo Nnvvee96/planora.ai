@@ -6,15 +6,17 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DeleteAccountDialog } from '@/features/user-profile/components/dialogs/DeleteAccountDialog';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { userProfileService } from '@/features/user-profile/services/userProfileService';
+import { DeleteAccountDialog, userProfileApi } from '@/features/user-profile/userProfileApi';
+import { useAuth } from '@/features/auth/authApi';
 import { capitalize } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
+import { ShieldCheck, UserX } from "lucide-react";
 
 const PrivacySecurity: React.FC = (): React.ReactNode => {
   const { user, refreshUser } = useAuth();
   const [unlinkingProvider, setUnlinkingProvider] = useState<string | null>(null);
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Privacy settings
   const [privacySettings, setPrivacySettings] = useState({
@@ -66,7 +68,7 @@ const PrivacySecurity: React.FC = (): React.ReactNode => {
   const handleUnlink = async (provider: string) => {
     setUnlinkingProvider(provider);
     try {
-      const { success, error } = await userProfileService.unbindOAuthProvider(provider);
+      const { success, error } = await userProfileApi.unbindOAuthProvider(provider);
 
       if (success) {
         toast({
@@ -90,6 +92,16 @@ const PrivacySecurity: React.FC = (): React.ReactNode => {
       });
     } finally {
       setUnlinkingProvider(null);
+    }
+  };
+
+  const handleUnbind = async (provider: string) => {
+    if (!user) return;
+    const { success, error } = await userProfileApi.unbindOAuthProvider(provider);
+    if (success) {
+      // Refresh sessions or show success message
+    } else {
+      // Show error message
     }
   };
 

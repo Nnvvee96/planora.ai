@@ -5,7 +5,7 @@
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import { supabase } from '@/features/auth/services/supabaseClient';
+import { supabase } from '@/lib/supabase';
 import { UserProfile } from '../types/profileTypes';
 import { TravelPreferencesFormValues } from '@/features/travel-preferences/types/travelPreferencesTypes';
 import { userProfileService } from './userProfileService';
@@ -80,7 +80,8 @@ export const userDataManager = {
       // Fallback: Update each source individually
       if (options.profileData) {
         try {
-          results.profileUpdated = await userProfileService.updateUserProfile(userId, options.profileData);
+          const updatedProfile = await userProfileService.updateUserProfile(userId, options.profileData);
+          results.profileUpdated = !!updatedProfile; // Check for truthy value (a profile object)
           if (!results.profileUpdated) {
             results.errors.profile = 'Profile update failed';
           }
@@ -195,5 +196,25 @@ export const userDataManager = {
       // Default to false if we can't determine status
       return false;
     }
+  },
+
+  /**
+   * This is determined by checking if a user profile exists and if travel preferences have been set.
+   * @returns {Promise<boolean>} True if the user has completed onboarding, false otherwise.
+   */
+  hasCompletedOnboarding: async (): Promise<boolean> => {
+    const authService = getAuthService();
+    const user = await authService.getCurrentUser();
+
+    if (!user) {
+      return false;
+    }
+
+    const [profileExists, travelPreferencesExist] = await Promise.all([
+      userProfileService.checkProfileExists(user.id),
+      travelPreferencesService.checkTravelPreferencesExist(user.id),
+    ]);
+
+    return profileExists && travelPreferencesExist;
   }
 };
