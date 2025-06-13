@@ -177,4 +177,5 @@ export const userProfileApi = {
 
 // Export hooks
 export { useUserProfileIntegration } from './hooks/useUserProfileIntegration';
+export { useUserProfile, UserProfileProvider } from './components/UserProfileProvider';
 export { mapDbUserToAppUser } from './utils/userProfileMappers';

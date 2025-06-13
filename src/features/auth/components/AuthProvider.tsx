@@ -14,7 +14,6 @@ import { UserRegistrationStatus } from '../types/authTypes';
 
 // Import services directly to avoid circular dependencies
 import { supabaseAuthService } from '../services/supabaseAuthService';
-import { useUserProfileIntegration } from '@/features/user-profile/userProfileApi';
 
 // Define the auth context type for better type safety
 export interface AuthContextType {
@@ -49,7 +48,6 @@ interface AuthProviderProps {
  * Provides authentication state and methods to the application
  */
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const { getUserWithProfile } = useUserProfileIntegration();
   // Implement auth logic directly here to avoid circular dependencies
   const [authState, setAuthState] = React.useState<AuthState>({
     isAuthenticated: false,
@@ -173,11 +171,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.error('Error loading user data:', loadError);
         }
         
-        let finalUser = null;
-        if (supabaseUser) {
-          finalUser = await getUserWithProfile(supabaseUser.id);
-        }
-
         // Cancel the safety timeout since we've completed initialization
         if (authInitializationTimer) {
           clearTimeout(authInitializationTimer);
@@ -197,7 +190,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Use functional state update to guarantee latest state
         setAuthState(prevState => ({
           isAuthenticated: !!supabaseUser,
-          user: finalUser,
+          user: mappedUser,
           loading: false,
           error: null
         }));
@@ -244,15 +237,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // On any auth change, update our local state
       try {
         if (session?.user) {
-          getUserWithProfile(session.user.id).then(fullUser => {
-            console.log('Auth state update with user:', !!fullUser);
-            
-            setAuthState({
-              isAuthenticated: true,
-              user: fullUser,
-              loading: false,
-              error: null
-            });
+          // Safely map user with comprehensive null checking
+          const mappedUser = mapSupabaseUser(session.user);
+          console.log('Auth state update with user:', !!mappedUser);
+          
+          setAuthState({
+            isAuthenticated: true,
+            user: mappedUser,
+            loading: false,
+            error: null
           });
         } else {
           console.log('Auth state update: No user in session');

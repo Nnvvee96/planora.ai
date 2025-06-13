@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { useAuthContext } from '@/features/auth/authApi';
+import { useUserProfile } from '@/features/user-profile/userProfileApi';
 
 interface BetaFeatureProps {
   children: ReactNode;
@@ -10,12 +10,13 @@ interface BetaFeatureProps {
  * authenticated user is a beta tester.
  */
 export const BetaFeature: React.FC<BetaFeatureProps> = ({ children }) => {
-  const { user } = useAuthContext();
+  const { profile, loading } = useUserProfile();
 
-  // The 'user' object from our context now contains the merged profile,
-  // but we need to handle the case where it might be a partial object
-  // before the profile has fully loaded.
-  const isBetaTester = user && 'isBetaTester' in user && user.isBetaTester;
+  if (loading) {
+    return null; // Don't render anything while profile is loading
+  }
+
+  const isBetaTester = profile?.isBetaTester;
 
   if (!isBetaTester) {
     return null;

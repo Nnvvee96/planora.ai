@@ -18,6 +18,7 @@ import {
   getProtectedRouteComponent,
   getAuthCallbackComponent
 } from '@/features/auth/authApi';
+import { UserProfileProvider } from '@/features/user-profile/userProfileApi';
 
 // Import error boundary component
 import { ErrorBoundary } from '@/ui/organisms/ErrorBoundary';
@@ -90,149 +91,151 @@ const App = () => {
             </div>
           </div>}>
             <AuthProvider>
-              <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <DebugComponent />
-              <TestModeIndicator />
-              <BetaFeature>
-                <div className="fixed bottom-4 right-28 bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full z-50">
-                  BETA TESTER
-                </div>
-              </BetaFeature>
-              <Routes>
-                {/* Public routes - with authentication check for root path */}
-                <Route path="/" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
-                    <ProtectedRoute redirectToIfAuthenticated="/dashboard" requireAuth={false}>
-                      <LandingPage />
-                    </ProtectedRoute>
-                  </Suspense>
-                } />
-                <Route path="/login" element={<Login />} />
-                <Route path="/reviews" element={<ReviewsPage />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/auth/callback" element={<Suspense fallback={<div className="flex items-center justify-center h-screen">Processing authentication...</div>}><AuthCallback /></Suspense>} />
-                <Route path="/auth/email-confirmation" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Verifying your email...</div>}>
-                    <EmailConfirmation />
-                  </Suspense>
-                } />
-                <Route path="/auth/verification" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Verifying your account...</div>}>
-                    <EmailConfirmation />
-                  </Suspense>
-                } />
-                <Route path="/auth/email-change-verification" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Verifying your email change...</div>}>
-                    <EmailChangeVerification />
-                  </Suspense>
-                } />
-                <Route path="/auth/reset-password" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading password reset...</div>}>
-                    <ResetPassword />
-                  </Suspense>
-                } />
-                <Route path="/account-recovery" element={<Suspense fallback={<div className="flex items-center justify-center h-screen">Processing account recovery...</div>}><AccountRecoveryPage /></Suspense>} />
-                <Route path="/debug" element={<DebugScreen />} />
-                
-                {/* Protected routes that require authentication */}
-                <Route path="/admin" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading Admin Dashboard...</div>}>
-                    <ProtectedRoute>
-                      <AdminPage />
-                    </ProtectedRoute>
-                  </Suspense>
-                } />
-                <Route path="/onboarding" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading onboarding...</div>}>
-                    <ProtectedRoute>
-                      <Onboarding />
-                    </ProtectedRoute>
-                  </Suspense>
-                } />
-                <Route path="/preferences" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading preferences...</div>}>
-                    <ProtectedRoute>
-                      <TravelPreferencesPage />
-                    </ProtectedRoute>
-                  </Suspense>
-                } />
-                <Route path="/dashboard" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading dashboard...</div>}>
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  </Suspense>
-                } />
-                <Route path="/chat" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading chat...</div>}>
-                    <ProtectedRoute>
-                      <Chat />
-                    </ProtectedRoute>
-                  </Suspense>
-                } />
-                <Route path="/profile" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading profile...</div>}>
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  </Suspense>
-                } />
-                <Route path="/saved-trips" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading saved trips...</div>}>
-                    <ProtectedRoute>
-                      <SavedTrips />
-                    </ProtectedRoute>
-                  </Suspense>
-                } />
-                <Route path="/billing" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading billing...</div>}>
-                    <ProtectedRoute>
-                      <Billing />
-                    </ProtectedRoute>
-                  </Suspense>
-                } />
-                <Route path="/settings" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading settings...</div>}>
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  </Suspense>
-                } />
-                <Route path="/settings/notifications" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading notifications settings...</div>}>
-                    <ProtectedRoute>
-                      <Notifications />
-                    </ProtectedRoute>
-                  </Suspense>
-                } />
-                <Route path="/settings/privacy" element={
-                  <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading privacy settings...</div>}>
-                    <ProtectedRoute>
-                      <PrivacySecurity />
-                    </ProtectedRoute>
-                  </Suspense>
-                } />
-                <Route 
-                  path="/support"
-                  element={
-                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading support...</div>}>
-                      <SupportPage />
+              <UserProfileProvider>
+                <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <DebugComponent />
+                <TestModeIndicator />
+                <BetaFeature>
+                  <div className="fixed bottom-4 right-28 bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full z-50">
+                    BETA TESTER
+                  </div>
+                </BetaFeature>
+                <Routes>
+                  {/* Public routes - with authentication check for root path */}
+                  <Route path="/" element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+                      <ProtectedRoute redirectToIfAuthenticated="/dashboard" requireAuth={false}>
+                        <LandingPage />
+                      </ProtectedRoute>
                     </Suspense>
-                  }
-                />
-                
-                {/* Catch-all route */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </TooltipProvider>
-            </AuthProvider>
-          </Suspense>
-        </BrowserRouter>
-      </QueryClientProvider>
-    </Provider>
-  </ErrorBoundary>
+                  } />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/reviews" element={<ReviewsPage />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/auth/callback" element={<Suspense fallback={<div className="flex items-center justify-center h-screen">Processing authentication...</div>}><AuthCallback /></Suspense>} />
+                  <Route path="/auth/email-confirmation" element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Verifying your email...</div>}>
+                      <EmailConfirmation />
+                    </Suspense>
+                  } />
+                  <Route path="/auth/verification" element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Verifying your account...</div>}>
+                      <EmailConfirmation />
+                    </Suspense>
+                  } />
+                  <Route path="/auth/email-change-verification" element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Verifying your email change...</div>}>
+                      <EmailChangeVerification />
+                    </Suspense>
+                  } />
+                  <Route path="/auth/reset-password" element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading password reset...</div>}>
+                      <ResetPassword />
+                    </Suspense>
+                  } />
+                  <Route path="/account-recovery" element={<Suspense fallback={<div className="flex items-center justify-center h-screen">Processing account recovery...</div>}><AccountRecoveryPage /></Suspense>} />
+                  <Route path="/debug" element={<DebugScreen />} />
+                  
+                  {/* Protected routes that require authentication */}
+                  <Route path="/admin" element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading Admin Dashboard...</div>}>
+                      <ProtectedRoute>
+                        <AdminPage />
+                      </ProtectedRoute>
+                    </Suspense>
+                  } />
+                  <Route path="/onboarding" element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading onboarding...</div>}>
+                      <ProtectedRoute>
+                        <Onboarding />
+                      </ProtectedRoute>
+                    </Suspense>
+                  } />
+                  <Route path="/preferences" element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading preferences...</div>}>
+                      <ProtectedRoute>
+                        <TravelPreferencesPage />
+                      </ProtectedRoute>
+                    </Suspense>
+                  } />
+                  <Route path="/dashboard" element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading dashboard...</div>}>
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    </Suspense>
+                  } />
+                  <Route path="/chat" element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading chat...</div>}>
+                      <ProtectedRoute>
+                        <Chat />
+                      </ProtectedRoute>
+                    </Suspense>
+                  } />
+                  <Route path="/profile" element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading profile...</div>}>
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    </Suspense>
+                  } />
+                  <Route path="/saved-trips" element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading saved trips...</div>}>
+                      <ProtectedRoute>
+                        <SavedTrips />
+                      </ProtectedRoute>
+                    </Suspense>
+                  } />
+                  <Route path="/billing" element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading billing...</div>}>
+                      <ProtectedRoute>
+                        <Billing />
+                      </ProtectedRoute>
+                    </Suspense>
+                  } />
+                  <Route path="/settings" element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading settings...</div>}>
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    </Suspense>
+                  } />
+                  <Route path="/settings/notifications" element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading notifications settings...</div>}>
+                      <ProtectedRoute>
+                        <Notifications />
+                      </ProtectedRoute>
+                    </Suspense>
+                  } />
+                  <Route path="/settings/privacy" element={
+                    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading privacy settings...</div>}>
+                      <ProtectedRoute>
+                        <PrivacySecurity />
+                      </ProtectedRoute>
+                    </Suspense>
+                  } />
+                  <Route 
+                    path="/support"
+                    element={
+                      <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading support...</div>}>
+                        <SupportPage />
+                      </Suspense>
+                    }
+                  />
+                  
+                  {/* Catch-all route */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                </TooltipProvider>
+                </UserProfileProvider>
+              </AuthProvider>
+            </Suspense>
+          </BrowserRouter>
+        </QueryClientProvider>
+      </Provider>
+    </ErrorBoundary>
   );
 };
 
