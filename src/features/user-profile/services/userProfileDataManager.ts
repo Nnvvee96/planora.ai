@@ -5,7 +5,7 @@
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/client';
 import { UserProfile } from '../types/profileTypes';
 import { TravelPreferencesFormValues } from '@/features/travel-preferences/types/travelPreferencesTypes';
 import { userProfileService } from './userProfileService';
@@ -16,7 +16,7 @@ import { getAuthService, sessionManager } from '@/features/auth/authApi';
  * User Data Manager Service
  * Provides centralized functions for managing user data across multiple sources
  */
-export const userDataManager = {
+export const userProfileDataManager = {
   /**
    * Update user data across multiple sources
    * @param userId User ID to update data for

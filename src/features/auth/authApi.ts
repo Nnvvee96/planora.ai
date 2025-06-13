@@ -46,7 +46,7 @@ export { GoogleLoginButton } from './components/GoogleLoginButton';
 
 // Import the auth service directly to prevent circular dependencies
 import { supabaseAuthService } from './services/supabaseAuthService';
-import { sessionManager } from './services/sessionManager';
+import { sessionManager } from './services/authSessionManager';
 
 /**
  * Application User interface
@@ -139,7 +139,7 @@ export interface AuthService {
     hasTravelPreferences: boolean;
     registrationStatus: UserRegistrationStatus;
   }>;
-  initiateSignup(email: string): Promise<InitiateSignupResponse>;
+  initiateSignup(email: string, password_raw: string): Promise<InitiateSignupResponse>;
   completeSignup(payload: CompleteSignupPayload): Promise<CompleteSignupResponse>;
 }
 
@@ -432,12 +432,12 @@ const authService = {
    * Initiate two-phase signup
    * Sends a verification code to the user's email.
    * Does not create a user account at this stage.
-   * @param data Registration data including email, password, and profile information
+   * @param email The user's email
+   * @param password The user's raw password
+   * @returns A response object with success status and any required next steps
    */
-  initiateSignup: async (email: string): Promise<InitiateSignupResponse> => {
-    // This will call the actual implementation in supabaseAuthService
-    // which in turn calls the Supabase Edge Function
-    return supabaseAuthService.initiateSignup(email);
+  initiateSignup: async (email: string, password_raw: string): Promise<InitiateSignupResponse> => {
+    return supabaseAuthService.initiateSignup(email, password_raw);
   },
 
   /**

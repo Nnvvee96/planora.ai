@@ -5,18 +5,29 @@
  * Following Planora's architectural principles with feature-first organization
  */
 
-import { supabase } from '../services/supabaseClient';
+import { supabase } from '@/lib/supabase/client';
 import { AuthError } from '@supabase/supabase-js';
+
+interface GoogleIdentity {
+  provider: string;
+  identity_data?: {
+    given_name?: string;
+    first_name?: string;
+    family_name?: string;
+    last_name?: string;
+    name?: string;
+  };
+}
 
 /**
  * Extract first name from various Google metadata formats
  * @param metadata User metadata from authentication
  * @returns First name or empty string
  */
-function extractFirstName(metadata: Record<string, any>): string {
+function extractFirstName(metadata: Record<string, unknown>): string {
   // Try to get from identities array first (most reliable for Google)
   if (metadata.identities && Array.isArray(metadata.identities)) {
-    const googleIdentity = metadata.identities.find((identity: any) => 
+    const googleIdentity = metadata.identities.find((identity: GoogleIdentity) => 
       identity.provider === 'google'
     );
     
@@ -34,16 +45,16 @@ function extractFirstName(metadata: Record<string, any>): string {
   }
   
   // Try direct metadata fields
-  if (metadata.given_name) {
+  if (typeof metadata.given_name === 'string') {
     return metadata.given_name;
   }
-  if (metadata.first_name) {
+  if (typeof metadata.first_name === 'string') {
     return metadata.first_name;
   }
-  if (metadata.name) {
+  if (typeof metadata.name === 'string') {
     return metadata.name.split(' ')[0] || '';
   }
-  if (metadata.full_name) {
+  if (typeof metadata.full_name === 'string') {
     return metadata.full_name.split(' ')[0] || '';
   }
   
@@ -56,10 +67,10 @@ function extractFirstName(metadata: Record<string, any>): string {
  * @param metadata User metadata from authentication
  * @returns Last name or empty string
  */
-function extractLastName(metadata: Record<string, any>): string {
+function extractLastName(metadata: Record<string, unknown>): string {
   // Try to get from identities array first (most reliable for Google)
   if (metadata.identities && Array.isArray(metadata.identities)) {
-    const googleIdentity = metadata.identities.find((identity: any) => 
+    const googleIdentity = metadata.identities.find((identity: GoogleIdentity) => 
       identity.provider === 'google'
     );
     
@@ -78,17 +89,17 @@ function extractLastName(metadata: Record<string, any>): string {
   }
   
   // Try direct metadata fields
-  if (metadata.family_name) {
+  if (typeof metadata.family_name === 'string') {
     return metadata.family_name;
   }
-  if (metadata.last_name) {
+  if (typeof metadata.last_name === 'string') {
     return metadata.last_name;
   }
-  if (metadata.name) {
+  if (typeof metadata.name === 'string') {
     const parts = metadata.name.split(' ');
     return parts.length > 1 ? parts.slice(1).join(' ') : '';
   }
-  if (metadata.full_name) {
+  if (typeof metadata.full_name === 'string') {
     const parts = metadata.full_name.split(' ');
     return parts.length > 1 ? parts.slice(1).join(' ') : '';
   }
@@ -158,7 +169,7 @@ export const googleAuthHelper = {
 async function createProfileForUser(
   userId: string, 
   email: string, 
-  metadata: Record<string, any>
+  metadata: Record<string, unknown>
 ): Promise<boolean> {
   try {
     // Check if profile already exists
@@ -200,8 +211,9 @@ async function createProfileForUser(
         email: email,
         first_name: extractFirstName(metadata),
         last_name: extractLastName(metadata),
-        avatar_url: metadata.picture || metadata.avatar_url || '',
+        avatar_url: (metadata.picture || metadata.avatar_url || '') as string,
         email_verified: true,  // Always true for Google sign-ins
+        is_beta_tester: false,
         created_at: timestamp,
         updated_at: timestamp,
         has_completed_onboarding: false,
@@ -235,6 +247,7 @@ async function createProfileForUser(
             first_name: extractFirstName(metadata),
             last_name: extractLastName(metadata),
             email_verified: true,
+            is_beta_tester: false,
             created_at: timestamp,
             updated_at: timestamp,
             has_completed_onboarding: false,

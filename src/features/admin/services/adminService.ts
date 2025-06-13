@@ -1,11 +1,11 @@
-import { supabase } from '@/database/databaseApi';
+import { supabase } from '@/lib/supabase/client';
 import { UserProfile, DbUserProfile, mapDbUserToAppUser } from '@/features/user-profile/userProfileApi';
 
 export const adminService = {
   getAllUsers: async (): Promise<UserProfile[]> => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*');
+      .select('*, is_beta_tester');
 
     if (error) {
       console.error('Error fetching users:', error);
@@ -26,7 +26,7 @@ export const adminService = {
       .from('profiles')
       .update({ is_beta_tester: isBetaTester })
       .eq('id', userId)
-      .select()
+      .select('*, is_beta_tester')
       .single();
 
     if (error) {

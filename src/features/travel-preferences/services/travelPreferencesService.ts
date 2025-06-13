@@ -5,7 +5,7 @@
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/client';
 import { 
   TravelPreferences,
   TravelPreferencesFormValues,
@@ -18,97 +18,7 @@ import {
   LocationPreference,
   FlightType
 } from '../types/travelPreferencesTypes';
-import { AppUser } from "@/features/auth/types/authTypes";
 import { AuthError, User } from '@supabase/supabase-js';
-
-/**
- * Initializes the module and sets up auto-migration of travel preferences
- * This ensures any user who completed onboarding has preferences in the database
- */
-const initializePreferencesModule = async () => {
-  try {
-    // Check if user is logged in
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    
-    // Check if user has completed onboarding
-    const user = session.user;
-    const hasCompleted = 
-      user.user_metadata?.has_completed_onboarding === true || 
-      localStorage.getItem('hasCompletedInitialFlow') === 'true';
-      
-    if (!hasCompleted) return;
-    
-    // Check if travel preferences exist in the database
-    const { data: existingPrefs } = await supabase
-      .from('travel_preferences')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-      
-    // If preferences already exist, no need to migrate
-    if (existingPrefs) return;
-    
-    // No preferences in database but user completed onboarding
-    // Try to migrate from user metadata or localStorage
-    console.log('⚠️ User completed onboarding but has no travel preferences - attempting migration');
-    
-    // Check metadata first
-    const metadataPrefs = user.user_metadata?.travel_preferences;
-    
-    // Check localStorage as fallback
-    const localPrefs = localStorage.getItem('userTravelPreferences');
-    const parsedLocalPrefs = localPrefs ? JSON.parse(localPrefs) : null;
-    
-    // Prepare data for insertion
-    const prefsToSave = metadataPrefs || parsedLocalPrefs || {
-      // Default values if nothing found
-      accommodation_types: ['hotel'],
-      accommodation_comfort: ['private-room'],
-      budget_range: { min: 500, max: 2000 },
-      budget_tolerance: 10,
-      travel_duration: 'week',
-      date_flexibility: 'flexible-few',
-      planning_intent: 'exploring',
-      location_preference: 'center',
-      flight_type: 'direct',
-      prefer_cheaper_with_stopover: false,
-      departure_city: 'Berlin'
-    };
-    
-    // Insert the preferences
-    const insertResult = await supabase
-      .from('travel_preferences')
-      .insert({
-        user_id: user.id,
-        budget_min: prefsToSave.budget_range?.min || 500,
-        budget_max: prefsToSave.budget_range?.max || 2000,
-        budget_flexibility: prefsToSave.budget_tolerance || 10,
-        travel_duration: prefsToSave.travel_duration || 'week',
-        date_flexibility: prefsToSave.date_flexibility || 'flexible-few',
-        planning_intent: prefsToSave.planning_intent || 'exploring',
-        accommodation_types: prefsToSave.accommodation_types || ['hotel'],
-        accommodation_comfort: prefsToSave.accommodation_comfort || ['private-room'],
-        location_preference: prefsToSave.location_preference || 'center',
-        flight_type: prefsToSave.flight_type || 'direct',
-        prefer_cheaper_with_stopover: Boolean(prefsToSave.prefer_cheaper_with_stopover),
-        departure_city: prefsToSave.departure_city || prefsToSave.departure_location || 'Berlin',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
-      
-    if (insertResult.error) {
-      console.error('Failed to migrate travel preferences:', insertResult.error);
-    } else {
-      console.log('✅ Successfully migrated travel preferences for user', user.id);
-    }
-  } catch (error) {
-    console.error('Error in travel preferences auto-migration:', error);
-  }
-};
-
-// Run the initialization when the module loads
-initializePreferencesModule();
 
 /**
  * Maps database snake_case to application camelCase
@@ -252,161 +162,57 @@ export const travelPreferencesService = {
    */
   saveTravelPreferences: async (userId: string, preferences: Partial<TravelPreferencesFormValues>): Promise<boolean> => {
     try {
-      console.log('Saving travel preferences for user:', userId);
-      console.log('Preferences data:', JSON.stringify(preferences, null, 2));
+      const dbPrefs = mapToDbTravelPreferences({
+        ...preferences,
+        userId: userId,
+      });
       
-      if (!userId) {
-        console.error('Cannot save travel preferences: Missing user ID');
-        return false;
-      }
-      
-      // Force supabase to refresh the auth token to ensure we have the latest session
-      // This is important when working with RLS policies
-      try {
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) {
-          console.error('Error getting session:', sessionError);
-        } else {
-          console.log('Session refreshed successfully');
-        }
-      } catch (sessionErr) {
-        console.error('Error refreshing session:', sessionErr);
-      }
-      
-      // Check if preferences already exist
-      const exists = await travelPreferencesService.checkTravelPreferencesExist(userId);
-      console.log('Existing preferences found:', exists);
-      
-      // Create a properly formatted preferences object with userId
-      const prefsWithUserId: Partial<TravelPreferences> = {
-        userId,
-        // Explicitly handle each field to ensure proper typing
-        budgetRange: preferences.budgetRange ? {
-          min: Number(preferences.budgetRange.min || 0),
-          max: Number(preferences.budgetRange.max || 0)
-        } : undefined,
-        budgetFlexibility: preferences.budgetFlexibility !== undefined ? 
-          Number(preferences.budgetFlexibility) : undefined,
-        travelDuration: preferences.travelDuration,
-        dateFlexibility: preferences.dateFlexibility,
-        customDateFlexibility: preferences.customDateFlexibility,
-        planningIntent: preferences.planningIntent,
-        accommodationTypes: preferences.accommodationTypes,
-        accommodationComfort: preferences.accommodationComfort,
-        locationPreference: preferences.locationPreference,
-        flightType: preferences.flightType,
-        preferCheaperWithStopover: preferences.preferCheaperWithStopover,
-        departureCity: preferences.departureCity
-      };
-      
-      // Map to database format with snake_case fields
-      const dbPrefs = mapToDbTravelPreferences(prefsWithUserId);
-      console.log('Mapped DB preferences for insertion:', dbPrefs);
-      
-      // Use database column names directly to ensure matching with SQL schema
-      // IMPORTANT: Only include fields that actually exist in the database
-      // The custom_date_flexibility column has been added to the database schema
-      const dbRecord = {
-        user_id: userId,
-        budget_min: dbPrefs.budget_min ?? 0,
-        budget_max: dbPrefs.budget_max ?? 0,
-        budget_flexibility: dbPrefs.budget_flexibility ?? 0,
-        travel_duration: dbPrefs.travel_duration ?? 'week',
-        date_flexibility: dbPrefs.date_flexibility ?? 'flexible-few',
-        custom_date_flexibility: dbPrefs.custom_date_flexibility ?? '',
-        planning_intent: dbPrefs.planning_intent ?? 'exploring',
-        accommodation_types: dbPrefs.accommodation_types ?? ['hotel'],
-        accommodation_comfort: dbPrefs.accommodation_comfort ?? ['private-room'],
-        location_preference: dbPrefs.location_preference ?? 'center',
-        flight_type: dbPrefs.flight_type ?? 'direct',
-        prefer_cheaper_with_stopover: typeof dbPrefs.prefer_cheaper_with_stopover === 'boolean' ? 
-          dbPrefs.prefer_cheaper_with_stopover : false,
-        departure_city: dbPrefs.departure_city ?? 'Berlin',
-        updated_at: new Date().toISOString()
-      };
-      
-      console.log('Final DB record for insertion:', dbRecord);
-      
-      // Use UPSERT with onConflict strategy - this is the most reliable approach with RLS
-      console.log('Using upsert strategy for saving preferences');
-      const result = await supabase
+      const { error } = await supabase
         .from('travel_preferences')
-        .upsert({
-          ...dbRecord,
-          created_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id',
-          ignoreDuplicates: false
-        });
+        .upsert(dbPrefs, { onConflict: 'user_id' });
       
-      console.log('Upsert result:', result);
-      
-      if (result.error) {
-        console.error('Error saving travel preferences:', result.error);
-        
-        // Special handling for RLS-related errors
-        if (result.error.code === '42501' || result.error.message.includes('permission denied')) {
-          console.error('This appears to be a Row Level Security (RLS) error');
-          console.log('Attempting to verify RLS policies are set correctly...');
-          
-          // Confirm user authentication status
-          const { data: authData } = await supabase.auth.getUser();
-          console.log('Current auth user:', authData);
-          
-          // Make one more attempt with explicit user ID check
-          console.log('Attempting alternative approach...');
-          try {
-            // First create a new row for the user if it doesn't exist yet
-            const tempData = {
-              user_id: userId,
-              budget_min: 1000,
-              budget_max: 5000,
-              departure_city: 'Berlin',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            };
-            
-            // Try inserting a minimal record first if it doesn't exist
-            if (!exists) {
-              const preInsert = await supabase
-                .from('travel_preferences')
-                .insert(tempData);
-                
-              console.log('Pre-insert result:', preInsert);
-            }
-            
-            // Then try updating specific fields one by one
-            const updateOps = [];
-            for (const [key, value] of Object.entries(dbRecord)) {
-              if (key !== 'user_id' && key !== 'created_at') {
-                const fieldUpdate = await supabase
-                  .from('travel_preferences')
-                  .update({ [key]: value })
-                  .eq('user_id', userId);
-                  
-                updateOps.push({ field: key, result: fieldUpdate });
-              }
-            }
-            
-            console.log('Individual field updates:', updateOps);
-            
-            // Check if at least some updates succeeded
-            const someSucceeded = updateOps.some(op => !op.result.error);
-            if (someSucceeded) {
-              console.log('Some fields were successfully updated');
-              return true;
-            }
-          } catch (err) {
-            console.error('Alternative approach also failed:', err);
-          }
-        }
-        
+      if (error) {
+        console.error('Error saving travel preferences:', error);
         return false;
       }
       
       return true;
-    } catch (error: unknown) {
-      console.error('Error saving travel preferences:', error instanceof Error ? error.message : 'Unknown error');
+    } catch (error) {
+      console.error('Error saving travel preferences:', error);
+      return false;
+    }
+  },
+  
+  /**
+   * Migrate travel preferences from user metadata or localStorage to the database
+   * @param user The user object
+   * @returns True if migration was successful
+   */
+  migrateTravelPreferences: async (user: User): Promise<boolean> => {
+    try {
+      const { data: existingPrefs } = await supabase
+        .from('travel_preferences')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existingPrefs) {
+        return true;
+      }
+
+      const metadataPrefs = user.user_metadata?.travel_preferences;
+      const localPrefs = localStorage.getItem('userTravelPreferences');
+      const parsedLocalPrefs = localPrefs ? JSON.parse(localPrefs) : null;
+
+      const prefsToSave = metadataPrefs || parsedLocalPrefs;
+
+      if (prefsToSave) {
+        return travelPreferencesService.saveTravelPreferences(user.id, prefsToSave);
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error migrating travel preferences:', error);
       return false;
     }
   },

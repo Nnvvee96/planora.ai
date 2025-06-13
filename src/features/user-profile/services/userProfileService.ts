@@ -5,7 +5,7 @@
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/client';
 import { UserProfile, DbUserProfile } from '../types/profileTypes';
 // Import directly from service to avoid circular dependency through API
 import { travelPreferencesService } from '@/features/travel-preferences/travelPreferencesApi';
@@ -29,6 +29,7 @@ const mapDbProfileToUserProfile = (dbProfile: DbUserProfile): UserProfile => {
     country: dbProfile.country || undefined,
     city: dbProfile.city || undefined,
     customCity: dbProfile.custom_city || undefined,
+    isBetaTester: dbProfile.is_beta_tester || false,
     hasCompletedOnboarding: dbProfile.has_completed_onboarding,
     emailVerified: dbProfile.email_verified,
     createdAt: dbProfile.created_at,
@@ -62,6 +63,7 @@ const mapUserProfileToDbProfile = (profile: Partial<UserProfile>): Partial<DbUse
   if (profile.city !== undefined) dbProfile.city = profile.city;
   if (profile.customCity !== undefined) dbProfile.custom_city = profile.customCity;
   
+  if (profile.isBetaTester !== undefined) dbProfile.is_beta_tester = profile.isBetaTester;
   if (profile.hasCompletedOnboarding !== undefined) dbProfile.has_completed_onboarding = profile.hasCompletedOnboarding;
   if (profile.emailVerified !== undefined) dbProfile.email_verified = profile.emailVerified;
   
@@ -142,7 +144,7 @@ export const userProfileService = {
       // Check if a profile already exists
       const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, is_beta_tester')
         .eq('id', user.id)
         .single();
       
@@ -164,6 +166,7 @@ export const userProfileService = {
               last_name: lastName,
               email: user.email,
               email_verified: emailVerified,
+              is_beta_tester: false,
               created_at: timestamp,
               updated_at: timestamp,
               // Standardize on birthdate field only
@@ -314,7 +317,7 @@ export const userProfileService = {
       // Attempt to get profile from database
       const { data: dbProfile, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, is_beta_tester')
         .eq('id', userId)
         .single();
         
@@ -469,7 +472,7 @@ export const userProfileService = {
         .from('profiles')
         .update(dbProfileUpdate)
         .eq('id', userId)
-        .select();
+        .select('*, is_beta_tester');
       
       if (error) {
         console.error('Error updating profile in database:', error);

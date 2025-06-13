@@ -6,7 +6,9 @@
  */
 
 import { supabaseAuthService } from './supabaseAuthService';
-import { supabase } from './supabaseClient';
+import { supabase } from '@/lib/supabase/client';
+
+const SESSION_KEY = 'supabase.auth.session';
 
 /**
  * Session Manager Service

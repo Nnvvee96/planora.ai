@@ -5,7 +5,7 @@
  * This service follows Planora's architectural principles of separation of concerns.
  */
 
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/client';
 import { 
   Conversation, 
   Message, 

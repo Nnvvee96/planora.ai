@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 /**
  * Supabase Client Configuration
- * 
+ *
  * Provides a configured Supabase client instance for frontend authentication operations.
  * Following Planora's architectural principles with feature-first organization.
  */
@@ -19,10 +19,4 @@ if (!supabaseUrl || !supabaseAnonKey) {
  * The configured Supabase client instance for frontend authentication.
  * This client is configured with the anonymous key for public access.
  */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-/**
- * The Supabase client instance for frontend authentication.
- * This is an alias for the main supabase client, following our naming conventions.
- */
-export const supabaseClient = supabase;
+export const supabase = createClient(supabaseUrl, supabaseAnonKey); 

@@ -12,7 +12,7 @@ import { lazy } from 'react';
 
 // Import services
 import { userProfileService as userProfileServiceImpl } from './services/userProfileService';
-import { userDataManager as userDataManagerImpl } from './services/userDataManager';
+import { userProfileDataManager as userDataManagerImpl } from './services/userProfileDataManager';
 
 // Re-export types
 export type { UserProfile, DbUserProfile };
