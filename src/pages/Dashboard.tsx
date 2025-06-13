@@ -27,6 +27,8 @@ import { Footer } from '@/ui/organisms/Footer';
 import { useAuth, AppUser, getAuthService } from '@/features/auth/authApi';
 import { getUserProfileMenuComponent, UserProfile } from '@/features/user-profile/userProfileApi';
 import { useUserProfileIntegration } from '@/features/user-profile/userProfileApi';
+import { BetaFeature } from '@/features/dev-tools/devToolsApi';
+import { QuickActionsWidget } from '@/features/dashboard/dashboardApi';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -68,6 +70,7 @@ const Dashboard = () => {
                 city: combinedData.city,
                 customCity: combinedData.customCity,
                 country: combinedData.country,
+                isBetaTester: combinedData.isBetaTester,
                 hasCompletedOnboarding: combinedData.hasCompletedOnboarding,
                 emailVerified: combinedData.emailVerified,
                 createdAt: combinedData.createdAt,
@@ -276,47 +279,20 @@ const Dashboard = () => {
       </header>
 
       {/* Main content */}
-      <main className="relative z-10 container mx-auto px-4 md:px-6 py-8 flex-grow">
-        {/* Welcome section */}
-        <section className="mb-10">
-          <h1 className="text-3xl font-bold">Welcome back, {userName}!</h1>
-          <p className="text-white/60 mt-2">Ready to plan your next adventure?</p>
-        </section>
+      <main className="flex-1 container mx-auto px-4 md:px-6 py-8 relative z-10">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Welcome back, {userName}</h1>
+          <Button onClick={handleChatWithPlanora} className="bg-planora-accent-purple hover:bg-planora-accent-purple/90">
+            <MessageCircle className="mr-2 h-4 w-4" />
+            Chat with Planora
+          </Button>
+        </div>
+        <BetaFeature>
+          <QuickActionsWidget />
+        </BetaFeature>
 
-        {/* Quick Actions */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-          <Button className="h-auto py-6 bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90" onClick={handleChatWithPlanora}>
-            <div className="flex flex-col items-center">
-              <Plus className="h-6 w-6 mb-2" />
-              <span className="text-lg">Chat with Planora.ai</span>
-            </div>
-          </Button>
-          
-          <Button variant="outline" className="h-auto py-6 border-white/10 bg-white/5 hover:bg-white/10">
-            <div className="flex flex-col items-center">
-              <MapPin className="h-6 w-6 mb-2" />
-              <span className="text-lg">Explore Destinations</span>
-            </div>
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            className="h-auto py-6 border-white/10 bg-white/5 hover:bg-white/10"
-            onClick={() => {
-              console.log('Navigating to preferences from Modify Preferences button');
-              window.location.href = '/preferences';
-            }}
-          >
-            <div className="flex flex-col items-center">
-              <Settings className="h-6 w-6 mb-2" />
-              <span className="text-lg">Modify Preferences</span>
-            </div>
-          </Button>
-        </section>
-
-        {/* Main Dashboard Tabs */}
-        <Tabs defaultValue="trips" className="mb-10">
-          <TabsList className="mb-6">
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList>
             <TabsTrigger value="trips" className="text-base">Upcoming Trips</TabsTrigger>
             <TabsTrigger value="suggestions" className="text-base">Smart Suggestions</TabsTrigger>
             <TabsTrigger value="conversations" className="text-base">Recent Conversations</TabsTrigger>
