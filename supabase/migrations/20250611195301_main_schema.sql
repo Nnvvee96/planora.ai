@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS public.verification_codes (
   target TEXT NOT NULL, -- e.g., email address, phone number
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
   used BOOLEAN DEFAULT FALSE,
+  metadata JSONB, -- Stores temporary metadata, such as a pending password
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   UNIQUE (user_id, code_type, target) -- Ensure a user has only one active code of a certain type for a target

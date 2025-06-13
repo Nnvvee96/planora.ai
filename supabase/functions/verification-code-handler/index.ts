@@ -9,14 +9,55 @@ const supabaseAdmin = createClient(
 
 // Helper to send verification email (placeholder)
 async function sendVerificationEmail(email: string, code: string) {
-  // In a real application, you would use a transactional email service.
-  // Supabase's built-in auth emails are not directly available here.
-  // For now, we'll log to the console. You can replace this with SendGrid, Postmark, etc.
-  console.log(`Sending verification code ${code} to ${email}`);
-  // Example of what you might do with a real email provider:
-  // const { data, error } = await someEmailProvider.send({ to: email, subject: 'Your Verification Code', body: `Your code is ${code}` });
-  // if (error) throw new Error('Failed to send verification email.');
-  return Promise.resolve();
+  try {
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendApiKey) {
+      // In a real production environment, you'd want to handle this more gracefully.
+      // For now, we'll log an error. This function should not be called if the key is missing.
+      console.error('RESEND_API_KEY is not set in environment variables.');
+      // We throw an error to halt the process if the API key is missing.
+      // This prevents the user from being told an email was sent when it wasn't.
+      throw new Error('Email service is not configured.');
+    }
+
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; color: #333;">
+        <h2 style="color: #4A4A4A;">Welcome to Planora!</h2>
+        <p>Your verification code is:</p>
+        <p style="font-size: 24px; font-weight: bold; letter-spacing: 2px; color: #6A4CFF;">${code}</p>
+        <p>This code will expire in 15 minutes.</p>
+        <p>If you did not request this, please ignore this email.</p>
+        <hr style="border: 0; border-top: 1px solid #eee;" />
+        <p style="font-size: 12px; color: #999;">&copy; Planora.ai - Your AI-Powered Life Planner</p>
+      </div>
+    `;
+
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${resendApiKey}`,
+      },
+      body: JSON.stringify({
+        from: 'Planora <noreply@getplanora.app>', // Use the verified Resend domain
+        to: [email],
+        subject: 'Your Planora Verification Code',
+        html: emailHtml,
+      }),
+    });
+
+    if (!res.ok) {
+      const errorBody = await res.json();
+      console.error('Failed to send verification email:', errorBody);
+      throw new Error(`Failed to send verification email. Status: ${res.status}`);
+    }
+
+    console.log(`Verification email sent successfully to ${email}`);
+  } catch (error) {
+    console.error('Error in sendVerificationEmail:', error.message);
+    // Re-throw the error to be caught by the main handler
+    throw error;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -42,7 +83,8 @@ Deno.serve(async (req) => {
         const { error: insertError } = await supabaseAdmin
           .from('verification_codes')
           .insert({
-            email: email,
+            target: email,
+            code_type: 'EMAIL_VERIFICATION',
             code: code,
             expires_at: expires_at,
             metadata: { password: password } // Temporarily store the password
@@ -68,7 +110,8 @@ Deno.serve(async (req) => {
         const { data: codeData, error: codeError } = await supabaseAdmin
           .from('verification_codes')
           .select('*')
-          .eq('email', email)
+          .eq('target', email)
+          .eq('code_type', 'EMAIL_VERIFICATION')
           .eq('code', code)
           .single();
 
