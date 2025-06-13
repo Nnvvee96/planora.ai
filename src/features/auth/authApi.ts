@@ -451,3 +451,8 @@ const authService = {
     return supabaseAuthService.completeSignup(payload);
   }
 };
+
+export { useAuthContext } from './components/AuthProvider';
+
+// Export components
+export { AuthProvider } from './components/AuthProvider';

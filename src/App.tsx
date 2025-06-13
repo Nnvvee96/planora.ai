@@ -26,7 +26,7 @@ import { ErrorBoundary } from '@/ui/organisms/ErrorBoundary';
 import { useEffect } from 'react';
 
 // Import dev tools
-import { getTestModeIndicatorComponent } from '@/features/dev-tools/devToolsApi';
+import { getTestModeIndicatorComponent, BetaFeature } from '@/features/dev-tools/devToolsApi';
 import { ScrollToTop } from './utils/ScrollToTop'; // Adjusted import path
 
 // Print environment variables to console (without keys)
@@ -95,6 +95,11 @@ const App = () => {
               <Sonner />
               <DebugComponent />
               <TestModeIndicator />
+              <BetaFeature>
+                <div className="fixed bottom-4 right-28 bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full z-50">
+                  BETA TESTER
+                </div>
+              </BetaFeature>
               <Routes>
                 {/* Public routes - with authentication check for root path */}
                 <Route path="/" element={

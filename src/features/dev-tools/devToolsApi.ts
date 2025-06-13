@@ -28,3 +28,5 @@ export const isInTestMode = (): boolean => {
 
 // Re-export types
 export type { TestModeIndicatorProps };
+
+export { BetaFeature } from './components/BetaFeature';
