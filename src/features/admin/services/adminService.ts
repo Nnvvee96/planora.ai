@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '@/database/databaseApi';
 import { UserProfile, DbUserProfile, mapDbUserToAppUser } from '@/features/user-profile/userProfileApi';
 
 export const adminService = {
