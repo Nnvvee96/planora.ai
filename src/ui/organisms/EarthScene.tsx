@@ -203,7 +203,7 @@ const EarthScene = () => {
           powerPreference: "high-performance"
         }}
       >
-        <PerspectiveCamera makeDefault position={[0, 0, 8]} fov={60} />
+        <PerspectiveCamera makeDefault position={[0, 0, 4]} fov={60} />
         <ambientLight intensity={0.2} color="#003366" />
         <directionalLight
           position={[5, 5, 5]}
