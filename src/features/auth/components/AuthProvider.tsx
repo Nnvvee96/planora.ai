@@ -223,13 +223,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Initialize immediately
     checkAuth();
     
-    // Cleanup function to clear any hanging timeouts
-    return () => {
-      if (authInitializationTimer) {
-        clearTimeout(authInitializationTimer);
-      }
-    };
-    
     // Set up Supabase auth listener to handle auth changes
     const { data: { subscription } } = supabaseAuthService.subscribeToAuthChanges((event, session) => {
       console.log('Auth state changed:', event, !!session);
@@ -269,9 +262,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         });
       }
     });
-    
-    // Clean up subscription
+
+    // Cleanup function to clear any hanging timeouts and unsubscribe
     return () => {
+      if (authInitializationTimer) {
+        clearTimeout(authInitializationTimer);
+      }
       subscription.unsubscribe();
     };
   }, []);

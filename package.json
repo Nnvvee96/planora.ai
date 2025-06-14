@@ -60,6 +60,8 @@
     "@radix-ui/react-toggle": "^1.1.0",
     "@radix-ui/react-toggle-group": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.4",
+    "@react-three/drei": "^9.108.3",
+    "@react-three/fiber": "^8.16.8",
     "@reduxjs/toolkit": "^2.8.2",
     "@splinetool/react-spline": "^4.0.0",
     "@splinetool/runtime": "^1.9.96",
@@ -87,7 +89,7 @@
     "swiper": "^11.2.8",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
-    "three": "^0.176.0",
+    "three": "^0.163.0",
     "vaul": "^0.9.3",
     "zod": "^3.23.8"
   },

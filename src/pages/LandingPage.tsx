@@ -31,6 +31,7 @@ import { Button } from "@/ui/atoms/Button";
 import { ReviewCard, ReviewCardProps } from '@/ui/organisms/ReviewCard'; 
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay } from 'swiper/modules'; 
+import EarthScene from '@/ui/organisms/EarthScene';
 // import 'swiper/css/pagination';
 // import 'swiper/css/navigation'; // Ensure navigation CSS is also removed/commented
 import 'swiper/css';
@@ -248,51 +249,40 @@ const LandingPage = () => {
                   </div>
                   <span className="text-white">With <span className="text-planora-accent-blue font-extrabold">Planora.ai</span></span>
                 </h1>
-                
-                <p className="text-xl text-white/90 max-w-xl mx-auto lg:mx-0 leading-relaxed mb-8">
-                  Experience travel planning reimagined with our <span className="text-planora-accent-purple font-medium">AI-powered platform</span> that learns your preferences and crafts personalized journeys with precision and creativity.
+                <p className="text-lg md:text-xl text-planora-purple-light mb-8 max-w-lg mx-auto lg:mx-0">
+                  Your intelligent travel companion that crafts personalized journeys in minutes. Say goodbye to planning stress and hello to your next adventure.
                 </p>
-                
-                <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
+                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                   <Button 
                     variant="gradient" 
                     size="lg" 
-                    className="text-lg flex items-center gap-2 shadow-lg shadow-planora-accent-purple/30 hover:shadow-planora-accent-purple/50 transition-all duration-300 group" 
+                    className="flex items-center gap-2"
                     onClick={handleChatWithPlanora}
                   >
-                    <Sparkles className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                    <span className="group-hover:translate-x-0.5 transition-transform duration-300">Start Planning</span>
+                    <Zap className="w-5 h-5" />
+                    Start Planning for Free
                   </Button>
-                  
-                  <a href="#popular-destinations">
-                    <Button 
-                      variant="glass"
-                      size="lg"
-                      className="text-lg border-white/10 hover:border-white/30 transition-all duration-300 group"
-                    >
-                      <span>See Examples</span>
-                      <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform duration-300" />
-                    </Button>
-                  </a>
+                  <Button 
+                    variant="glass" 
+                    size="lg" 
+                    className="flex items-center gap-2"
+                    onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+                  >
+                    Learn More
+                    <ArrowRight className="w-5 h-5" />
+                  </Button>
                 </div>
               </div>
               
-              {/* Right column - Visual */}
-              <div className="relative h-[400px] md:h-[500px] flex items-center justify-center order-1 lg:order-2">
-                <div className="absolute inset-0 bg-gradient-to-br from-planora-accent-purple/5 to-planora-accent-blue/5 rounded-2xl opacity-30 blur-xl"></div>
-                
-                <div className="relative h-full aspect-square flex items-center justify-center">
-                  {/* Placeholder for new 3D Earth Animation */}
-                  <div className="w-full h-full bg-planora-purple-dark/30 rounded-lg flex items-center justify-center text-planora-white/50">
-                    <p>3D Earth Animation Coming Soon!</p>
-                  </div>
-                </div>
+              {/* Right column - 3D Earth Visualization */}
+              <div className="order-1 lg:order-2 h-[400px] md:h-[600px] lg:h-full w-full">
+                <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-white">Loading 3D Experience...</div>}>
+                  <EarthScene />
+                </Suspense>
               </div>
             </div>
           </div>
         </section>
-        
-        {/* Floating destinations have been removed as requested */}
         
         {/* Features Section - Enhanced Modern Design */}
         <section id="features" className="py-24 px-4 md:px-6 bg-gradient-to-b from-planora-purple-dark/50 via-planora-purple-dark to-planora-purple-dark/80 relative overflow-hidden">
