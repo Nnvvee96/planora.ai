@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -114,14 +114,14 @@ const HolographicEarth = () => {
   }, []);
 
   // Function to check if a point is inside a continent
-  const isInsideContinent = (lat: number, lng: number) => {
+  const isInsideContinent = useCallback((lat: number, lng: number) => {
     for (const shape of Object.values(continentShapes)) {
       if (isPointInPolygon(lat, lng, shape)) {
         return true;
       }
     }
     return false;
-  };
+  }, [continentShapes]);
 
   // Point in polygon algorithm
   const isPointInPolygon = (lat: number, lng: number, polygon: number[][]) => {
@@ -173,7 +173,7 @@ const HolographicEarth = () => {
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     return geometry;
-  }, [continentShapes, isInsideContinent]);
+  }, [isInsideContinent]);
 
   // Create ocean particles
   const oceanParticles = useMemo(() => {
@@ -211,7 +211,7 @@ const HolographicEarth = () => {
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     return geometry;
-  }, [continentShapes, isInsideContinent]);
+  }, [isInsideContinent]);
 
   // Create continent outlines
   const continentOutlines = useMemo(() => {

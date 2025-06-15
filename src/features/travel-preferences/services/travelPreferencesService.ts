@@ -208,9 +208,9 @@ export const travelPreferencesService = {
 
       if (prefsToSave) {
         return travelPreferencesService.saveTravelPreferences(user.id, prefsToSave);
-      }
-
-      return false;
+        }
+        
+        return false;
     } catch (error) {
       console.error('Error migrating travel preferences:', error);
       return false;

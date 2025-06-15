@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { useAuthContext } from './AuthProvider';
+import { useAuthContext } from '../context/authContext';
 import { useNavigate } from 'react-router-dom';
 import { UserRegistrationStatus } from '../types/authTypes';
 import { AuthRedirect } from './AuthRedirect';

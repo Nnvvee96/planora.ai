@@ -168,14 +168,13 @@ export interface CompleteSignupResponse {
   status?: number; // HTTP status code from Edge Function response
 }
 
-
 /**
  * Authentication Service interface
  * Defines the contract for auth service implementations
  */
 export interface AuthService {
   signInWithGoogle(): Promise<void>;
-  signInWithPassword(credentials: { email: string; password: string }): Promise<{ data: any; error: Error | null }>;
+  signInWithPassword(credentials: { email: string; password: string }): Promise<{ data: unknown; error: Error | null }>;
   updateUserMetadata(metadata: Record<string, unknown>): Promise<void>;
   getCurrentUser(): Promise<AppUser | null>;
   logout(): Promise<void>;
@@ -206,4 +205,18 @@ export interface AuthService {
   // New methods for the new signup flow
   initiateSignup(email: string, password_raw: string): Promise<InitiateSignupResponse>;
   completeSignup(payload: CompleteSignupPayload): Promise<CompleteSignupResponse>;
+}
+
+/**
+ * Defines the shape of the authentication context provided to the app.
+ */
+export interface AuthContextType {
+  isAuthenticated: boolean;
+  user: AppUser | null;
+  loading: boolean;
+  error: string | null;
+  signInWithGoogle: () => Promise<void>;
+  logout: () => Promise<void>;
+  handleAuthCallback: () => Promise<AuthResponse>;
+  updateOnboardingStatus: (userId: string, hasCompleted?: boolean) => Promise<boolean>;
 }

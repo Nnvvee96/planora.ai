@@ -5,39 +5,29 @@
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { ReactNode } from 'react';
 // Import types directly from types directory instead of through API
 import { User } from '@supabase/supabase-js';
-import { AppUser, AuthState, AuthResponse } from '../types/authTypes';
+import { AppUser, AuthState, AuthResponse, AuthContextType } from '../types/authTypes';
 // Import UserRegistrationStatus as a value, not just a type
 import { UserRegistrationStatus } from '../types/authTypes';
 
 // Import services directly to avoid circular dependencies
 import { supabaseAuthService } from '../services/supabaseAuthService';
+import { AuthContext } from '../context/authContext';
 
-// Define the auth context type for better type safety
-export interface AuthContextType {
-  isAuthenticated: boolean;
-  user: AppUser | null;
-  loading: boolean;
-  error: string | null;
-  signInWithGoogle: () => Promise<void>;
-  logout: () => Promise<void>;
-  handleAuthCallback: () => Promise<AuthResponse>;
-  updateOnboardingStatus: (userId: string, hasCompleted?: boolean) => Promise<boolean>;
+interface IdentityData {
+  given_name?: string;
+  first_name?: string;
+  family_name?: string;
+  last_name?: string;
+  name?: string;
 }
 
-// Create auth context with default values
-export const AuthContext = createContext<AuthContextType>({
-  isAuthenticated: false,
-  user: null,
-  loading: true,
-  error: null,
-  signInWithGoogle: async () => {},
-  logout: async () => {},
-  handleAuthCallback: async () => ({ success: false, user: null, registrationStatus: 'new_user' as UserRegistrationStatus, error: null }),
-  updateOnboardingStatus: async () => false
-});
+interface Identity {
+  provider: string;
+  identity_data: IdentityData;
+}
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -72,7 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
     
     // Start with empty metadata to ensure we always have a valid object
-    const metadata: Record<string, any> = {};
+    const metadata: Record<string, unknown> = {};
     
     // Safely extract user metadata with null checking
     if (user.user_metadata && typeof user.user_metadata === 'object') {
@@ -85,7 +75,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
     try {
       if (metadata.identities && Array.isArray(metadata.identities)) {
-        const googleIdentity = metadata.identities.find((identity: any) => 
+        const googleIdentity = (metadata.identities as Identity[]).find((identity: Identity) => 
           identity && identity.provider === 'google' && identity.identity_data
         );
         
@@ -333,10 +323,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
   
   const authContextValue: AuthContextType = {
-    isAuthenticated: authState.isAuthenticated,
-    user: authState.user,
-    loading: authState.loading,
-    error: authState.error,
+    ...authState,
     signInWithGoogle,
     logout,
     handleAuthCallback,
@@ -351,23 +338,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }
   
   return (
-    <AuthContext.Provider value={{
-      isAuthenticated: authState.isAuthenticated,
-      user: authState.user,
-      loading: authState.loading,
-      error: authState.error,
-      signInWithGoogle,
-      logout,
-      handleAuthCallback,
-      updateOnboardingStatus
-    }}>
+    <AuthContext.Provider value={authContextValue}>
       {children}
     </AuthContext.Provider>
   );
 };
-
-/**
- * Hook for accessing auth context
- * Provides a convenient way to access auth state and methods
- */
-export const useAuthContext = () => useContext(AuthContext);
