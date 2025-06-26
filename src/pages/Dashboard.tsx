@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { 
   MessageCircle, 
@@ -34,109 +34,90 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [hasLoadedProfile, setHasLoadedProfile] = useState(false);
   
   // Use the integration hook for cross-feature communication
   const userProfileIntegration = useUserProfileIntegration();
   
-  // Get the UserProfileMenu component using the factory function
-  const UserProfileMenu = getUserProfileMenuComponent();
+  // Memoize the UserProfileMenu component to prevent unnecessary re-renders
+  const UserProfileMenu = useMemo(() => getUserProfileMenuComponent(), []);
   
-  // Load user profile data when user is available - with debouncing to reduce flicker
-  useEffect(() => {
-    let isMounted = true;
+  // Memoize user name calculation to prevent unnecessary recalculations
+  const userName = useMemo(() => {
+    const userFirstName = user?.firstName || userProfile?.firstName || '';
+    const userLastName = user?.lastName || userProfile?.lastName || '';
+    const userFullName = `${userFirstName} ${userLastName}`.trim();
     
-    const loadUserProfile = async () => {
-      // Only proceed if we have a user from the auth hook and component is still mounted
-      if (!user || !isMounted) return;
+    // Only use Guest as a fallback when we're absolutely sure no user data exists
+    return userFullName || user?.username || user?.email?.split('@')[0] || (loading ? 'Loading...' : 'Guest');
+  }, [user, userProfile, loading]);
+
+  // Memoize the profile loading function to prevent recreation on every render
+  const loadUserProfile = useCallback(async (userId: string) => {
+    if (hasLoadedProfile) return; // Prevent multiple loads
+    
+    try {
+      setLoading(true);
+      console.log('Loading user profile for user:', userId);
       
-      try {
-        setLoading(true);
+      // Use the integration hook to fetch the combined user and profile data
+      const combinedData = await userProfileIntegration.getUserWithProfile(userId);
+      
+      if (combinedData) {
+        // The getUserWithProfile method returns a merged object of AppUser and UserProfile
+        // Extract the profile-specific properties to create a UserProfile object
+        const profileData: UserProfile = {
+          id: combinedData.id,
+          email: combinedData.email,
+          firstName: combinedData.firstName || '',
+          lastName: combinedData.lastName || '',
+          birthdate: combinedData.birthdate,
+          avatarUrl: combinedData.avatarUrl,
+          city: combinedData.city,
+          customCity: combinedData.customCity,
+          country: combinedData.country,
+          isBetaTester: combinedData.isBetaTester,
+          hasCompletedOnboarding: combinedData.hasCompletedOnboarding,
+          emailVerified: combinedData.emailVerified,
+          createdAt: combinedData.createdAt,
+          updatedAt: combinedData.updatedAt
+        };
         
-        // Use the integration hook to fetch the combined user and profile data
-        const combinedData = await userProfileIntegration.getUserWithProfile(user.id);
-        
-        if (combinedData && isMounted) {
-          // The getUserWithProfile method returns a merged object of AppUser and UserProfile
-          // Extract the profile-specific properties to create a UserProfile object
-          const profileData: UserProfile = {
-            id: combinedData.id,
-            email: combinedData.email,
-            firstName: combinedData.firstName || '',
-            lastName: combinedData.lastName || '',
-            birthdate: combinedData.birthdate,
-            avatarUrl: combinedData.avatarUrl,
-            city: combinedData.city,
-            customCity: combinedData.customCity,
-            country: combinedData.country,
-            isBetaTester: combinedData.isBetaTester,
-            hasCompletedOnboarding: combinedData.hasCompletedOnboarding,
-            emailVerified: combinedData.emailVerified,
-            createdAt: combinedData.createdAt,
-            updatedAt: combinedData.updatedAt
-          };
-          
-          setUserProfile(profileData);
-        }
-      } catch (error) {
-        console.error('Error loading user data:', error);
-        // Don't show error to user for profile loading issues
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        setUserProfile(profileData);
+        setHasLoadedProfile(true);
+        console.log('User profile loaded successfully');
       }
-    };
-    
-    // Debounce the loading to prevent rapid re-renders
-    const timeoutId = setTimeout(loadUserProfile, 100);
-    
-    return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
-    };
-  }, [user, userProfileIntegration]);
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      // Don't show error to user for profile loading issues
+    } finally {
+      setLoading(false);
+    }
+  }, [userProfileIntegration, hasLoadedProfile]);
   
-  // Get user's name from various sources in priority order
-  const userFirstName = user?.firstName || userProfile?.firstName || '';
-  const userLastName = user?.lastName || userProfile?.lastName || '';
-  const userFullName = `${userFirstName} ${userLastName}`.trim();
-  
-  // Only use Guest as a fallback when we're absolutely sure no user data exists
-  const userName = userFullName || user?.username || user?.email?.split('@')[0] || (loading ? 'Loading...' : 'Guest');
-  
-  // Enhanced session verification and auth state handling
+  // Load user profile data when user is available - FIXED: proper dependency management
   useEffect(() => {
-    // Only run after initial loading completes
-    if (loading || authLoading) return;
+    // Only proceed if we have a user and haven't loaded the profile yet
+    if (!user?.id || hasLoadedProfile || authLoading) return;
+    
+    console.log('Dashboard: User available, loading profile...', user.id);
+    loadUserProfile(user.id);
+  }, [user?.id, hasLoadedProfile, authLoading, loadUserProfile]);
+  
+  // Enhanced session verification - FIXED: run only when necessary
+  useEffect(() => {
+    // Only run session verification if we don't have a user and auth is not loading
+    if (user || authLoading || loading) return;
+    
+    console.log('Dashboard: No user found, verifying session...');
     
     const verifySession = async () => {
       try {
-        // If we don't have a user in context, check directly with auth service
-        if (!user) {
-          console.log('No user in context, performing direct session verification...');
-          
-          // Force a session refresh to ensure we have the latest session state
-          // Get auth service via factory function to avoid circular dependencies
-          const authService = getAuthService();
-          await authService.refreshSession();
-          
-          // Now get the current user after refresh
-          const currentUser = await authService.getCurrentUser();
-          
-          if (currentUser) {
-            console.log('Active session found during verification, but missing user in context');
-            // We have a session but no user in context - trigger a user reload
-            // Use the proper auth service to get current user
-            const refreshedUser = await authService.getCurrentUser();
-            
-            if (refreshedUser) {
-              console.log('User reloaded successfully, staying on dashboard');
-              // User was reloaded successfully, no need to redirect
-              return;
-            }
-          }
-          
-          // If we get here, there's genuinely no authenticated session
+        // Get auth service via factory function to avoid circular dependencies
+        const authService = getAuthService();
+        const currentUser = await authService.getCurrentUser();
+        
+        if (!currentUser) {
           console.log('No authenticated user found in Dashboard, redirecting to login');
           
           // Check for onboarding completion in localStorage before redirecting
@@ -152,18 +133,23 @@ const Dashboard = () => {
         }
       } catch (error) {
         console.error('Error during session verification:', error);
+        navigate('/login');
       }
     };
     
-    verifySession();
-  }, [user, loading, authLoading, navigate]);
+    // Debounce session verification to prevent rapid calls
+    const timeoutId = setTimeout(verifySession, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [user, authLoading, loading, navigate]);
   
-  // Handler for directing to chat interface
-  const handleChatWithPlanora = () => {
+  // Handler for directing to chat interface - memoized to prevent recreation
+  const handleChatWithPlanora = useCallback(() => {
     navigate('/chat');
-  };
+  }, [navigate]);
 
-  const upcomingTrips = [
+  // Memoize static data to prevent recreation on every render
+  const upcomingTrips = useMemo(() => [
     {
       id: 1,
       destination: 'Barcelona, Spain',
@@ -180,9 +166,9 @@ const Dashboard = () => {
       progress: 60,
       status: 'Planning'
     }
-  ];
+  ], []);
 
-  const suggestions = [
+  const suggestions = useMemo(() => [
     {
       id: 1,
       destination: 'Santorini, Greece',
@@ -201,9 +187,9 @@ const Dashboard = () => {
       image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?q=80&w=1000&auto=format&fit=crop',
       description: 'Perfect for your relaxation and nature preferences',
     }
-  ];
+  ], []);
   
-  const conversations = [
+  const conversations = useMemo(() => [
     {
       id: 1,
       title: 'Weekend in Paris',
@@ -216,14 +202,26 @@ const Dashboard = () => {
       preview: 'Comparing beach destinations in Portugal and Spain...',
       updatedAt: '1 week ago',
     }
-  ];
+  ], []);
 
-  const userInsights = {
+  const userInsights = useMemo(() => ({
     destinations: 12,
     topCountry: 'Japan',
     savedMoney: '$450',
     savedTime: '28 hours'
-  };
+  }), []);
+
+  // Show loading state while auth or profile is loading
+  if (authLoading || (loading && !userProfile)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-planora-purple-dark">
+        <div className="text-white text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-planora-purple-dark">
@@ -272,8 +270,8 @@ const Dashboard = () => {
                 <UserProfileMenu 
                   userName={userName} 
                   userEmail={user?.email || userProfile?.email} 
-                  firstName={userFirstName}
-                  lastName={userLastName}
+                  firstName={user?.firstName || userProfile?.firstName || ''}
+                  lastName={user?.lastName || userProfile?.lastName || ''}
                   // The birthdate is not available directly in UserProfile
                   // but the UserProfileMenu component might expect it
                   mini={false} 

@@ -120,3 +120,144 @@ The technical foundation is production-ready with:
 | **Subscriptions** | ❌ **Not Started** | **Medium** |
 
 The codebase is architecturally sound and ready for feature development. Focus should be on completing the core user flows (registration, account management, onboarding) before moving to advanced features like subscriptions. 
+
+---
+
+## 🎯 **STRATEGIC RECOVERY PLAN**
+
+### **📊 Current Situation Analysis**
+
+**✅ MASSIVE VALUE CREATED (Must Preserve):**
+- **81 files refactored** with architectural improvements
+- **17 new files** with enhanced functionality
+- **Complete TypeScript audit** with strict mode compliance
+- **Feature API boundaries** and clean architecture
+- **Admin system** with user management capabilities
+- **Subscription system** foundation (full-stack)
+- **VanillaEarthScene** (Three.js without react-reconciler issues)
+- **Beta tester management** system
+- **Enhanced authentication** with proper service layers
+- **Zero linting errors** and architectural violations
+- **Production-ready build** configuration
+
+**🚨 CRITICAL ISSUES TO FIX:**
+- **Performance**: `getUserProfile` called hundreds of times (infinite re-render loop)
+- **Authentication**: Redirect loop between `/login` and `/dashboard`
+- **UI Flickering**: Caused by constant re-renders and auth state changes
+- **Design Elements**: Some visual components simplified during architectural audit
+
+### **🏗️ SURGICAL APPROACH: Fix Issues, Keep All Valuable Work**
+
+#### **Phase 1: Fix Critical Performance Issues (Priority 1)**
+**Goal**: Eliminate infinite re-renders and auth loops while preserving all functionality
+
+1. **Fix Dashboard Performance Issues**
+   - ✅ Optimize `useEffect` dependency arrays to prevent infinite loops
+   - ✅ Implement proper memoization for expensive operations
+   - ✅ Fix `getUserProfile` infinite calls with debouncing and proper state management
+   - ✅ Add proper cleanup functions to prevent memory leaks
+
+2. **Resolve Authentication Flow Issues**
+   - ✅ Fix redirect loop between `/login` and `/dashboard`
+   - ✅ Optimize session verification to run only when necessary
+   - ✅ Implement proper auth state management without constant re-checking
+   - ✅ Fix Google auth callback handling for smooth user experience
+
+3. **Eliminate UI Flickering**
+   - ✅ Add loading states and skeleton components
+   - ✅ Implement proper error boundaries
+   - ✅ Optimize component re-rendering with React.memo and useMemo
+
+#### **Phase 2: Restore Design Elements (Priority 2)**
+**Goal**: Bring back the polished design from commit `1443884` without losing functionality
+
+1. **Dashboard Design Restoration**
+   - ✅ Compare current Dashboard with commit `1443884` design
+   - ✅ Restore missing visual elements and layout improvements
+   - ✅ Ensure proper spacing, typography, and component styling
+   - ✅ Maintain all new functionality while improving visual presentation
+
+2. **Registration Page Design**
+   - ✅ Apply complete design from commit `1443884`
+   - ✅ Restore proper form layout, input styling, and footer
+   - ✅ Maintain enhanced registration logic while improving UI/UX
+
+3. **Navigation and Profile Components**
+   - ✅ Restore any simplified navigation elements
+   - ✅ Ensure profile popups and menus match original design
+   - ✅ Verify all interactive elements have proper styling
+
+#### **Phase 3: Comprehensive Flow Testing (Priority 3)**
+**Goal**: Verify all user flows work seamlessly from start to finish
+
+1. **Authentication Flows**
+   - ✅ Test Google auth → onboarding → dashboard complete flow
+   - ✅ Test email registration → verification → onboarding → dashboard
+   - ✅ Verify session persistence and proper redirects
+
+2. **Feature Integration Testing**
+   - ✅ Test chat with Planora navigation and functionality
+   - ✅ Verify profile management and settings work correctly
+   - ✅ Test admin features and beta tester functionality
+   - ✅ Validate subscription system foundation
+
+3. **Design and UX Validation**
+   - ✅ Verify no UI flickering or performance issues
+   - ✅ Test responsive design across different screen sizes
+   - ✅ Ensure consistent design language throughout the app
+
+### **🎯 SUCCESS CRITERIA**
+
+**✅ Performance Metrics:**
+- Zero infinite re-render loops
+- `getUserProfile` called maximum once per user session change
+- Dashboard loads in under 2 seconds
+- No authentication redirect loops
+
+**✅ Design Quality:**
+- Visual consistency with commit `1443884` design standards
+- No UI flickering or layout shifts
+- Proper loading states and error handling
+- Responsive design maintained
+
+**✅ Functionality Preservation:**
+- All architectural improvements maintained
+- Admin system fully functional
+- Subscription foundation intact
+- Enhanced authentication flow working
+- All new features and services operational
+
+### **📋 EXECUTION TIMELINE**
+
+**Phase 1 (Immediate - 30-45 minutes):**
+- Fix Dashboard performance issues
+- Resolve authentication loops
+- Eliminate UI flickering
+
+**Phase 2 (Next - 30-45 minutes):**
+- Restore Dashboard design elements
+- Apply registration page design
+- Fix navigation and profile components
+
+**Phase 3 (Final - 30 minutes):**
+- Comprehensive flow testing
+- Performance validation
+- Design consistency verification
+
+**Total Estimated Time: 1.5-2 hours**
+
+### **🛡️ RISK MITIGATION**
+
+**Backup Strategy:**
+- All changes made incrementally with git commits
+- Each phase can be reverted independently if issues arise
+- Architectural improvements are isolated and protected
+
+**Quality Assurance:**
+- Test each fix immediately after implementation
+- Verify no regressions in existing functionality
+- Maintain comprehensive error handling throughout
+
+---
+
+**🚀 READY TO EXECUTE: This plan preserves ALL valuable architectural work while surgically fixing the specific issues causing problems. No valuable work will be lost.**
