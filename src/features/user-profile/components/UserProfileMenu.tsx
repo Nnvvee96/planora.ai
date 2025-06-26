@@ -73,51 +73,8 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
     birthdate: birthdate || ''
   });
   
-  // Use integration hook to access user profile data safely
-  const userProfileIntegration = useUserProfileIntegration();
-
-  // Define fetchUserProfile as a useCallback to prevent unnecessary re-renders
-  const fetchUserProfile = useCallback(async () => {
-    if (!profileDialogOpen) return;
-    
-    try {
-      // Get auth service via factory function to avoid circular dependencies
-      const authService = getAuthService();
-      
-      // Get current auth user with proper API boundary
-      const authUser = await authService.getCurrentUser();
-      
-      if (!authUser || !authUser.id) {
-        console.warn('No authenticated user available');
-        return;
-      }
-      
-      // Get user with profile using integration hook
-      const user = await userProfileIntegration.getUserWithProfile(authUser.id);
-      
-      if (!user) {
-        console.warn('Could not load user profile data');
-        return;
-      }
-      
-      // Update profile data state with retrieved information
-      setProfileData({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        birthdate: user.birthdate || ''
-      });
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    }
-  }, [profileDialogOpen, userProfileIntegration]);
-  
-  // Fetch user profile when dialog opens
-  useEffect(() => {
-    if (profileDialogOpen) {
-      fetchUserProfile();
-    }
-  }, [profileDialogOpen, fetchUserProfile]);
+  // SIMPLIFIED: Remove the integration hook dependency to prevent infinite loops
+  // The ProfileDialog will handle its own data loading, we don't need to pre-fetch here
 
   const handleLogout = async () => {
     try {
@@ -224,10 +181,10 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
             open={profileDialogOpen} 
             onOpenChange={setProfileDialogOpen} 
             userName={userName}
-            userEmail={profileData.email}
-            firstName={profileData.firstName}
-            lastName={profileData.lastName}
-            birthdate={profileData.birthdate}
+            userEmail={userEmail || ''}
+            firstName={firstName || ''}
+            lastName={lastName || ''}
+            birthdate={birthdate || ''}
           />
         )}
       </Suspense>

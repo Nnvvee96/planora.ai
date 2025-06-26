@@ -26,7 +26,7 @@ export interface UserProfile {
   onboardingDepartureCity?: string;
 }
 
-// Database representation uses snake_case
+// Database representation uses snake_case - matching actual Supabase schema
 export interface DbUserProfile {
   id: string;
   first_name: string;
@@ -34,8 +34,8 @@ export interface DbUserProfile {
   email: string;
   avatar_url?: string;
   birthdate?: string; // Standard field for birth date information
-  country?: string; // User's country
-  city?: string; // User's city
+  general_country?: string; // User's general country (renamed to match DB schema)
+  general_city?: string; // User's general city (renamed to match DB schema)
   custom_city?: string; // Custom city input when city is "Other"
   is_beta_tester: boolean;
   has_completed_onboarding: boolean;

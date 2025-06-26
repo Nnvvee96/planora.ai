@@ -86,17 +86,23 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Check if the user is authenticated (only if authentication is required)
   if (requireAuth && !isAuthenticated) {
-    // Redirect to login page, saving the attempted location
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    // Only redirect if we're sure the user is not authenticated (not loading)
+    if (!loading) {
+      console.log('🔒 Access denied: User not authenticated, redirecting to login');
+      return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+    // Still loading, show loader
+    return <AuthLoader />;
   }
 
-  // If onboarding is required and not completed
-  if (requireOnboarding && !hasCompletedOnboarding) {
+  // If onboarding is required and not completed (only for authenticated users)
+  if (requireOnboarding && isAuthenticated && !hasCompletedOnboarding) {
+    console.log('📝 Onboarding required, redirecting to onboarding');
     return <Navigate to="/onboarding" state={{ from: location }} replace />;
   }
 
-  // User is authenticated and meets onboarding requirements
-  // Use direct rendering without nested Suspense to avoid race conditions
+  // User is authenticated and meets all requirements
+  console.log('✅ Access granted to protected route');
   return <>{children}</>;
 
 };

@@ -90,6 +90,7 @@ const mapToDbTravelPreferences = (prefs: Partial<TravelPreferences>): Record<str
   if (prefs.flightType !== undefined) dbData.flight_type = prefs.flightType;
   if (prefs.preferCheaperWithStopover !== undefined) dbData.prefer_cheaper_with_stopover = prefs.preferCheaperWithStopover;
   if (prefs.departureCity !== undefined) dbData.departure_city = prefs.departureCity;
+  if (prefs.departureCountry !== undefined) dbData.departure_country = prefs.departureCountry;
   
   // Add updated timestamp
   dbData.updated_at = new Date().toISOString();

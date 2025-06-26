@@ -24,6 +24,8 @@ import {
   Apple,
   CheckCircle,
   Shield,
+  ShieldCheck,
+  Plus
 } from 'lucide-react';
 import { DatePickerInput } from "@/components/ui/DatePickerInput";
 import { useToast } from "@/components/ui/use-toast";
@@ -72,6 +74,7 @@ export const Register = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { authService, signInWithGoogle } = useAuth();
+  const [formStep, setFormStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [_error, setError] = useState<string | null>(null);
   const [signupPhase, setSignupPhase] = useState<'details' | 'verify'>('details');
@@ -121,9 +124,20 @@ export const Register = () => {
   }, [selectedCity, form]);
   
   const onSubmit = async (data: FormValues) => {
+    if (formStep < 1) {
+      setFormStep(1);
+      return;
+    }
+    
+    // Process registration for final step
     try {
       setIsSubmitting(true);
       setError(null);
+      
+      // Validate age again on submit
+      if (data.birthdate > sixteenYearsAgo) {
+        throw new Error('You must be at least 16 years old to use Planora');
+      }
       
       const initiateResponse = await authService.initiateSignup(data.email, data.password);
 
@@ -304,8 +318,12 @@ export const Register = () => {
                   Create Your Planora Account
                 </CardTitle>
                 <CardDescription className="text-center text-muted-foreground">
-                  Start by telling us about yourself.
+                  {formStep === 0 ? 'Start by telling us a bit about yourself.' : 'Almost there! Just a few more details.'}
                 </CardDescription>
+                <div className="flex justify-center space-x-3 pt-2">
+                  <div className={`h-1.5 w-20 rounded-full transition-all duration-300 ${formStep === 0 ? 'bg-gradient-to-r from-planora-accent-purple to-planora-accent-blue' : 'bg-white/20'}`}></div>
+                  <div className={`h-1.5 w-20 rounded-full transition-all duration-300 ${formStep === 1 ? 'bg-gradient-to-r from-planora-accent-purple to-planora-accent-blue' : 'bg-white/20'}`}></div>
+                </div>
               </>
             ) : (
               <>
@@ -323,6 +341,8 @@ export const Register = () => {
             {signupPhase === 'details' ? (
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    {formStep === 0 ? (
+                      <>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FormField control={form.control} name="lastName" render={({ field }) => (
                             <FormItem><FormLabel className="text-white/80 flex items-center gap-1"><User className="h-3.5 w-3.5 text-planora-accent-purple/80" />Last Name</FormLabel><FormControl><Input placeholder="Doe" {...field} className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"/></FormControl><FormMessage className="text-planora-accent-pink" /></FormItem>
@@ -367,10 +387,39 @@ export const Register = () => {
                             <FormItem><FormLabel className="text-white/80">Date of Birth</FormLabel><FormControl><DatePickerInput value={field.value} onChange={field.onChange} placeholder="MM / DD / YYYY" className="w-full bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"/></FormControl><FormMessage className="text-planora-accent-pink" /><div className="text-xs text-white/50 mt-1">You must be at least 16 years old to use Planora</div></FormItem>
                           )}/>
                         </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="bg-planora-accent-purple/10 border border-planora-accent-purple/20 rounded-xl p-4 text-white/80 mt-4">
+                          <h3 className="text-base font-medium mb-2 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-planora-accent-purple" />Review Your Information</h3>
+                          <p className="text-sm mb-3">Please confirm your account details before creating your account.</p>
+                          <div className="mb-4 p-3 bg-white/5 rounded-md">
+                            <div className="grid grid-cols-2 gap-2 text-xs text-white/80">
+                              <div><div className="text-white/50 mb-1">Name</div><div>{form.getValues().firstName} {form.getValues().lastName}</div></div>
+                              <div><div className="text-white/50 mb-1">Email</div><div>{form.getValues().email}</div></div>
+                              <div><div className="text-white/50 mb-1">Location</div><div>{form.getValues().customCity || form.getValues().city}, {form.getValues().country}</div></div>
+                              <div><div className="text-white/50 mb-1">Date of Birth</div><div>{form.getValues().birthdate ? form.getValues().birthdate.toLocaleDateString() : 'Not provided'}</div></div>
+                            </div>
+                          </div>
+                          <div className="text-sm text-white/70"><p>By signing up, you agree to our <Link to="/terms" className="text-planora-accent-purple hover:underline transition-colors">Terms of Service</Link> and <Link to="/privacy" className="text-planora-accent-purple hover:underline transition-colors">Privacy Policy</Link>.</p></div>
+                        </div>
+                      </>
+                    )}
                     <div className="pt-4">
-                        <GradientButton className="w-full" type="submit" disabled={isSubmitting}>
+                      {formStep === 0 ? (
+                        <Button className="w-full bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90 py-5 font-medium" type="button" onClick={async () => { const isValid = await form.trigger(["firstName", "lastName", "email", "password", "confirmPassword", "country", "city", "customCity", "birthdate"]); if (isValid) { setFormStep(1); } }} disabled={isSubmitting}>
+                          Continue to Review
+                        </Button>
+                      ) : (
+                        <div className="flex space-x-2">
+                          <Button type="button" variant="outline" className="flex-1 border-white/10 bg-white/5 text-white hover:bg-white/10 transition-colors" onClick={() => setFormStep(0)} disabled={isSubmitting}>
+                            Back to Edit
+                          </Button>
+                          <GradientButton className="flex-1" type="submit" disabled={isSubmitting}>
                             {isSubmitting ? (<><Loader2 className="animate-spin mr-2 h-4 w-4" />Processing...</>) : "Create Account & Verify Email"}
-                        </GradientButton>
+                          </GradientButton>
+                        </div>
+                      )}
                     </div>
                   </form>
                 </Form>

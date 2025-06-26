@@ -10,6 +10,7 @@ interface LogoProps {
   size?: 'sm' | 'md' | 'lg';
   variant?: 'text' | 'icon' | 'full';
   isAuthenticated?: boolean;
+  noLink?: boolean; // When true, renders without Link wrapper to avoid nested anchors
 }
 
 const Logo: React.FC<LogoProps> = ({ 
@@ -17,7 +18,8 @@ const Logo: React.FC<LogoProps> = ({
   href, 
   size = 'md',
   variant = 'full',
-  isAuthenticated = false
+  isAuthenticated = false,
+  noLink = false
 }) => {
   
   // Determine correct href based on auth state and explicit props
@@ -101,6 +103,21 @@ const Logo: React.FC<LogoProps> = ({
   };
 
   // The single return statement for the component
+  // If noLink is true, render without Link wrapper to avoid nested anchors
+  if (noLink) {
+    return (
+      <div
+        className={cn(
+          'font-bold tracking-tight transition-colors',
+          sizeClasses[size],
+          className
+        )}
+      >
+        {renderContent()}
+      </div>
+    );
+  }
+
   return (
     <Link
       to={getDestination()}

@@ -45,6 +45,7 @@ import { userProfileService } from '@/features/user-profile/userProfileApi';
 import { 
   travelPreferencesService
 } from '@/features/travel-preferences/travelPreferencesApi';
+import { supabase } from '@/lib/supabase/client';
 
 // Raw Supabase user interface for direct metadata access
 interface SupabaseRawUser {
@@ -331,16 +332,9 @@ const Onboarding = () => {
       // First, we need to ensure the session is still valid
       // Explicitly refresh the session before any operations
       // Check session using auth service
-      const { session, error: sessionError } = await authService.refreshSession();
-      if (!session) {
-        console.error('No active session found before travel preferences save', sessionError);
-        
-        // Try to refresh the session again
-        const { session: refreshedSession, error: _refreshError } = await authService.refreshSession();
-        if (!refreshedSession) {
-          throw new Error('Unable to restore session, please log in again');
-        }
-      }
+      await authService.refreshSession();
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log('Current session:', sessionData?.session ? 'Active' : 'None');
       
       // STEP 1: Get profile data BEFORE updating anything (to preserve name fields)
       let existingFirstName = '';
@@ -364,8 +358,9 @@ const Onboarding = () => {
       console.log('User ID:', currentUser.id);
       
       // Ensure we have the latest session before proceeding
-      const { session: currentSession } = await authService.refreshSession();
-      console.log('Current session:', currentSession ? 'Active' : 'None');
+      await authService.refreshSession();
+      const { data: latestSessionData } = await supabase.auth.getSession();
+      console.log('Current session:', latestSessionData?.session ? 'Active' : 'None');
       
       // Prepare travel preferences data
       // Format departure location with both country and city
@@ -439,10 +434,18 @@ const Onboarding = () => {
         const firstName = existingFirstName || currentUser.firstName || '';
         const lastName = existingLastName || currentUser.lastName || '';
         
+        // CRITICAL FIX: Also save the departure location to profiles table
+        let finalDepartureCity = formData.departureCity;
+        if (isCustomCityNeeded(formData.departureCity) && formData.customDepartureCity) {
+          finalDepartureCity = formData.customDepartureCity;
+        }
+        
         const profileUpdateData = {
           hasCompletedOnboarding: true,
           firstName: firstName,
-          lastName: lastName
+          lastName: lastName,
+          onboardingDepartureCountry: formData.departureCountry || '',
+          onboardingDepartureCity: finalDepartureCity || ''
         };
         
         console.log('Profile update data:', profileUpdateData);
@@ -493,18 +496,16 @@ const Onboarding = () => {
         }
         
         await authService.updateUserMetadata({
-          data: {
-            has_completed_onboarding: true,
-            country: formData.departureCountry || '',
-            city: departureCity || '',
-            customCity: isCustomCityNeeded(formData.departureCity) ? formData.customDepartureCity : '',
-            planning_intent: formData.planningIntent || 'exploring',
-            location_preference: formData.locationPreference || 'center',
-            flight_type: formData.flightType || 'direct',
-            prefer_cheaper_with_stopover: Boolean(formData.preferCheaperWithStopover),
-            departure_country: formData.departureCountry || '',
-            departure_city: isCustomCityNeeded(formData.departureCity) ? formData.customDepartureCity : formData.departureCity || ''
-          }
+          has_completed_onboarding: true,
+          country: formData.departureCountry || '',
+          city: departureCity || '',
+          customCity: isCustomCityNeeded(formData.departureCity) ? formData.customDepartureCity : '',
+          planning_intent: formData.planningIntent || 'exploring',
+          location_preference: formData.locationPreference || 'center',
+          flight_type: formData.flightType || 'direct',
+          prefer_cheaper_with_stopover: Boolean(formData.preferCheaperWithStopover),
+          departure_country: formData.departureCountry || '',
+          departure_city: isCustomCityNeeded(formData.departureCity) ? formData.customDepartureCity : formData.departureCity || ''
         });
       } catch (metadataError) {
         console.error('Failed to update user metadata:', metadataError);
@@ -520,9 +521,9 @@ const Onboarding = () => {
       // This ensures the session is fully updated with all metadata changes
       try {
         await authService.refreshSession();
-        const finalSession = await authService.refreshSession();
+        const { data: finalSessionData } = await supabase.auth.getSession();
         
-        if (!finalSession?.session) {
+        if (!finalSessionData?.session) {
           console.warn('Session appears to be lost after onboarding completion, attempting recovery...');
           // Final recovery attempt if session was lost
           localStorage.setItem('redirect_after_login', '/dashboard');

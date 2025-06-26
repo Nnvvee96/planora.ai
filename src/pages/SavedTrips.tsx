@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, ArrowLeft } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 
 const SavedTrips: React.FC = () => {
@@ -35,15 +34,26 @@ const SavedTrips: React.FC = () => {
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Saved Trips</h1>
+      {/* Header with Back Button */}
+      <div className="flex items-center gap-4 mb-8">
         <Button 
-          onClick={() => navigate('/chat')}
-          className="flex items-center gap-2"
+          variant="ghost" 
+          size="icon"
+          onClick={() => navigate('/dashboard')}
+          className="shrink-0"
         >
-          <PlusCircle className="h-5 w-5" />
-          Create New Trip
+          <ArrowLeft className="h-5 w-5" />
         </Button>
+        <div className="flex justify-between items-center w-full">
+          <h1 className="text-3xl font-bold">Saved Trips</h1>
+          <Button 
+            onClick={() => navigate('/chat')}
+            className="flex items-center gap-2"
+          >
+            <PlusCircle className="h-5 w-5" />
+            Create New Trip
+          </Button>
+        </div>
       </div>
 
       {savedTrips.length > 0 ? (

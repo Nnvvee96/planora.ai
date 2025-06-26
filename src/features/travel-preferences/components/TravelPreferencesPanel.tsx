@@ -6,6 +6,7 @@ import { Slider } from '@/components/ui/slider';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select } from '@/components/ui/select';
 import { Input } from '@/ui/atoms/Input';
 import { toast } from '@/components/ui/use-toast';
 import { useForm } from 'react-hook-form';
@@ -27,6 +28,7 @@ import {
   LocationPreference,
   FlightType
 } from '../types/travelPreferencesTypes';
+import { countryOptions, getCityOptions } from '@/features/location-data/locationDataApi';
 
 /**
  * Form schema that exactly matches the onboarding flow
@@ -69,7 +71,9 @@ const travelPreferencesSchema = z.object({
   preferCheaperWithStopover: z.boolean(),
   
   // 10. Departure Location (from Onboarding)
-  departureCity: z.string().min(1, "Please enter a departure city")
+  departureCountry: z.string().min(1, "Please select a departure country"),
+  departureCity: z.string().min(1, "Please select a departure city"),
+  customDepartureCity: z.string().optional()
 });
 
 // Type derived from schema
@@ -148,7 +152,9 @@ const TravelPreferencesPanel: React.FC<TravelPreferencesPanelProps> = ({
       accommodationTypes: ['hotel'],
       accommodationComfort: ['private-room', 'private-bathroom'],
       locationPreference: 'anywhere',
+      departureCountry: '',
       departureCity: '',
+      customDepartureCity: '',
       flightType: 'direct',
       preferCheaperWithStopover: true
     },
@@ -192,7 +198,9 @@ const TravelPreferencesPanel: React.FC<TravelPreferencesPanelProps> = ({
             ? preferences.accommodationComfort.filter(pref => ['private-room', 'shared-room', 'private-bathroom', 'shared-bathroom', 'luxury'].includes(pref as string)) as ComfortPreference[]
             : ['private-room'],
           locationPreference: preferences.locationPreference || 'anywhere',
+          departureCountry: preferences.departureCountry || '',
           departureCity: preferences.departureCity || '',
+          customDepartureCity: '',
           flightType: preferences.flightType || 'direct',
           preferCheaperWithStopover: preferences.preferCheaperWithStopover === undefined ? true : preferences.preferCheaperWithStopover
         };
@@ -238,7 +246,8 @@ const TravelPreferencesPanel: React.FC<TravelPreferencesPanelProps> = ({
             ) as ComfortPreference[]
           : [ComfortPreference.PRIVATE_ROOM],
         locationPreference: formData.locationPreference as LocationPreference,
-        departureCity: formData.departureCity || '',
+        departureCountry: formData.departureCountry || '',
+        departureCity: formData.departureCity === 'Other' ? (formData.customDepartureCity || '') : (formData.departureCity || ''),
         flightType: formData.flightType as FlightType,
         preferCheaperWithStopover: formData.preferCheaperWithStopover !== false
       };
@@ -299,7 +308,7 @@ const TravelPreferencesPanel: React.FC<TravelPreferencesPanelProps> = ({
       <Card className="border-white/10 bg-background/95">
         <CardHeader className="border-b border-white/10 flex flex-row items-center justify-between space-y-0 pb-4">
           <div>
-            <CardTitle>Travel Preferences</CardTitle>
+            <CardTitle>Smart Travel Profile</CardTitle>
             <CardDescription>Customize your travel settings to get personalized recommendations</CardDescription>
           </div>
           {!editing && (
@@ -766,23 +775,86 @@ const TravelPreferencesPanel: React.FC<TravelPreferencesPanelProps> = ({
               {/* 10. Departure Location */}
               <div>
                 <h3 className="font-medium mb-2">Departure Location</h3>
-                <FormField
-                  control={form.control}
-                  name="departureCity"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Your departure location</FormLabel>
-                      <FormControl>
-                        <Input
-                          disabled={!editing}
-                          placeholder="Enter your departure city (e.g., Berlin, London)"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {editing ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="departureCountry"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Country</FormLabel>
+                          <FormControl>
+                            <Select
+                              options={countryOptions}
+                              value={field.value || ''}
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                // Clear city when country changes
+                                form.setValue('departureCity', '');
+                              }}
+                              placeholder="Select country"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="departureCity"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>City</FormLabel>
+                          <FormControl>
+                            <Select
+                              options={getCityOptions(form.watch('departureCountry') || '')}
+                              value={field.value || ''}
+                              onValueChange={field.onChange}
+                              placeholder="Select city"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Custom City Input - shown when "Other" is selected */}
+                    {form.watch('departureCity') === 'Other' && (
+                      <FormField
+                        control={form.control}
+                        name="customDepartureCity"
+                        render={({ field }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel>Custom City</FormLabel>
+                            <FormControl>
+                              <Input
+                                disabled={!editing}
+                                placeholder="Enter your city name"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-md border border-white/10 bg-white/5">
+                    <p className="text-sm text-muted-foreground mb-1">Your departure location</p>
+                    <p className="font-medium">
+                      {form.watch('departureCountry') && form.watch('departureCity') 
+                        ? `${form.watch('departureCountry')}, ${
+                            form.watch('departureCity') === 'Other' 
+                              ? form.watch('customDepartureCity') || 'Custom City'
+                              : form.watch('departureCity')
+                          }`
+                        : 'No departure location set'
+                      }
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}

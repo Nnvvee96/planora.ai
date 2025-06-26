@@ -5,7 +5,7 @@
  * Following Planora's architectural principles with proper service layer usage
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../hooks/useAuth';
@@ -15,87 +15,136 @@ import { supabaseAuthService } from '../services/supabaseAuthService';
 export function AuthCallback() {
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
+  const [isProcessing, setIsProcessing] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+    
     const handleCallback = async () => {
       try {
+        console.log('🔄 Processing auth callback...');
+        
+        if (!isMounted) return;
+        
         // Get the full URL
         const currentUrl = window.location.href;
         
-        // First, check if there are any auth errors in the URL
+        // Check if there are any auth errors in the URL
         const urlParams = new URLSearchParams(window.location.search);
         const errorParam = urlParams.get('error');
         const errorDescription = urlParams.get('error_description');
         
         if (errorParam) {
-          console.error('Auth callback error:', errorParam, errorDescription);
+          console.error('❌ Auth callback error:', errorParam, errorDescription);
           
           // Special handling for Google auth errors
           if (errorDescription?.includes('Database error saving new user')) {
-            console.log('Attempting Google auth recovery...');
+            console.log('🔄 Attempting Google auth recovery...');
             const recovered = await googleAuthHelper.verifyAndRecoverGoogleAuth(currentUrl);
             
-            if (recovered) {
-              console.log('Google auth recovery successful!');
+            if (recovered && isMounted) {
+              console.log('✅ Google auth recovery successful!');
               toast.success('Account created successfully! Redirecting...');
-              // Give a moment for the profile to be fully created
-              await new Promise(resolve => setTimeout(resolve, 1000));
-              // Refresh user data
+              
+              // Give time for the profile to be created and refresh user data
+              await new Promise(resolve => setTimeout(resolve, 1500));
               await refreshUser();
+              
               navigate('/onboarding');
               return;
             }
           }
           
           // Generic error handling
-          const errorMessage = errorDescription || errorParam;
-          toast.error(`Authentication failed: ${errorMessage}`);
-          navigate('/login');
+          if (isMounted) {
+            const errorMessage = errorDescription || errorParam;
+            toast.error(`Authentication failed: ${errorMessage}`);
+            navigate('/login');
+          }
           return;
         }
         
         // No error, proceed with normal flow
-        console.log('Auth callback successful, checking user status...');
+        console.log('✅ Auth callback successful, checking user status...');
         
-        // Get current user to ensure we're authenticated
-        const currentUser = await supabaseAuthService.getCurrentUser();
+        // CRITICAL FIX: Call the proper handleAuthCallback method that includes Google name extraction
+        console.log('🔄 Calling supabaseAuthService.handleAuthCallback()...');
+        const authResponse = await supabaseAuthService.handleAuthCallback();
         
-        if (!currentUser) {
-          console.error('No user found after auth callback');
-          toast.error('Authentication failed. Please try again.');
-          navigate('/login');
+        if (!authResponse.success || !authResponse.user) {
+          console.error('❌ Auth callback failed:', authResponse.error);
+          if (isMounted) {
+            toast.error('Authentication failed. Please try again.');
+            navigate('/login');
+          }
           return;
         }
+        
+        const currentUser = authResponse.user;
+        
+        if (!currentUser) {
+          console.error('❌ No user found after auth callback');
+          if (isMounted) {
+            toast.error('Authentication failed. Please try again.');
+            navigate('/login');
+          }
+          return;
+        }
+        
+        console.log('✅ User authenticated:', currentUser.email);
+        console.log('🔍 Auth response:', authResponse);
+        
+        // The handleAuthCallback method already processed Google profile extraction
+        // No need for duplicate processing here
         
         // Refresh user data to ensure we have the latest
         await refreshUser();
         
-        // Check onboarding status
-        const registrationStatus = await supabaseAuthService.checkUserRegistrationStatus(currentUser.id);
+        // Use the registration status from the auth response
+        console.log('📋 Registration status from auth callback:', authResponse.registrationStatus);
         
-        if (registrationStatus.isNewUser || !registrationStatus.hasCompletedOnboarding) {
-          toast.success('Welcome! Let\'s set up your travel profile.');
-          navigate('/onboarding');
-        } else {
-          toast.success('Welcome back!');
-          navigate('/dashboard');
+        if (isMounted) {
+          if (authResponse.registrationStatus === 'new_user' || authResponse.registrationStatus === 'incomplete_onboarding') {
+            console.log('📝 New user or incomplete onboarding, redirecting to onboarding');
+            toast.success('Welcome! Let\'s set up your travel profile.');
+            navigate('/onboarding');
+          } else {
+            console.log('🏠 Returning user, redirecting to dashboard');
+            toast.success('Welcome back!');
+            navigate('/dashboard');
+          }
         }
         
       } catch (error) {
-        console.error('Error in auth callback:', error);
-        toast.error('An unexpected error occurred. Please try again.');
-        navigate('/login');
+        console.error('❌ Error in auth callback:', error);
+        if (isMounted) {
+          toast.error('An unexpected error occurred. Please try again.');
+          navigate('/login');
+        }
+      } finally {
+        if (isMounted) {
+          setIsProcessing(false);
+        }
       }
     };
 
     handleCallback();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [navigate, refreshUser]);
 
+  if (!isProcessing) {
+    return null; // Component will unmount after navigation
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center bg-planora-purple-dark">
       <div className="text-center">
-        <h2 className="text-2xl font-semibold mb-4">Completing sign in...</h2>
+        <h2 className="text-2xl font-semibold mb-4 text-white">Completing sign in...</h2>
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-planora-accent-purple mx-auto"></div>
+        <p className="text-white/60 mt-4">This may take a moment...</p>
       </div>
     </div>
   );

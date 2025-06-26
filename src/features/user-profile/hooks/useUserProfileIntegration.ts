@@ -81,28 +81,77 @@ export const useUserProfileIntegration = () => {
         return null;
       }
 
-      if (!isAuthenticated || !user) {
-        console.error('Cannot get user with profile: User not authenticated');
+      // First, get the auth user directly to avoid auth state issues
+      let authUser = user;
+      if (!authUser) {
+        console.warn('No user in auth integration, attempting direct auth service call');
+        try {
+          const { getAuthService } = await import('@/features/auth/authApi');
+          const authService = getAuthService();
+          authUser = await authService.getCurrentUser();
+        } catch (authError) {
+          console.error('Could not get auth user:', authError);
+          return null;
+        }
+      }
+      
+      if (!authUser) {
+        console.error('Cannot get user with profile: No authenticated user found');
         return null;
       }
       
-      // Get user profile
-      const userProfile = await userProfileService.getUserProfile(userId);
+      // Get user profile with improved error handling
+      let userProfile = null;
+      try {
+        userProfile = await userProfileService.getUserProfile(userId);
+        console.log('Profile service returned:', userProfile);
+      } catch (profileError) {
+        console.warn('Profile service failed, will use auth data only:', profileError);
+        // Don't throw here - we'll use auth data as fallback
+      }
       
-      // Combine auth user data with profile data
+      // If profile is null or empty, create a minimal profile from auth data
+      if (!userProfile) {
+        console.log('Creating profile from auth data for user:', userId);
+        return {
+          id: authUser.id,
+          email: authUser.email,
+          username: authUser.username,
+          firstName: authUser.firstName || '',
+          lastName: authUser.lastName || '',
+          birthdate: null,
+          avatarUrl: authUser.avatarUrl || null,
+          country: null,
+          city: null,
+          customCity: null,
+          hasCompletedOnboarding: authUser.hasCompletedOnboarding || false,
+          emailVerified: false, // Default value since not in AppUser
+          isBetaTester: false,
+          createdAt: new Date().toISOString(), // Default value since not in AppUser
+          updatedAt: new Date().toISOString() // Default value since not in AppUser
+        };
+      }
+      
+      // Combine auth user data with profile data, ensuring auth data takes precedence for core fields
       return {
-        ...user,
         ...userProfile,
-        // Ensure auth data takes precedence for core fields
-        id: user.id,
-        email: user.email,
-        username: user.username,
+        ...authUser,
+        // Ensure profile data is used for profile-specific fields
+        firstName: userProfile.firstName || authUser.firstName || '',
+        lastName: userProfile.lastName || authUser.lastName || '',
+        birthdate: userProfile.birthdate,
+        avatarUrl: userProfile.avatarUrl,
+        country: userProfile.country,
+        city: userProfile.city,
+        customCity: userProfile.customCity,
+        isBetaTester: userProfile.isBetaTester || false,
       };
     } catch (error) {
       console.error('Error getting user with profile:', error);
+      // Return null instead of throwing to prevent component crashes
       return null;
     }
-  }, [user, isAuthenticated]);
+  }, [user]);
 
   return {
     handleEmailChangeRequest,

@@ -564,28 +564,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
             </Dialog>
           </div>
 
-          {/* Account Options */}
-          <div>
-            <h3 className="font-medium text-destructive mb-1">Account Options</h3>
-            <p className="text-sm text-muted-foreground mb-2">Permanently delete your account and all data</p>
-            
-            {/* Delete Account Button */}
-            <Button 
-              variant="destructive" 
-              className="w-full"
-              onClick={() => setDeleteDialogOpen(true)}
-            >
-              Delete Account
-            </Button>
-            
-            {/* Delete Account Dialog with 30-day recovery period */}
-            <Suspense fallback={<div>Loading...</div>}>
-              <DeleteAccountDialog 
-                isOpen={deleteDialogOpen} 
-                onClose={() => setDeleteDialogOpen(false)} 
-              />
-            </Suspense>
-          </div>
+
         </div>
 
         <DialogFooter>

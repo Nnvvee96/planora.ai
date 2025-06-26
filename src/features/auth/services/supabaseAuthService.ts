@@ -203,27 +203,114 @@ export const supabaseAuthService = {
         // Extract profile data from Google authentication
         const { user_metadata } = user;
         
+        console.log('Google auth - user metadata:', JSON.stringify(user_metadata, null, 2));
+        
         // Check if we have user metadata
         if (user_metadata) {
           const timestamp = new Date().toISOString();
           
-          // Extract name from metadata (similar logic to what was in extractNameFromGoogleData)
+          // Use comprehensive name extraction (same logic as extractFirstName/extractLastName)
           let firstName = '';
           let lastName = '';
           
-          if (typeof user_metadata.name === 'string') {
-            const nameParts = (user_metadata.name as string).split(' ');
-            firstName = nameParts[0] || '';
-            lastName = nameParts.slice(1).join(' ') || '';
+          // Try identities array first (most reliable for Google)
+          if (user_metadata.identities && Array.isArray(user_metadata.identities)) {
+            const googleIdentity = user_metadata.identities.find((identity: any) => 
+              identity.provider === 'google'
+            );
+            
+            if (googleIdentity?.identity_data) {
+              const data = googleIdentity.identity_data;
+              firstName = data.given_name || data.first_name || '';
+              lastName = data.family_name || data.last_name || '';
+              
+              // If no specific name fields, try to extract from full name
+              if ((!firstName || !lastName) && data.name) {
+                const nameParts = data.name.split(' ');
+                if (!firstName) firstName = nameParts[0] || '';
+                if (!lastName) lastName = nameParts.slice(1).join(' ');
+              }
+            }
           }
           
-          // Update user profile with extracted data
-          await supabaseAuthService.updateUserProfile(user.id, {
-            first_name: firstName,
-            last_name: lastName,
-            email: user.email,
-            updated_at: timestamp,
-          });
+          // Fallback to direct metadata fields
+          if (!firstName || !lastName) {
+            if (user_metadata.given_name) firstName = firstName || user_metadata.given_name;
+            if (user_metadata.first_name) firstName = firstName || user_metadata.first_name;
+            if (user_metadata.family_name) lastName = lastName || user_metadata.family_name;
+            if (user_metadata.last_name) lastName = lastName || user_metadata.last_name;
+            
+            // Try name field as final fallback
+            if ((!firstName || !lastName) && user_metadata.name) {
+              const nameParts = (user_metadata.name as string).split(' ');
+              if (!firstName) firstName = nameParts[0] || '';
+              if (!lastName) lastName = nameParts.slice(1).join(' ');
+            }
+            
+            // Try full_name as backup
+            if ((!firstName || !lastName) && user_metadata.full_name) {
+              const nameParts = (user_metadata.full_name as string).split(' ');
+              if (!firstName) firstName = nameParts[0] || '';
+              if (!lastName) lastName = nameParts.slice(1).join(' ');
+            }
+          }
+          
+          console.log('Extracted names:', { firstName, lastName });
+          
+          // Update user profile with extracted data using direct Supabase call
+          if (firstName || lastName) {
+            try {
+              // Check if profile exists first
+              const { data: existingProfile } = await supabase
+                .from('profiles')
+                .select('id, first_name, last_name')
+                .eq('id', user.id)
+                .single();
+              
+              if (existingProfile) {
+                // Update existing profile
+                const { error: updateError } = await supabase
+                  .from('profiles')
+                  .update({
+                    first_name: firstName || existingProfile.first_name,
+                    last_name: lastName || existingProfile.last_name,
+                    email: user.email,
+                    email_verified: true, // Google accounts are pre-verified
+                    updated_at: timestamp,
+                  })
+                  .eq('id', user.id);
+                
+                if (updateError) {
+                  console.error('Error updating profile with Google data:', updateError);
+                } else {
+                  console.log('Successfully updated profile with Google data');
+                }
+              } else {
+                // Create new profile
+                const { error: insertError } = await supabase
+                  .from('profiles')
+                  .insert({
+                    id: user.id,
+                    first_name: firstName,
+                    last_name: lastName,
+                    email: user.email,
+                    email_verified: true,
+                    is_beta_tester: false,
+                    has_completed_onboarding: false,
+                    created_at: timestamp,
+                    updated_at: timestamp,
+                  });
+                
+                if (insertError) {
+                  console.error('Error creating profile with Google data:', insertError);
+                } else {
+                  console.log('Successfully created profile with Google data');
+                }
+              }
+            } catch (profileError) {
+              console.error('Error with profile operations:', profileError);
+            }
+          }
         }
       } catch (err) {
         console.error('Error updating user profile:', err);

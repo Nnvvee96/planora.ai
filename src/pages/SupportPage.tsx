@@ -1,26 +1,71 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import { Navigation } from '@/ui/organisms/Navigation';
 import { Footer } from '@/ui/organisms/Footer';
 import { Button } from '@/ui/atoms/Button';
 import { Input } from '@/ui/atoms/Input';
 import { Textarea } from '@/ui/atoms/Textarea';
 import { Label } from '@/ui/atoms/Label';
-import { Mail, MessageSquare, User, Tag, Send } from 'lucide-react';
+import { Logo } from '@/ui/atoms/Logo';
+import { Mail, MessageSquare, User, Tag, Send, ArrowLeft } from 'lucide-react';
 import { FaqAccordion } from '@/ui/organisms/FaqAccordion';
+import { useAuth } from '@/features/auth/authApi';
+import { getUserProfileMenuComponent } from '@/features/user-profile/userProfileApi';
+import { useNavigate } from 'react-router-dom';
 
 const SupportPage = () => {
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+  
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     // Handle form submission logic (e.g., send data to an API)
     alert('Support request submitted! We will get back to you soon.');
   };
 
+  // Get the user profile menu component for authenticated users
+  const UserProfileMenu = getUserProfileMenuComponent();
+
   return (
     <div className="relative min-h-screen bg-planora-purple-dark flex flex-col text-white">
-      <Navigation />
+      {/* Navigation - Different for authenticated vs non-authenticated */}
+      {isAuthenticated ? (
+        // Authenticated user navigation (similar to Dashboard)
+        <header className="relative z-10 bg-background/80 backdrop-blur-md border-b border-white/10">
+          <div className="container mx-auto px-4 md:px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => navigate('/dashboard')}
+                  className="shrink-0 text-white hover:bg-white/10"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <Logo href="/dashboard" />
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                <Suspense fallback={<div>Loading...</div>}>
+                  <UserProfileMenu 
+                    userName={user?.firstName || user?.username || user?.email?.split('@')[0] || 'User'} 
+                    userEmail={user?.email} 
+                    firstName={user?.firstName} 
+                    lastName={user?.lastName}
+                  />
+                </Suspense>
+              </div>
+            </div>
+          </div>
+        </header>
+      ) : (
+        // Non-authenticated user navigation (landing page style)
+        <Navigation />
+      )}
       
       <main className="flex-grow container mx-auto px-4 py-16 md:py-24">
         <div className="text-center mb-12 md:mb-16">
@@ -42,14 +87,28 @@ const SupportPage = () => {
                 <Label htmlFor="name" className="text-white/90">Full Name</Label>
                 <div className="relative mt-1">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/50" />
-                  <Input id="name" type="text" placeholder="Your Name" required className="pl-10 bg-black/40 border-white/20 focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20" />
+                  <Input 
+                    id="name" 
+                    type="text" 
+                    placeholder="Your Name" 
+                    defaultValue={isAuthenticated ? `${user?.firstName || ''} ${user?.lastName || ''}`.trim() : ''}
+                    required 
+                    className="pl-10 bg-black/40 border-white/20 focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20" 
+                  />
                 </div>
               </div>
               <div>
                 <Label htmlFor="email" className="text-white/90">Email Address</Label>
                  <div className="relative mt-1">
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/50" />
-                  <Input id="email" type="email" placeholder="your.email@example.com" required className="pl-10 bg-black/40 border-white/20 focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20" />
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="your.email@example.com" 
+                    defaultValue={user?.email || ''}
+                    required 
+                    className="pl-10 bg-black/40 border-white/20 focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20" 
+                  />
                 </div>
               </div>
               <div>
@@ -83,7 +142,10 @@ const SupportPage = () => {
               Contact Information
             </h2>
             <p className="text-white/80 mb-4 leading-relaxed">
-              If you prefer, you can also reach us directly via email. We aim to respond to all inquiries within 24-48 business hours.
+              {isAuthenticated 
+                ? `Hi ${user?.firstName || 'there'}! If you prefer, you can also reach us directly via email. We aim to respond to all inquiries within 24-48 business hours.`
+                : 'If you prefer, you can also reach us directly via email. We aim to respond to all inquiries within 24-48 business hours.'
+              }
             </p>
             <div className="space-y-3">
               <div className="flex items-start">

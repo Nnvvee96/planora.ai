@@ -9,7 +9,8 @@ import {
   Plus,
   Clock,
   CheckCircle,
-  XCircle
+  XCircle,
+  Settings
 } from 'lucide-react';
 import { Logo } from '@/ui/atoms/Logo';
 import { Suspense } from 'react';
@@ -25,6 +26,7 @@ import { getUserProfileMenuComponent, UserProfile } from '@/features/user-profil
 import { useUserProfileIntegration } from '@/features/user-profile/userProfileApi';
 import { BetaFeature } from '@/features/dev-tools/devToolsApi';
 import { QuickActionsWidget } from '@/features/dashboard/dashboardApi';
+import { userProfileService } from '@/features/user-profile/userProfileApi';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -32,9 +34,8 @@ const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [hasLoadedProfile, setHasLoadedProfile] = useState(false);
   
   // Use the integration hook for cross-feature communication
   const userProfileIntegration = useUserProfileIntegration();
@@ -48,100 +49,67 @@ const Dashboard = () => {
     const userLastName = user?.lastName || userProfile?.lastName || '';
     const userFullName = `${userFirstName} ${userLastName}`.trim();
     
-    // Only use Guest as a fallback when we're absolutely sure no user data exists
-    return userFullName || user?.username || user?.email?.split('@')[0] || (loading ? 'Loading...' : 'Guest');
-  }, [user, userProfile, loading]);
+    // Use email username or 'User' as fallback instead of Guest
+    return userFullName || user?.username || user?.email?.split('@')[0] || 'User';
+  }, [user, userProfile]);
 
-  // Memoize the profile loading function to prevent recreation on every render
-  const loadUserProfile = useCallback(async (userId: string) => {
-    if (hasLoadedProfile) return; // Prevent multiple loads
-    
-    try {
-      setLoading(true);
-      console.log('Loading user profile for user:', userId);
-      
-      // Use the integration hook to fetch the combined user and profile data
-      const combinedData = await userProfileIntegration.getUserWithProfile(userId);
-      
-      if (combinedData) {
-        // The getUserWithProfile method returns a merged object of AppUser and UserProfile
-        // Extract the profile-specific properties to create a UserProfile object
-        const profileData: UserProfile = {
-          id: combinedData.id,
-          email: combinedData.email,
-          firstName: combinedData.firstName || '',
-          lastName: combinedData.lastName || '',
-          birthdate: combinedData.birthdate,
-          avatarUrl: combinedData.avatarUrl,
-          city: combinedData.city,
-          customCity: combinedData.customCity,
-          country: combinedData.country,
-          isBetaTester: combinedData.isBetaTester,
-          hasCompletedOnboarding: combinedData.hasCompletedOnboarding,
-          emailVerified: combinedData.emailVerified,
-          createdAt: combinedData.createdAt,
-          updatedAt: combinedData.updatedAt
-        };
-        
-        setUserProfile(profileData);
-        setHasLoadedProfile(true);
-        console.log('User profile loaded successfully');
-      }
-    } catch (error) {
-      console.error('Error loading user data:', error);
-      // Don't show error to user for profile loading issues
-    } finally {
-      setLoading(false);
-    }
-  }, [userProfileIntegration, hasLoadedProfile]);
-  
-  // Load user profile data when user is available - FIXED: proper dependency management
+  // Simplified profile loading - load only once when user is available
   useEffect(() => {
-    // Only proceed if we have a user and haven't loaded the profile yet
-    if (!user?.id || hasLoadedProfile || authLoading) return;
+    let isMounted = true;
     
-    console.log('Dashboard: User available, loading profile...', user.id);
-    loadUserProfile(user.id);
-  }, [user?.id, hasLoadedProfile, authLoading, loadUserProfile]);
-  
-  // Enhanced session verification - FIXED: run only when necessary
-  useEffect(() => {
-    // Only run session verification if we don't have a user and auth is not loading
-    if (user || authLoading || loading) return;
-    
-    console.log('Dashboard: No user found, verifying session...');
-    
-    const verifySession = async () => {
+    const loadProfile = async () => {
+      if (!user?.id || authLoading) return;
+      
       try {
-        // Get auth service via factory function to avoid circular dependencies
-        const authService = getAuthService();
-        const currentUser = await authService.getCurrentUser();
+        setLoading(true);
+        console.log('Dashboard: Loading profile for user:', user.id);
         
-        if (!currentUser) {
-          console.log('No authenticated user found in Dashboard, redirecting to login');
-          
-          // Check for onboarding completion in localStorage before redirecting
-          const hasCompletedOnboarding = localStorage.getItem('has_completed_onboarding') === 'true' || 
-                                       localStorage.getItem('hasCompletedInitialFlow') === 'true';
-          
-          if (hasCompletedOnboarding) {
-            // If user had completed onboarding, store that info for after login
-            localStorage.setItem('redirect_after_login', '/dashboard');
-          }
-          
-          navigate('/login');
+        // Use direct profile service call instead of integration hook to avoid auth loops
+        const profileData = await userProfileService.getUserProfile(user.id);
+        
+        if (isMounted && profileData) {
+          setUserProfile(profileData);
+          console.log('Dashboard: Profile loaded successfully');
         }
       } catch (error) {
-        console.error('Error during session verification:', error);
-        navigate('/login');
+        console.error('Dashboard: Error loading profile:', error);
+        // Set empty profile to prevent infinite loading
+        if (isMounted) {
+          setUserProfile({
+            id: user.id,
+            firstName: user.firstName || '',
+            lastName: user.lastName || '',
+            email: user.email || '',
+            avatarUrl: null,
+            birthdate: null,
+            hasCompletedOnboarding: true, // Assume true if on dashboard
+            emailVerified: true,
+            isBetaTester: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     
-    // Debounce session verification to prevent rapid calls
-    const timeoutId = setTimeout(verifySession, 500);
+    loadProfile();
     
-    return () => clearTimeout(timeoutId);
-  }, [user, authLoading, loading, navigate]);
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id, authLoading]); // Simplified dependencies
+  
+  // Session verification - simplified and only when necessary
+  useEffect(() => {
+    if (user || authLoading) return; // Don't run if we have user or auth is loading
+    
+    console.log('Dashboard: No user found, redirecting to login');
+    navigate('/login');
+  }, [user, authLoading, navigate]);
   
   // Handler for directing to chat interface - memoized to prevent recreation
   const handleChatWithPlanora = useCallback(() => {
@@ -283,20 +251,52 @@ const Dashboard = () => {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 container mx-auto px-4 md:px-6 py-8 relative z-10">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Welcome back, {userName}</h1>
-          <Button onClick={handleChatWithPlanora} className="bg-planora-accent-purple hover:bg-planora-accent-purple/90">
-            <MessageCircle className="mr-2 h-4 w-4" />
-            Chat with Planora
+      <main className="relative z-10 container mx-auto px-4 md:px-6 py-8 flex-grow">
+        {/* Welcome section - RESTORED from 1443884 */}
+        <section className="mb-10">
+          <h1 className="text-3xl font-bold">Welcome back, {userName}!</h1>
+          <p className="text-white/60 mt-2">Ready to plan your next adventure?</p>
+        </section>
+
+        {/* Quick Actions - RESTORED from 1443884 */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+          <Button className="h-auto py-6 bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90" onClick={handleChatWithPlanora}>
+            <div className="flex flex-col items-center">
+              <Plus className="h-6 w-6 mb-2" />
+              <span className="text-lg">Chat with Planora.ai</span>
+            </div>
           </Button>
-        </div>
+          
+          <Button variant="outline" className="h-auto py-6 border-white/10 bg-white/5 hover:bg-white/10">
+            <div className="flex flex-col items-center">
+              <MapPin className="h-6 w-6 mb-2" />
+              <span className="text-lg">Explore Destinations</span>
+            </div>
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            className="h-auto py-6 border-white/10 bg-white/5 hover:bg-white/10"
+            onClick={() => {
+              console.log('Navigating to preferences from Modify Preferences button');
+              window.location.href = '/preferences';
+            }}
+          >
+            <div className="flex flex-col items-center">
+              <Settings className="h-6 w-6 mb-2" />
+              <span className="text-lg">Modify Preferences</span>
+            </div>
+          </Button>
+        </section>
+
+        {/* Beta Feature Widget - Keep this new functionality */}
         <BetaFeature>
           <QuickActionsWidget />
         </BetaFeature>
 
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
+        {/* Main Dashboard Tabs - RESTORED layout from 1443884 */}
+        <Tabs defaultValue="trips" className="mb-10">
+          <TabsList className="mb-6">
             <TabsTrigger value="trips" className="text-base">Upcoming Trips</TabsTrigger>
             <TabsTrigger value="suggestions" className="text-base">Smart Suggestions</TabsTrigger>
             <TabsTrigger value="conversations" className="text-base">Recent Conversations</TabsTrigger>
@@ -523,7 +523,7 @@ const Dashboard = () => {
         </Tabs>
       </main>
       
-      {/* Footer */}
+      {/* Footer - RESTORED proper placement from 1443884 */}
       <div className="mt-auto relative z-10">
         <Footer />
       </div>

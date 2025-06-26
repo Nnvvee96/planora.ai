@@ -5,12 +5,14 @@
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 
 // Import directly from services to avoid circular dependencies
 import { supabaseAuthService } from '../services/supabaseAuthService';
+// Import Supabase client for auth state listener
+import { supabase } from '@/lib/supabase/client';
 
 // Import types directly from the types folder
 import type { AppUser, AuthResponse, AuthService } from '../types/authTypes';
@@ -44,110 +46,140 @@ export const useAuth = () => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Initialize auth service using factory function
-  const [authService, setAuthService] = useState<AuthService | null>(null);
-  const navigate = useNavigate();
+  const [isInitialized, setIsInitialized] = useState(false);
   
-  // Set auth service directly on component mount
-  useEffect(() => {
-    // Create adapter for supabaseAuthService to match AuthService interface
-    const authServiceAdapter: AuthService = {
-      ...supabaseAuthService,
-      // Adapt method names and signatures to match our interface
-      logout: supabaseAuthService.signOut,
-      getCurrentUser: async () => {
-        const user = await supabaseAuthService.getCurrentUser();
-        return mapUserToAppUser(user);
-      },
-      // Ensure the initiateSignup signature matches the AuthService interface
-      initiateSignup: (email: string, password_raw: string) => 
-        supabaseAuthService.initiateSignup(email, password_raw),
-    };
-    
-    setAuthService(authServiceAdapter);
+  const navigate = useNavigate();
+  const authServiceRef = useRef<AuthService | null>(null);
+  
+  // Create auth service adapter only once
+  const getAuthService = useCallback(() => {
+    if (!authServiceRef.current) {
+      authServiceRef.current = {
+        ...supabaseAuthService,
+        logout: supabaseAuthService.signOut,
+        getCurrentUser: async () => {
+          const user = await supabaseAuthService.getCurrentUser();
+          return mapUserToAppUser(user);
+        },
+        initiateSignup: (email: string, password_raw: string) => 
+          supabaseAuthService.initiateSignup(email, password_raw),
+      };
+    }
+    return authServiceRef.current;
   }, []);
 
-  // Check auth status after auth service is initialized
+  // Initialize auth state and set up session listener
   useEffect(() => {
-    const checkAuthStatus = async () => {
+    let isMounted = true;
+    
+    const initializeAuth = async () => {
       try {
-        if (!authService) return;
+        console.log('🔑 Initializing auth state...');
+        
+        if (!isMounted) return;
         
         setLoading(true);
         setError(null);
         
-        // Get current user - already mapped by our adapter
-        const currentUser = await authService.getCurrentUser();
+        // Get current session first
+        const currentUser = await supabaseAuthService.getCurrentUser();
         
-        if (currentUser) {
-          setUser(currentUser);
-          setIsAuthenticated(true);
-        } else {
-          setUser(null);
-          setIsAuthenticated(false);
+        if (isMounted) {
+          if (currentUser) {
+            const mappedUser = mapUserToAppUser(currentUser);
+            setUser(mappedUser);
+            setIsAuthenticated(true);
+            console.log('✅ User authenticated:', mappedUser?.email);
+          } else {
+            setUser(null);
+            setIsAuthenticated(false);
+            console.log('🚫 No authenticated user');
+          }
+          
+          setIsInitialized(true);
+          setLoading(false);
         }
       } catch (err) {
-        console.error('Error checking auth status:', err);
-        setUser(null);
-        setIsAuthenticated(false);
-        setError(err instanceof Error ? err.message : 'Authentication error');
-      } finally {
-        setLoading(false);
+        console.error('❌ Error initializing auth:', err);
+        if (isMounted) {
+          setUser(null);
+          setIsAuthenticated(false);
+          setError(err instanceof Error ? err.message : 'Authentication error');
+          setIsInitialized(true);
+          setLoading(false);
+        }
       }
     };
-    
-    checkAuthStatus();
-  }, [authService]);
+
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔄 Auth state change:', event, session?.user?.email || 'no user');
+      
+      if (!isMounted) return;
+
+      if (session?.user) {
+        const mappedUser = mapUserToAppUser(session.user);
+        setUser(mappedUser);
+        setIsAuthenticated(true);
+        setError(null);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+      }
+      
+      if (isInitialized) {
+        setLoading(false);
+      }
+    });
+
+    initializeAuth();
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [isInitialized]);
   
   /**
    * Sign in with Google
    */
   const signInWithGoogle = useCallback(async () => {
     try {
-      if (!authService) {
-        throw new Error('Authentication service not initialized');
-      }
-      
+      console.log('🔄 Starting Google sign-in...');
       setLoading(true);
       setError(null);
       
+      const authService = getAuthService();
       await authService.signInWithGoogle();
-      // Note: The redirect will happen automatically by Supabase,
-      // so we don't need to update state here
+      // Note: The redirect will happen automatically by Supabase
     } catch (err) {
-      console.error('Error signing in with Google:', err);
+      console.error('❌ Error signing in with Google:', err);
       setError(err instanceof Error ? err.message : 'Authentication error');
       setLoading(false);
     }
-  }, [authService]);
+  }, [getAuthService]);
   
   /**
    * Sign out user
    */
   const logout = useCallback(async () => {
     try {
-      if (!authService) {
-        throw new Error('Authentication service not initialized');
-      }
-      
+      console.log('🔄 Signing out...');
       setLoading(true);
       setError(null);
       
+      const authService = getAuthService();
       await authService.logout();
       
-      // Update auth state
-      setUser(null);
-      setIsAuthenticated(false);
-      
-      // Navigate to home page
+      // State will be updated by the auth state change listener
       navigate('/');
     } catch (err) {
-      console.error('Error signing out:', err);
+      console.error('❌ Error signing out:', err);
       setError(err instanceof Error ? err.message : 'Logout error');
     } finally {
       setLoading(false);
     }
-  }, [authService, navigate]);
+  }, [getAuthService, navigate]);
   
   /**
    * Handle authentication callback
@@ -155,141 +187,96 @@ export const useAuth = () => {
    */
   const handleAuthCallback = useCallback(async (): Promise<AuthResponse> => {
     try {
-      if (!authService) {
-        throw new Error('Authentication service not initialized');
-      }
-      
+      console.log('🔄 Processing auth callback...');
       setLoading(true);
       setError(null);
       
+      const authService = getAuthService();
       const response = await authService.handleAuthCallback();
       
       if (!response.success || !response.user) {
         throw new Error(response.error || 'Authentication failed');
       }
       
-      // Check registration status
-      if (response.registrationStatus === 'new_user' || 
-          response.registrationStatus === 'incomplete_onboarding') {
-        // New user or incomplete onboarding - redirect to onboarding
-        navigate('/onboarding');
-      } else {
-        // Returning user - redirect to dashboard
-        navigate('/dashboard');
-      }
+      console.log('✅ Auth callback successful:', response.registrationStatus);
       
-      // Update auth state with the mapped user data
-      if (response.user) {
-        const mappedUser = await authService.getCurrentUser();
-        setUser(mappedUser);
-        setIsAuthenticated(true);
-      }
-      
+      // Don't manually update state here - let the auth state listener handle it
       return response;
     } catch (err) {
-      console.error('Error in auth callback:', err);
-      setUser(null);
-      setIsAuthenticated(false);
+      console.error('❌ Error in auth callback:', err);
       setError(err instanceof Error ? err.message : 'Authentication error');
-      
-      // Navigate to home page on error
-      navigate('/');
-      
       throw err;
     } finally {
       setLoading(false);
     }
-  }, [authService, navigate]);
+  }, [getAuthService]);
   
   /**
    * Update onboarding status for user
    */
   const updateOnboardingStatus = useCallback(async (userId: string, hasCompleted: boolean = true): Promise<boolean> => {
     try {
-      if (!authService) {
-        throw new Error('Authentication service not initialized');
-      }
-      
+      const authService = getAuthService();
       const success = await authService.updateOnboardingStatus(userId, hasCompleted);
       
       if (success && hasCompleted && user) {
-        // If onboarding was completed, update user state
+        // Update user state locally
         setUser({
           ...user,
           hasCompletedOnboarding: true
         });
+        
+        // Also update localStorage for persistence
+        localStorage.setItem('has_completed_onboarding', 'true');
       }
       
       return success;
     } catch (err) {
-      console.error('Error updating onboarding status:', err);
+      console.error('❌ Error updating onboarding status:', err);
       return false;
     }
-  }, [authService, user]);
+  }, [getAuthService, user]);
   
   /**
    * Refreshes the current user data from the server.
    */
   const refreshUser = useCallback(async () => {
     try {
-      if (!authService) return;
-
-      setLoading(true);
-      // First, refresh the session to get the latest data from Supabase Auth
+      console.log('🔄 Refreshing user data...');
+      
+      // Refresh the session to get the latest data from Supabase Auth
       await supabaseAuthService.refreshSession();
       
-      // Then, get the updated user data
+      // Get the updated user data
+      const authService = getAuthService();
       const refreshedUser = await authService.getCurrentUser();
       
       if (refreshedUser) {
         setUser(refreshedUser);
         setIsAuthenticated(true);
+        console.log('✅ User data refreshed:', refreshedUser.email);
       } else {
         // If no user is found after refresh, treat as logged out
         setUser(null);
         setIsAuthenticated(false);
+        console.log('🚫 No user found after refresh');
       }
     } catch (err) {
-      console.error('Error refreshing user data:', err);
+      console.error('❌ Error refreshing user data:', err);
       // Don't clear user state on refresh error to avoid logging out on transient network issues
-    } finally {
-      setLoading(false);
     }
-  }, [authService]);
-  
-  /**
-   * Get the auth service instance
-   * Provides access to the full auth service API
-   */
-  const getAuthServiceInstance = useCallback(() => {
-    if (!authService) {
-      // Create adapter if authService is null
-      const authServiceAdapter: AuthService = {
-        ...supabaseAuthService,
-        logout: supabaseAuthService.signOut,
-        getCurrentUser: async () => {
-          const user = await supabaseAuthService.getCurrentUser();
-          return mapUserToAppUser(user);
-        },
-        // Ensure the initiateSignup signature matches the AuthService interface
-        initiateSignup: (email: string, password_raw: string) => 
-          supabaseAuthService.initiateSignup(email, password_raw),
-      };
-      return authServiceAdapter;
-    }
-    return authService;
-  }, [authService]);
+  }, [getAuthService]);
 
   return {
     isAuthenticated,
     user,
-    loading,
+    loading: loading && !isInitialized, // Only show loading while not initialized
     error,
     signInWithGoogle,
     logout,
     handleAuthCallback,
     updateOnboardingStatus,
     refreshUser,
-    authService: getAuthServiceInstance(),
+    authService: getAuthService(),
   };
 };

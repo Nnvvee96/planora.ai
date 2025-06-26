@@ -7,10 +7,10 @@ import { getTravelPreferencesPanelComponent } from '@/features/travel-preference
 const TravelPreferencesPanel = getTravelPreferencesPanelComponent();
 
 /**
- * Travel Preferences Page
+ * Smart Travel Profile Page
  * 
  * This page displays the TravelPreferencesPanel component in a standalone page.
- * It allows users to view and edit their saved travel preferences.
+ * It allows users to view and edit their smart travel profile.
  */
 const TravelPreferencesPage = () => {
   

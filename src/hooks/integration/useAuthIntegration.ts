@@ -1,63 +1,39 @@
 /**
  * useAuthIntegration hook
  * 
- * TEMPORARY MOCK VERSION - Non-functional placeholder
- * This is an integration hook that provides a clean interface to the auth feature.
+ * Integration hook that provides a clean interface to the auth feature.
  * Following Planora's architectural principles with feature-first organization.
  */
 
-// Import only from the feature's public API
-import { getAuthService, AuthService } from '@/features/auth/authApi';
-import { AppUser } from '@/features/auth/types/authTypes';
-import { useState, useEffect } from 'react';
+// Import the main auth hook 
+import { useAuth } from '@/features/auth/authApi';
+import type { AppUser } from '@/features/auth/types/authTypes';
 
 // For backward compatibility
 type User = AppUser;
 
 /**
- * Mock useAuthIntegration hook
+ * useAuthIntegration hook
  * 
  * @returns Interface to interact with the auth feature
  */
 export function useAuthIntegration() {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(false);
+  // Use the main auth hook to ensure consistency
+  const { user, loading, logout: authLogout, isAuthenticated: _isAuthenticated } = useAuth();
   
-  // Initialize auth service
-  const [authService, setAuthService] = useState<AuthService | null>(null);
+  // Ensure isAuthenticated is properly derived
+  const isAuthenticated = !!user && !loading;
   
-  // Load auth service on component mount
-  useEffect(() => {
-    setAuthService(getAuthService());
-  }, []);
-
-  // Fetch user after auth service is initialized
-  useEffect(() => {
-    if (!authService) return;
-    
-    const fetchUser = async () => {
-      setLoading(true);
-      try {
-        const userData = await authService.getCurrentUser();
-        setUser(userData);
-        setIsAuthenticated(!!userData);
-      } catch (error) {
-        console.error('Error fetching current user:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchUser();
-  }, [authService]);
-  
-  // Mock logout function
+  // Mock logout function that uses the real auth logout
   const logout = async () => {
-    console.log('MOCK: Logout requested');
-    setUser(null);
-    setIsAuthenticated(false);
-    window.location.href = '/';
+    try {
+      await authLogout();
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Fallback - still redirect
+      window.location.href = '/';
+    }
   };
   
   // Return a clean interface that other features can use
@@ -69,7 +45,7 @@ export function useAuthIntegration() {
     logout,
     // Add derived data that might be useful for other features
     userName: user?.username || '',
-    userInitial: user?.username ? user.username.charAt(0).toUpperCase() : '',
+    userInitial: user?.username ? user.username.charAt(0).toUpperCase() : (user?.firstName ? user.firstName.charAt(0).toUpperCase() : ''),
     userEmail: user?.email || '',
   };
 }

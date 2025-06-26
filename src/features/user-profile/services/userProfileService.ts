@@ -27,10 +27,13 @@ const mapDbProfileToUserProfile = (dbProfile: DbUserProfile): UserProfile => {
     avatarUrl: dbProfile.avatar_url,
     // Standard field for birth date information
     birthdate: dateValue,
-    // Location data
-    country: dbProfile.country || undefined,
-    city: dbProfile.city || undefined,
+    // Location data - map from database column names
+    country: dbProfile.general_country || undefined,
+    city: dbProfile.general_city || undefined,
     customCity: dbProfile.custom_city || undefined,
+    // Onboarding departure location mapping
+    onboardingDepartureCountry: dbProfile.onboarding_departure_country || undefined,
+    onboardingDepartureCity: dbProfile.onboarding_departure_city || undefined,
     isBetaTester: dbProfile.is_beta_tester || false,
     hasCompletedOnboarding: dbProfile.has_completed_onboarding,
     emailVerified: dbProfile.email_verified,
@@ -60,10 +63,14 @@ const mapUserProfileToDbProfile = (profile: Partial<UserProfile>): Partial<DbUse
     dbProfile.birthdate = dateValue;
   }
   
-  // Location data
-  if (profile.country !== undefined) dbProfile.country = profile.country;
-  if (profile.city !== undefined) dbProfile.city = profile.city;
+  // Location data - map to correct database column names
+  if (profile.country !== undefined) dbProfile.general_country = profile.country;
+  if (profile.city !== undefined) dbProfile.general_city = profile.city;
   if (profile.customCity !== undefined) dbProfile.custom_city = profile.customCity;
+  
+  // Onboarding departure location mapping
+  if (profile.onboardingDepartureCountry !== undefined) dbProfile.onboarding_departure_country = profile.onboardingDepartureCountry;
+  if (profile.onboardingDepartureCity !== undefined) dbProfile.onboarding_departure_city = profile.onboardingDepartureCity;
   
   if (profile.isBetaTester !== undefined) dbProfile.is_beta_tester = profile.isBetaTester;
   if (profile.hasCompletedOnboarding !== undefined) dbProfile.has_completed_onboarding = profile.hasCompletedOnboarding;
@@ -472,7 +479,7 @@ export const userProfileService = {
           // Fetch the current profile to get the general location
           const { data: currentProfile, error: fetchError } = await supabase
             .from('profiles')
-            .select('country, city')
+            .select('general_country, general_city')
             .eq('id', userId)
             .single();
 
@@ -481,8 +488,8 @@ export const userProfileService = {
             // Continue without sync, or handle error as required
           } else if (currentProfile) {
             // Add the onboarding location to the update payload
-            dbProfileUpdate.onboarding_departure_country = currentProfile.country;
-            dbProfileUpdate.onboarding_departure_city = currentProfile.city;
+            dbProfileUpdate.onboarding_departure_country = currentProfile.general_country;
+            dbProfileUpdate.onboarding_departure_city = currentProfile.general_city;
           }
         }
 
@@ -500,7 +507,7 @@ export const userProfileService = {
         }
         
         // Sync profile location with travel preferences if location was updated
-        if (dbProfileUpdate.country || dbProfileUpdate.city) {
+        if (dbProfileUpdate.general_country || dbProfileUpdate.general_city) {
           try {
             // First check if travel preferences exist
             const prefsExist = await travelPreferencesService.checkTravelPreferencesExist(userId);
@@ -512,8 +519,8 @@ export const userProfileService = {
               if (currentPrefs) {
                 // Update travel preferences with new location data
                 await travelPreferencesService.saveTravelPreferences(userId, {
-                  departureCountry: dbProfileUpdate.country,
-                  departureCity: dbProfileUpdate.city === 'Other' ? dbProfileUpdate.custom_city : dbProfileUpdate.city
+                  departureCountry: dbProfileUpdate.general_country,
+                  departureCity: dbProfileUpdate.general_city === 'Other' ? dbProfileUpdate.custom_city : dbProfileUpdate.general_city
                 });
                 console.log('Successfully synced profile location with travel preferences');
               }
