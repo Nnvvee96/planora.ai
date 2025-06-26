@@ -32,19 +32,25 @@ export default defineConfig(({ mode }) => ({
       compress: {
         drop_console: false,
         drop_debugger: false,
+        // Prevent breaking React forwardRef patterns
+        keep_fargs: true,
+        keep_fnames: true,
       },
+      mangle: {
+        // Don't mangle React component names
+        keep_fnames: true,
+        reserved: ['React', 'forwardRef', 'createElement', 'Component']
+      }
     },
     // Code splitting configuration
     rollupOptions: {
       output: {
+        // Simplified chunking to avoid load order issues
         manualChunks: (id) => {
-          // Vendor chunks
+          // Keep React ecosystem together
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom') || id.includes('@radix-ui')) {
               return 'react-vendor';
-            }
-            if (id.includes('@radix-ui')) {
-              return 'ui-vendor';
             }
             if (id.includes('@supabase/supabase-js')) {
               return 'supabase';
@@ -53,6 +59,11 @@ export default defineConfig(({ mode }) => ({
               return 'redux';
             }
             return 'vendor';
+          }
+          
+          // Keep UI components with React vendor to prevent load order issues
+          if (id.includes('/src/ui/') || id.includes('/src/components/ui/')) {
+            return 'react-vendor';
           }
           
           // Feature chunks
@@ -64,11 +75,6 @@ export default defineConfig(({ mode }) => ({
           }
           if (id.includes('/src/features/travel-planning/')) {
             return 'travel-planning';
-          }
-          
-          // UI chunks
-          if (id.includes('/src/ui/') || id.includes('/src/components/ui/')) {
-            return 'ui-components';
           }
         },
         entryFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
@@ -89,7 +95,7 @@ export default defineConfig(({ mode }) => ({
   },
   // Optimization settings
   optimizeDeps: {
-    include: ['react', 'react-dom', '@supabase/supabase-js'],
+    include: ['react', 'react-dom', '@supabase/supabase-js', '@radix-ui/react-toast'],
     exclude: ['@react-three/fiber', '@react-three/drei'], // Exclude heavy 3D libraries from pre-bundling
   },
 }));

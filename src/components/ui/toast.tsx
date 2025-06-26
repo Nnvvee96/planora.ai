@@ -5,6 +5,11 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+// Ensure ToastPrimitives is properly loaded
+if (!ToastPrimitives || !ToastPrimitives.Provider) {
+  console.error('ToastPrimitives not loaded correctly');
+}
+
 const ToastProvider = ToastPrimitives.Provider
 
 const ToastViewport = React.forwardRef<
