@@ -8,6 +8,11 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
   },
   plugins: [
     react(),
@@ -25,8 +30,8 @@ export default defineConfig(({ mode }) => ({
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true,
-        drop_debugger: true,
+        drop_console: false,
+        drop_debugger: false,
       },
     },
     // Code splitting configuration
@@ -66,12 +71,15 @@ export default defineConfig(({ mode }) => ({
             return 'ui-components';
           }
         },
+        entryFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
+        chunkFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
+        assetFileNames: `assets/[name]-[hash]-${Date.now()}.[ext]`
       },
     },
     // Bundle size warnings
     chunkSizeWarningLimit: 1000, // 1MB warning threshold
     // Source maps for production debugging (external to keep bundle size down)
-    sourcemap: 'hidden',
+    sourcemap: true,
     // Asset optimization
     assetsInlineLimit: 4096, // 4KB
     // CSS code splitting
