@@ -29,6 +29,7 @@ interface Env {
     const allowedHostnames = [
       'localhost',          // For local development
       'getplanora.app',     // Your primary production domain
+      'www.getplanora.app', // WWW subdomain
       // Add any other specific subdomains if necessary, e.g., 'www.getplanora.app'
     ];
   
