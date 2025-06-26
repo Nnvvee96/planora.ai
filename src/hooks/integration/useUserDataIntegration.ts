@@ -1,90 +1,121 @@
 /**
- * useUserDataIntegration hook
+ * User Data Integration Hook
  * 
- * Integration hook for managing user data across multiple features
- * Following Planora's architectural principles with feature-first organization.
+ * Integration hook for coordinating user profile and travel preferences data.
+ * Following Planora's architectural principles with proper feature boundaries.
  */
 
 import { useCallback } from 'react';
-import { useAuthIntegration } from './useAuthIntegration';
-import { useTravelPreferencesIntegration } from './useTravelPreferencesIntegration';
-import { useUserProfileIntegration } from '@/features/user-profile/hooks/useUserProfileIntegration';
+import { 
+  userProfileService, 
+  type UserProfile 
+} from '@/features/user-profile/userProfileApi';
+import { 
+  travelPreferencesService,
+  TravelDurationType,
+  DateFlexibilityType,
+  PlanningIntent,
+  AccommodationType,
+  ComfortPreference,
+  LocationPreference,
+  FlightType
+} from '@/features/travel-preferences/travelPreferencesApi';
 
 /**
- * Hook for integrating user data across multiple features
- * Provides methods for coordinated updates across auth, profile, and preferences
+ * Integration hook for managing user data across profile and travel preferences
  */
 export function useUserDataIntegration() {
-  const { user, isAuthenticated } = useAuthIntegration();
-  const { preferences, savePreferences, hasPreferences } = useTravelPreferencesIntegration();
-  const { getUserWithProfile } = useUserProfileIntegration();
-  
-  /**
-   * Check if the user has completed onboarding
-   * Uses multiple sources to determine onboarding status
-   * @returns True if user has completed onboarding
-   */
-  const checkOnboardingStatus = useCallback(async (): Promise<boolean> => {
-    if (!isAuthenticated || !user) {
-      return false;
-    }
-    
-    try {
-      // Check if user has profile data and travel preferences
-      const userWithProfile = await getUserWithProfile(user.id);
-      const hasProfile = !!userWithProfile;
-      
-      // Multi-source truth approach: user needs both profile and preferences
-      const hasCompletedOnboarding = hasProfile && hasPreferences;
-      
-      console.log('Onboarding status check results:', {
-        hasProfile,
-        hasPreferences,
-        finalDecision: hasCompletedOnboarding
-      });
-      
-      return hasCompletedOnboarding;
-    } catch (error) {
-      console.error('Error checking onboarding status:', error);
-      return false;
-    }
-  }, [isAuthenticated, user, hasPreferences, getUserWithProfile]);
-  
-  /**
-   * Simplified onboarding check that just looks at current state
-   * @returns True if user has completed onboarding
-   */
-  const hasCompletedOnboarding = useCallback(async (): Promise<boolean> => {
-    if (!isAuthenticated || !user) {
-      return false;
-    }
+  // Use service functions directly for cross-feature operations
 
-    try {
-      // Check if user has both profile and travel preferences
-      const userWithProfile = await getUserWithProfile(user.id);
-      const profileExists = !!userWithProfile;
+  /**
+   * Synchronize location data between profile and travel preferences when onboarding completes
+   */
+     const syncLocationDataOnOnboardingComplete = useCallback(async (
+     userId: string, 
+     profileData: Partial<UserProfile>
+   ): Promise<UserProfile | null> => {
+     try {
+       // If marking onboarding as complete, sync location data
+       if (profileData.hasCompletedOnboarding === true) {
+         const currentProfile = await userProfileService.getUserProfile(userId);
+         
+         if (currentProfile) {
+           // Add onboarding departure location to the update
+           const updatedProfileData = {
+             ...profileData,
+             onboardingDepartureCountry: currentProfile.country,
+             onboardingDepartureCity: currentProfile.city
+           };
+           
+           return await userProfileService.updateUserProfile(userId, updatedProfileData);
+         }
+       }
+       
+       // Regular profile update without sync
+       return await userProfileService.updateUserProfile(userId, profileData);
+     } catch (error) {
+       console.error('Error syncing location data on onboarding complete:', error);
+       return null;
+     }
+   }, []);
 
-      return profileExists && hasPreferences;
-    } catch (error) {
-      console.error('Error checking onboarding completion:', error);
-      return false;
-    }
-  }, [isAuthenticated, user, hasPreferences, getUserWithProfile]);
-  
+  /**
+   * Ensure travel preferences exist for a user
+   */
+     const ensureTravelPreferencesExist = useCallback(async (userId: string): Promise<boolean> => {
+     try {
+       const prefsExist = await travelPreferencesService.checkTravelPreferencesExist(userId);
+       
+       if (!prefsExist) {
+         const currentPrefs = await travelPreferencesService.getUserTravelPreferences(userId);
+         
+         if (!currentPrefs) {
+           // Create default travel preferences
+           await travelPreferencesService.saveTravelPreferences(userId, {
+             budgetRange: { min: 500, max: 2000 },
+             budgetFlexibility: 10,
+             travelDuration: TravelDurationType.WEEK,
+             dateFlexibility: DateFlexibilityType.FLEXIBLE_FEW,
+             planningIntent: PlanningIntent.EXPLORING,
+             accommodationTypes: [AccommodationType.HOTEL],
+             accommodationComfort: [ComfortPreference.PRIVATE_ROOM],
+             locationPreference: LocationPreference.ANYWHERE,
+             flightType: FlightType.DIRECT,
+             preferCheaperWithStopover: false,
+             departureCountry: '',
+             departureCity: ''
+           });
+         }
+       }
+       
+       return true;
+     } catch (error) {
+       console.error('Error ensuring travel preferences exist:', error);
+       return false;
+     }
+   }, []);
+
+   /**
+    * Delete all user data (profile and travel preferences)
+    */
+   const deleteAllUserData = useCallback(async (userId: string): Promise<boolean> => {
+     try {
+       // Delete travel preferences first
+       await travelPreferencesService.deleteUserTravelPreferences(userId);
+       
+       // Then delete profile
+       const result = await userProfileService.deleteUserProfile(userId);
+       
+       return result.success;
+     } catch (error) {
+       console.error('Error deleting all user data:', error);
+       return false;
+     }
+   }, []);
+
   return {
-    // State
-    user,
-    isAuthenticated,
-    preferences,
-    hasPreferences,
-    
-    // Methods
-    checkOnboardingStatus,
-    hasCompletedOnboarding,
-    savePreferences,
-    getUserWithProfile,
-    
-    // Derived data
-    hasCompletedOnboardingSync: isAuthenticated && hasPreferences,
+    syncLocationDataOnOnboardingComplete,
+    ensureTravelPreferencesExist,
+    deleteAllUserData
   };
 } 

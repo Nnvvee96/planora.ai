@@ -7,8 +7,8 @@
 
 import { supabase } from '@/lib/supabase/client';
 import { UserProfile, DbUserProfile } from '../types/profileTypes';
-// Import directly from service to avoid circular dependency through API
-import { travelPreferencesService } from '@/features/travel-preferences/travelPreferencesApi';
+// Note: Cross-feature operations should use integration hooks
+// Direct imports removed to follow architectural principles
 // Import service utilities for retry logic and monitoring
 import { withRetryAndMonitoring, type RetryOptions as _RetryOptions, type MonitoringHooks as _MonitoringHooks } from '@/lib/serviceUtils';
 
@@ -506,30 +506,8 @@ export const userProfileService = {
           throw new Error(`Profile update failed: ${error.message}`);
         }
         
-        // Sync profile location with travel preferences if location was updated
-        if (dbProfileUpdate.general_country || dbProfileUpdate.general_city) {
-          try {
-            // First check if travel preferences exist
-            const prefsExist = await travelPreferencesService.checkTravelPreferencesExist(userId);
-            
-            if (prefsExist) {
-              // Get current travel preferences
-              const currentPrefs = await travelPreferencesService.getUserTravelPreferences(userId);
-              
-              if (currentPrefs) {
-                // Update travel preferences with new location data
-                await travelPreferencesService.saveTravelPreferences(userId, {
-                  departureCountry: dbProfileUpdate.general_country,
-                  departureCity: dbProfileUpdate.general_city === 'Other' ? dbProfileUpdate.custom_city : dbProfileUpdate.general_city
-                });
-                console.log('Successfully synced profile location with travel preferences');
-              }
-            }
-          } catch (syncError) {
-            // Non-critical error, continue even if sync fails
-            console.warn('Failed to sync profile location with travel preferences:', syncError);
-          }
-        }
+        // Note: Location sync with travel preferences should be handled
+        // at a higher level through integration hooks to maintain architectural boundaries
         
         return data?.[0] || null;
       },
@@ -781,16 +759,15 @@ export const userProfileService = {
   },
   
   /**
-   * Deletes a user's profile and their associated travel preferences.
+   * Deletes a user's profile.
+   * Note: Cross-feature deletion (travel preferences) should be handled
+   * at a higher level through integration hooks to maintain architectural boundaries.
    * @param userId The ID of the user to delete.
    * @returns A promise that resolves with the result of the operation.
    */
   deleteUserProfile: async (userId: string): Promise<{ success: boolean; error?: Error | null; }> => {
     try {
-      // First, delete related travel preferences using the feature's public API
-      await travelPreferencesService.deleteUserTravelPreferences(userId);
-
-      // Then, delete the user profile
+      // Delete the user profile
       const { error } = await supabase
         .from('profiles')
         .delete()
