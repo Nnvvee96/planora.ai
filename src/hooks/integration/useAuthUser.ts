@@ -1,6 +1,6 @@
-import { useAuth } from '@/features/auth/authApi';
-import { AppUser } from '@/features/auth/types/authTypes';
-import { useEffect, useState } from 'react';
+import { useAuth } from "@/features/auth/authApi";
+import { AppUser } from "@/features/auth/types/authTypes";
+import { useEffect, useState } from "react";
 
 export const useAuthUser = (): AppUser | null => {
   const { user } = useAuth();
@@ -13,4 +13,4 @@ export const useAuthUser = (): AppUser | null => {
   }, [user]);
 
   return authUser;
-}; 
+};

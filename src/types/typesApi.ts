@@ -1,6 +1,6 @@
 /**
  * Global Types API
- * 
+ *
  * Public API for shared types that are used across multiple features.
  * Following Planora's architectural principles with consistent naming
  * and organization patterns.
@@ -24,7 +24,7 @@ export interface PaginatedResponse<T> {
 }
 
 // Generic status types for async operations
-export type Status = 'idle' | 'loading' | 'succeeded' | 'failed';
+export type Status = "idle" | "loading" | "succeeded" | "failed";
 
 // Common error type
 export interface AppError {
@@ -34,10 +34,10 @@ export interface AppError {
 }
 
 // Theme type
-export type Theme = 'light' | 'dark' | 'system';
+export type Theme = "light" | "dark" | "system";
 
 // Supported languages
-export type Language = 'en' | 'es' | 'fr' | 'de' | 'it' | 'ja';
+export type Language = "en" | "es" | "fr" | "de" | "it" | "ja";
 
 // Currency type
-export type Currency = 'USD' | 'EUR' | 'GBP' | 'JPY' | 'AUD' | 'CAD';
+export type Currency = "USD" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD";

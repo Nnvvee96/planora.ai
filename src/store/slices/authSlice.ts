@@ -1,24 +1,24 @@
 /**
  * Auth Slice for Redux Store
- * 
+ *
  * TEMPORARY MOCK VERSION - Non-functional placeholder
  * Manages authentication-related state in the global store
  * Following Planora's architectural principles with feature-first organization
  */
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import type { AuthState, AppUser } from '@/features/auth/authApi';
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import type { AuthState, AppUser } from "@/features/auth/authApi";
 
 // Initial state
 const initialState: AuthState = {
   isAuthenticated: false,
   user: null,
   loading: false,
-  error: null
+  error: null,
 };
 
 // Create the slice
 const authSlice = createSlice({
-  name: 'auth',
+  name: "auth",
   initialState,
   reducers: {
     loginStart: (state) => {
@@ -55,8 +55,8 @@ const authSlice = createSlice({
     },
     clearError: (state) => {
       state.error = null;
-    }
-  }
+    },
+  },
 });
 
 // Export actions and reducer
@@ -68,14 +68,16 @@ export const {
   registerSuccess,
   registerFailure,
   logout,
-  clearError
+  clearError,
 } = authSlice.actions;
 
 export const authReducer = authSlice.reducer;
 
 // Selectors
 export const selectAuth = (state: { auth: AuthState }) => state.auth;
-export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated;
+export const selectIsAuthenticated = (state: { auth: AuthState }) =>
+  state.auth.isAuthenticated;
 export const selectUser = (state: { auth: AuthState }) => state.auth.user;
-export const selectAuthLoading = (state: { auth: AuthState }) => state.auth.loading;
+export const selectAuthLoading = (state: { auth: AuthState }) =>
+  state.auth.loading;
 export const selectAuthError = (state: { auth: AuthState }) => state.auth.error;

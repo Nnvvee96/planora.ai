@@ -73,7 +73,7 @@ export interface Budget {
 export interface Accommodation {
   id: string;
   name: string;
-  type: 'hotel' | 'hostel' | 'apartment' | 'resort' | 'camping' | 'other';
+  type: "hotel" | "hostel" | "apartment" | "resort" | "camping" | "other";
   checkIn: Date;
   checkOut: Date;
   location: string;
@@ -86,7 +86,7 @@ export interface Accommodation {
 
 export interface Transportation {
   id: string;
-  type: 'flight' | 'train' | 'bus' | 'car' | 'ferry' | 'other';
+  type: "flight" | "train" | "bus" | "car" | "ferry" | "other";
   departureLocation: string;
   arrivalLocation: string;
   departureDate: Date;

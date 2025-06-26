@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { adminService } from '@/features/admin/adminApi';
-import { AdminDashboard } from '@/features/admin/adminApi';
-import { useAuth } from '@/features/auth/authApi';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { adminService } from "@/features/admin/adminApi";
+import { AdminDashboard } from "@/features/admin/adminApi";
+import { useAuth } from "@/features/auth/authApi";
 
 export function AdminPage() {
   const navigate = useNavigate();
@@ -13,21 +13,23 @@ export function AdminPage() {
   useEffect(() => {
     const checkAuthorization = async () => {
       if (!user) {
-        navigate('/login');
+        navigate("/login");
         return;
       }
 
       try {
-        const { isAdmin, isEditor } = await adminService.checkAdminPrivileges(user.id);
-        
+        const { isAdmin, isEditor } = await adminService.checkAdminPrivileges(
+          user.id,
+        );
+
         if (isAdmin || isEditor) {
           setIsAuthorized(true);
         } else {
-          navigate('/dashboard');
+          navigate("/dashboard");
         }
       } catch (error) {
-        console.error('Error checking authorization:', error);
-        navigate('/dashboard');
+        console.error("Error checking authorization:", error);
+        navigate("/dashboard");
       } finally {
         setIsLoading(false);
       }
@@ -49,4 +51,4 @@ export function AdminPage() {
   }
 
   return <AdminDashboard />;
-} 
+}

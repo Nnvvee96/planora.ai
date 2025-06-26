@@ -5,33 +5,35 @@
  */
 
 // Export types that should be available to other features
-import { 
-  TravelPlan, 
-  Destination, 
-  Activity, 
+import {
+  TravelPlan,
+  Destination,
+  Activity,
   Budget,
-  Accommodation, 
-  Transportation 
-} from './types/travelPlanningTypes';
+  Accommodation,
+  Transportation,
+} from "./types/travelPlanningTypes";
 
-export type { 
-  TravelPlan, 
-  Destination, 
-  Activity, 
+export type {
+  TravelPlan,
+  Destination,
+  Activity,
   Budget,
-  Accommodation, 
-  Transportation 
+  Accommodation,
+  Transportation,
 };
 
 // Import lazy for component lazy loading
-import { lazy } from 'react';
+import { lazy } from "react";
 
 // Export a factory function for the TravelCards component
 // This follows Planora's architectural principles and avoids circular dependencies
 export const getTravelCardsComponent = () => {
-  return lazy(() => import('./components/TravelCards').then(module => ({
-    default: module.TravelCards
-  })));
+  return lazy(() =>
+    import("./components/TravelCards").then((module) => ({
+      default: module.TravelCards,
+    })),
+  );
 };
 
 // When we add hooks, they would be exported as factory functions too

@@ -1,19 +1,26 @@
 /**
  * Travel Persona Edit Panel Component
- * 
+ *
  * This component provides a slide-out panel for editing travel preferences
  * directly within the chat interface. It's a simplified version of the
  * full TravelPreferencesPanel, optimized for the chat context.
  */
 
-import React, { useEffect } from 'react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import React, { useEffect } from "react";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -29,44 +36,47 @@ import {
   Clock,
   Calendar,
   Settings,
-  X
-} from 'lucide-react';
-import { useTravelPreferencesIntegration, TravelPreferences } from '@/hooks/integration/useTravelPreferencesIntegration';
-import { 
+  X,
+} from "lucide-react";
+import {
+  useTravelPreferencesIntegration,
+  TravelPreferences,
+} from "@/hooks/integration/useTravelPreferencesIntegration";
+import {
   TravelDurationType,
   DateFlexibilityType,
   AccommodationType,
-  FlightType
-} from '@/hooks/integration/useTravelPreferencesIntegration';
+  FlightType,
+} from "@/hooks/integration/useTravelPreferencesIntegration";
 
 // Reuse the same schema from the travel preferences feature
 const travelPersonaSchema = z.object({
   // 1. Budget Range
   budgetRange: z.object({
     min: z.number().min(1),
-    max: z.number().min(1)
+    max: z.number().min(1),
   }),
-  
+
   // 2. Budget Flexibility
   budgetFlexibility: z.number().min(0).max(25),
-  
+
   // 3. Travel Duration
   travelDuration: z.nativeEnum(TravelDurationType),
-  
+
   // 4. Date Flexibility
   dateFlexibility: z.nativeEnum(DateFlexibilityType),
-  
+
   // 5. Accommodation Types
-  accommodationTypes: z.array(
-    z.nativeEnum(AccommodationType)
-  ).min(1, "Please select at least one accommodation type"),
-  
+  accommodationTypes: z
+    .array(z.nativeEnum(AccommodationType))
+    .min(1, "Please select at least one accommodation type"),
+
   // 6. Flight Preferences
   flightType: z.nativeEnum(FlightType),
   preferCheaperWithStopover: z.boolean(),
-  
+
   // 7. Departure Location
-  departureCity: z.string().min(1, "Please enter a departure city")
+  departureCity: z.string().min(1, "Please enter a departure city"),
 });
 
 type TravelPersonaFormValues = z.infer<typeof travelPersonaSchema>;
@@ -79,12 +89,12 @@ interface TravelPersonaEditPanelProps {
 /**
  * A simple checkbox card component for multi-select options
  */
-const SimpleCheckboxCard = ({ 
+const SimpleCheckboxCard = ({
   checked,
   onChange,
   icon: Icon,
-  label
-}: { 
+  label,
+}: {
   value: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
@@ -95,15 +105,18 @@ const SimpleCheckboxCard = ({
     <div
       className={`
         flex items-center p-3 rounded-md border cursor-pointer transition-colors
-        ${checked 
-          ? 'bg-planora-accent-purple/10 border-planora-accent-purple/50' 
-          : 'bg-white/5 border-white/10 hover:bg-white/10'
+        ${
+          checked
+            ? "bg-planora-accent-purple/10 border-planora-accent-purple/50"
+            : "bg-white/5 border-white/10 hover:bg-white/10"
         }
       `}
       onClick={() => onChange(!checked)}
     >
-      <Icon className={`h-5 w-5 mr-3 ${checked ? 'text-planora-accent-purple' : 'text-white/60'}`} />
-      <span className={checked ? 'text-white' : 'text-white/80'}>{label}</span>
+      <Icon
+        className={`h-5 w-5 mr-3 ${checked ? "text-planora-accent-purple" : "text-white/60"}`}
+      />
+      <span className={checked ? "text-white" : "text-white/80"}>{label}</span>
     </div>
   );
 };
@@ -111,12 +124,13 @@ const SimpleCheckboxCard = ({
 /**
  * Travel Persona Edit Panel Component
  */
-export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({ 
-  isOpen, 
-  onClose 
+export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
+  isOpen,
+  onClose,
 }) => {
-  const { preferences, savePreferences, isLoading } = useTravelPreferencesIntegration();
-  
+  const { preferences, savePreferences, isLoading } =
+    useTravelPreferencesIntegration();
+
   // Set up form with React Hook Form
   const form = useForm<TravelPersonaFormValues>({
     resolver: zodResolver(travelPersonaSchema),
@@ -128,17 +142,17 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
       accommodationTypes: [AccommodationType.HOTEL],
       flightType: FlightType.DIRECT,
       preferCheaperWithStopover: false,
-      departureCity: 'Berlin'
-    }
+      departureCity: "Berlin",
+    },
   });
-  
+
   // Load preferences when available
   useEffect(() => {
     if (preferences && preferences.budgetRange) {
       form.reset({
         budgetRange: {
           min: preferences.budgetRange.min,
-          max: preferences.budgetRange.max
+          max: preferences.budgetRange.max,
         },
         budgetFlexibility: preferences.budgetFlexibility,
         travelDuration: preferences.travelDuration,
@@ -146,11 +160,11 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
         accommodationTypes: preferences.accommodationTypes,
         flightType: preferences.flightType,
         preferCheaperWithStopover: preferences.preferCheaperWithStopover,
-        departureCity: preferences.departureCity
+        departureCity: preferences.departureCity,
       });
     }
   }, [preferences, form]);
-  
+
   // Handle form submission
   const onSubmit = async (data: TravelPersonaFormValues) => {
     try {
@@ -160,7 +174,7 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
           ...preferences,
           budgetRange: {
             min: data.budgetRange.min || 500, // Ensure min is never undefined
-            max: data.budgetRange.max || 1000 // Ensure max is never undefined
+            max: data.budgetRange.max || 1000, // Ensure max is never undefined
           },
           budgetFlexibility: data.budgetFlexibility,
           travelDuration: data.travelDuration,
@@ -168,28 +182,28 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
           accommodationTypes: data.accommodationTypes,
           flightType: data.flightType,
           preferCheaperWithStopover: data.preferCheaperWithStopover,
-          departureCity: data.departureCity
+          departureCity: data.departureCity,
         };
-        
+
         await savePreferences(updatedPreferences);
         toast({
           title: "Travel preferences updated",
-          description: "Your travel persona has been updated successfully."
+          description: "Your travel persona has been updated successfully.",
         });
         onClose();
       }
     } catch (error) {
-      console.error('Error saving travel preferences:', error);
+      console.error("Error saving travel preferences:", error);
       toast({
         title: "Error",
         description: "Failed to update travel preferences. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
-  
+
   if (!isOpen) return null;
-  
+
   return (
     <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-planora-purple-dark border-l border-white/10 shadow-xl overflow-y-auto">
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
@@ -201,12 +215,13 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
           <X className="h-5 w-5" />
         </Button>
       </div>
-      
+
       <div className="p-4">
         <p className="text-white/60 text-sm mb-4">
-          Customize your travel preferences to get personalized recommendations in your conversation.
+          Customize your travel preferences to get personalized recommendations
+          in your conversation.
         </p>
-        
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Budget Section */}
@@ -224,13 +239,20 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
                   name="budgetRange"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white/80">Budget Range (€)</FormLabel>
+                      <FormLabel className="text-white/80">
+                        Budget Range (€)
+                      </FormLabel>
                       <div className="flex items-center gap-2">
                         <FormControl>
                           <Input
                             type="number"
                             value={field.value.min}
-                            onChange={(e) => field.onChange({ ...field.value, min: parseInt(e.target.value) })}
+                            onChange={(e) =>
+                              field.onChange({
+                                ...field.value,
+                                min: parseInt(e.target.value),
+                              })
+                            }
                             className="bg-white/5 border-white/10"
                           />
                         </FormControl>
@@ -239,7 +261,12 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
                           <Input
                             type="number"
                             value={field.value.max}
-                            onChange={(e) => field.onChange({ ...field.value, max: parseInt(e.target.value) })}
+                            onChange={(e) =>
+                              field.onChange({
+                                ...field.value,
+                                max: parseInt(e.target.value),
+                              })
+                            }
                             className="bg-white/5 border-white/10"
                           />
                         </FormControl>
@@ -248,7 +275,7 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
                     </FormItem>
                   )}
                 />
-                
+
                 {/* Budget Flexibility */}
                 <FormField
                   control={form.control}
@@ -274,7 +301,7 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
                 />
               </CardContent>
             </Card>
-            
+
             {/* Trip Duration Section */}
             <Card className="bg-card/20 backdrop-blur-sm border-white/10">
               <CardHeader className="pb-2">
@@ -295,31 +322,83 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
                           onValueChange={field.onChange}
                           className="grid grid-cols-2 gap-2"
                         >
-                          <div className={`border rounded-md p-3 cursor-pointer ${field.value === 'weekend' ? 'bg-planora-accent-purple/10 border-planora-accent-purple/50' : 'bg-white/5 border-white/10'}`}>
-                            <RadioGroupItem value="weekend" id="weekend" className="sr-only" />
-                            <label htmlFor="weekend" className="flex items-center cursor-pointer">
-                              <span className={`${field.value === 'weekend' ? 'text-white' : 'text-white/80'}`}>Weekend</span>
+                          <div
+                            className={`border rounded-md p-3 cursor-pointer ${field.value === "weekend" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
+                          >
+                            <RadioGroupItem
+                              value="weekend"
+                              id="weekend"
+                              className="sr-only"
+                            />
+                            <label
+                              htmlFor="weekend"
+                              className="flex items-center cursor-pointer"
+                            >
+                              <span
+                                className={`${field.value === "weekend" ? "text-white" : "text-white/80"}`}
+                              >
+                                Weekend
+                              </span>
                             </label>
                           </div>
-                          
-                          <div className={`border rounded-md p-3 cursor-pointer ${field.value === 'week' ? 'bg-planora-accent-purple/10 border-planora-accent-purple/50' : 'bg-white/5 border-white/10'}`}>
-                            <RadioGroupItem value="week" id="week" className="sr-only" />
-                            <label htmlFor="week" className="flex items-center cursor-pointer">
-                              <span className={`${field.value === 'week' ? 'text-white' : 'text-white/80'}`}>Week</span>
+
+                          <div
+                            className={`border rounded-md p-3 cursor-pointer ${field.value === "week" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
+                          >
+                            <RadioGroupItem
+                              value="week"
+                              id="week"
+                              className="sr-only"
+                            />
+                            <label
+                              htmlFor="week"
+                              className="flex items-center cursor-pointer"
+                            >
+                              <span
+                                className={`${field.value === "week" ? "text-white" : "text-white/80"}`}
+                              >
+                                Week
+                              </span>
                             </label>
                           </div>
-                          
-                          <div className={`border rounded-md p-3 cursor-pointer ${field.value === 'two-weeks' ? 'bg-planora-accent-purple/10 border-planora-accent-purple/50' : 'bg-white/5 border-white/10'}`}>
-                            <RadioGroupItem value="two-weeks" id="two-weeks" className="sr-only" />
-                            <label htmlFor="two-weeks" className="flex items-center cursor-pointer">
-                              <span className={`${field.value === 'two-weeks' ? 'text-white' : 'text-white/80'}`}>Two Weeks</span>
+
+                          <div
+                            className={`border rounded-md p-3 cursor-pointer ${field.value === "two-weeks" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
+                          >
+                            <RadioGroupItem
+                              value="two-weeks"
+                              id="two-weeks"
+                              className="sr-only"
+                            />
+                            <label
+                              htmlFor="two-weeks"
+                              className="flex items-center cursor-pointer"
+                            >
+                              <span
+                                className={`${field.value === "two-weeks" ? "text-white" : "text-white/80"}`}
+                              >
+                                Two Weeks
+                              </span>
                             </label>
                           </div>
-                          
-                          <div className={`border rounded-md p-3 cursor-pointer ${field.value === 'longer' ? 'bg-planora-accent-purple/10 border-planora-accent-purple/50' : 'bg-white/5 border-white/10'}`}>
-                            <RadioGroupItem value="longer" id="longer" className="sr-only" />
-                            <label htmlFor="longer" className="flex items-center cursor-pointer">
-                              <span className={`${field.value === 'longer' ? 'text-white' : 'text-white/80'}`}>Longer</span>
+
+                          <div
+                            className={`border rounded-md p-3 cursor-pointer ${field.value === "longer" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
+                          >
+                            <RadioGroupItem
+                              value="longer"
+                              id="longer"
+                              className="sr-only"
+                            />
+                            <label
+                              htmlFor="longer"
+                              className="flex items-center cursor-pointer"
+                            >
+                              <span
+                                className={`${field.value === "longer" ? "text-white" : "text-white/80"}`}
+                              >
+                                Longer
+                              </span>
                             </label>
                           </div>
                         </RadioGroup>
@@ -330,7 +409,7 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
                 />
               </CardContent>
             </Card>
-            
+
             {/* Date Flexibility */}
             <Card className="bg-card/20 backdrop-blur-sm border-white/10">
               <CardHeader className="pb-2">
@@ -351,31 +430,83 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
                           onValueChange={field.onChange}
                           className="space-y-2"
                         >
-                          <div className={`border rounded-md p-3 cursor-pointer ${field.value === 'fixed' ? 'bg-planora-accent-purple/10 border-planora-accent-purple/50' : 'bg-white/5 border-white/10'}`}>
-                            <RadioGroupItem value="fixed" id="fixed" className="sr-only" />
-                            <label htmlFor="fixed" className="flex items-center cursor-pointer">
-                              <span className={`${field.value === 'fixed' ? 'text-white' : 'text-white/80'}`}>Fixed Dates</span>
+                          <div
+                            className={`border rounded-md p-3 cursor-pointer ${field.value === "fixed" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
+                          >
+                            <RadioGroupItem
+                              value="fixed"
+                              id="fixed"
+                              className="sr-only"
+                            />
+                            <label
+                              htmlFor="fixed"
+                              className="flex items-center cursor-pointer"
+                            >
+                              <span
+                                className={`${field.value === "fixed" ? "text-white" : "text-white/80"}`}
+                              >
+                                Fixed Dates
+                              </span>
                             </label>
                           </div>
-                          
-                          <div className={`border rounded-md p-3 cursor-pointer ${field.value === 'flexible-few' ? 'bg-planora-accent-purple/10 border-planora-accent-purple/50' : 'bg-white/5 border-white/10'}`}>
-                            <RadioGroupItem value="flexible-few" id="flexible-few" className="sr-only" />
-                            <label htmlFor="flexible-few" className="flex items-center cursor-pointer">
-                              <span className={`${field.value === 'flexible-few' ? 'text-white' : 'text-white/80'}`}>± 3 Days</span>
+
+                          <div
+                            className={`border rounded-md p-3 cursor-pointer ${field.value === "flexible-few" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
+                          >
+                            <RadioGroupItem
+                              value="flexible-few"
+                              id="flexible-few"
+                              className="sr-only"
+                            />
+                            <label
+                              htmlFor="flexible-few"
+                              className="flex items-center cursor-pointer"
+                            >
+                              <span
+                                className={`${field.value === "flexible-few" ? "text-white" : "text-white/80"}`}
+                              >
+                                ± 3 Days
+                              </span>
                             </label>
                           </div>
-                          
-                          <div className={`border rounded-md p-3 cursor-pointer ${field.value === 'flexible-week' ? 'bg-planora-accent-purple/10 border-planora-accent-purple/50' : 'bg-white/5 border-white/10'}`}>
-                            <RadioGroupItem value="flexible-week" id="flexible-week" className="sr-only" />
-                            <label htmlFor="flexible-week" className="flex items-center cursor-pointer">
-                              <span className={`${field.value === 'flexible-week' ? 'text-white' : 'text-white/80'}`}>± 1 Week</span>
+
+                          <div
+                            className={`border rounded-md p-3 cursor-pointer ${field.value === "flexible-week" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
+                          >
+                            <RadioGroupItem
+                              value="flexible-week"
+                              id="flexible-week"
+                              className="sr-only"
+                            />
+                            <label
+                              htmlFor="flexible-week"
+                              className="flex items-center cursor-pointer"
+                            >
+                              <span
+                                className={`${field.value === "flexible-week" ? "text-white" : "text-white/80"}`}
+                              >
+                                ± 1 Week
+                              </span>
                             </label>
                           </div>
-                          
-                          <div className={`border rounded-md p-3 cursor-pointer ${field.value === 'very-flexible' ? 'bg-planora-accent-purple/10 border-planora-accent-purple/50' : 'bg-white/5 border-white/10'}`}>
-                            <RadioGroupItem value="very-flexible" id="very-flexible" className="sr-only" />
-                            <label htmlFor="very-flexible" className="flex items-center cursor-pointer">
-                              <span className={`${field.value === 'very-flexible' ? 'text-white' : 'text-white/80'}`}>Very Flexible</span>
+
+                          <div
+                            className={`border rounded-md p-3 cursor-pointer ${field.value === "very-flexible" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
+                          >
+                            <RadioGroupItem
+                              value="very-flexible"
+                              id="very-flexible"
+                              className="sr-only"
+                            />
+                            <label
+                              htmlFor="very-flexible"
+                              className="flex items-center cursor-pointer"
+                            >
+                              <span
+                                className={`${field.value === "very-flexible" ? "text-white" : "text-white/80"}`}
+                              >
+                                Very Flexible
+                              </span>
                             </label>
                           </div>
                         </RadioGroup>
@@ -386,7 +517,7 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
                 />
               </CardContent>
             </Card>
-            
+
             {/* Accommodation Types */}
             <Card className="bg-card/20 backdrop-blur-sm border-white/10">
               <CardHeader className="pb-2">
@@ -404,50 +535,66 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
                       <div className="grid grid-cols-2 gap-2">
                         <SimpleCheckboxCard
                           value={AccommodationType.HOTEL}
-                          checked={field.value.includes(AccommodationType.HOTEL)}
+                          checked={field.value.includes(
+                            AccommodationType.HOTEL,
+                          )}
                           onChange={(checked) => {
-                            const newValue = checked 
-                              ? [...field.value, AccommodationType.HOTEL] 
-                              : field.value.filter(v => v !== AccommodationType.HOTEL);
+                            const newValue = checked
+                              ? [...field.value, AccommodationType.HOTEL]
+                              : field.value.filter(
+                                  (v) => v !== AccommodationType.HOTEL,
+                                );
                             field.onChange(newValue);
                           }}
                           icon={Hotel}
                           label="Hotel"
                         />
-                        
+
                         <SimpleCheckboxCard
                           value={AccommodationType.APARTMENT}
-                          checked={field.value.includes(AccommodationType.APARTMENT)}
+                          checked={field.value.includes(
+                            AccommodationType.APARTMENT,
+                          )}
                           onChange={(checked) => {
-                            const newValue = checked 
-                              ? [...field.value, AccommodationType.APARTMENT] 
-                              : field.value.filter(v => v !== AccommodationType.APARTMENT);
+                            const newValue = checked
+                              ? [...field.value, AccommodationType.APARTMENT]
+                              : field.value.filter(
+                                  (v) => v !== AccommodationType.APARTMENT,
+                                );
                             field.onChange(newValue);
                           }}
                           icon={Building}
                           label="Apartment"
                         />
-                        
+
                         <SimpleCheckboxCard
                           value={AccommodationType.HOSTEL}
-                          checked={field.value.includes(AccommodationType.HOSTEL)}
+                          checked={field.value.includes(
+                            AccommodationType.HOSTEL,
+                          )}
                           onChange={(checked) => {
-                            const newValue = checked 
-                              ? [...field.value, AccommodationType.HOSTEL] 
-                              : field.value.filter(v => v !== AccommodationType.HOSTEL);
+                            const newValue = checked
+                              ? [...field.value, AccommodationType.HOSTEL]
+                              : field.value.filter(
+                                  (v) => v !== AccommodationType.HOSTEL,
+                                );
                             field.onChange(newValue);
                           }}
                           icon={Tent}
                           label="Hostel"
                         />
-                        
+
                         <SimpleCheckboxCard
                           value={AccommodationType.RESORT}
-                          checked={field.value.includes(AccommodationType.RESORT)}
+                          checked={field.value.includes(
+                            AccommodationType.RESORT,
+                          )}
                           onChange={(checked) => {
-                            const newValue = checked 
-                              ? [...field.value, AccommodationType.RESORT] 
-                              : field.value.filter(v => v !== AccommodationType.RESORT);
+                            const newValue = checked
+                              ? [...field.value, AccommodationType.RESORT]
+                              : field.value.filter(
+                                  (v) => v !== AccommodationType.RESORT,
+                                );
                             field.onChange(newValue);
                           }}
                           icon={Palmtree}
@@ -460,7 +607,7 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
                 />
               </CardContent>
             </Card>
-            
+
             {/* Flight Preferences */}
             <Card className="bg-card/20 backdrop-blur-sm border-white/10">
               <CardHeader className="pb-2">
@@ -475,24 +622,52 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
                   name="flightType"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white/80">Flight Type</FormLabel>
+                      <FormLabel className="text-white/80">
+                        Flight Type
+                      </FormLabel>
                       <FormControl>
                         <RadioGroup
                           value={field.value}
                           onValueChange={field.onChange}
                           className="flex gap-4"
                         >
-                          <div className={`border rounded-md px-4 py-2 cursor-pointer ${field.value === 'direct' ? 'bg-planora-accent-purple/10 border-planora-accent-purple/50' : 'bg-white/5 border-white/10'}`}>
-                            <RadioGroupItem value="direct" id="direct" className="sr-only" />
-                            <label htmlFor="direct" className="flex items-center cursor-pointer">
-                              <span className={`${field.value === 'direct' ? 'text-white' : 'text-white/80'}`}>Direct</span>
+                          <div
+                            className={`border rounded-md px-4 py-2 cursor-pointer ${field.value === "direct" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
+                          >
+                            <RadioGroupItem
+                              value="direct"
+                              id="direct"
+                              className="sr-only"
+                            />
+                            <label
+                              htmlFor="direct"
+                              className="flex items-center cursor-pointer"
+                            >
+                              <span
+                                className={`${field.value === "direct" ? "text-white" : "text-white/80"}`}
+                              >
+                                Direct
+                              </span>
                             </label>
                           </div>
-                          
-                          <div className={`border rounded-md px-4 py-2 cursor-pointer ${field.value === 'any' ? 'bg-planora-accent-purple/10 border-planora-accent-purple/50' : 'bg-white/5 border-white/10'}`}>
-                            <RadioGroupItem value="any" id="any" className="sr-only" />
-                            <label htmlFor="any" className="flex items-center cursor-pointer">
-                              <span className={`${field.value === 'any' ? 'text-white' : 'text-white/80'}`}>Any</span>
+
+                          <div
+                            className={`border rounded-md px-4 py-2 cursor-pointer ${field.value === "any" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
+                          >
+                            <RadioGroupItem
+                              value="any"
+                              id="any"
+                              className="sr-only"
+                            />
+                            <label
+                              htmlFor="any"
+                              className="flex items-center cursor-pointer"
+                            >
+                              <span
+                                className={`${field.value === "any" ? "text-white" : "text-white/80"}`}
+                              >
+                                Any
+                              </span>
                             </label>
                           </div>
                         </RadioGroup>
@@ -501,7 +676,7 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="preferCheaperWithStopover"
@@ -523,7 +698,7 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
                 />
               </CardContent>
             </Card>
-            
+
             {/* Departure Location */}
             <Card className="bg-card/20 backdrop-blur-sm border-white/10">
               <CardHeader className="pb-2">
@@ -538,7 +713,9 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
                   name="departureCity"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white/80">Departure City</FormLabel>
+                      <FormLabel className="text-white/80">
+                        Departure City
+                      </FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -552,22 +729,22 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
                 />
               </CardContent>
             </Card>
-            
+
             <div className="flex justify-end gap-2 pt-4">
-              <Button 
-                type="button" 
+              <Button
+                type="button"
                 variant="outline"
                 onClick={onClose}
                 className="border-white/10 bg-white/5"
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 type="submit"
                 disabled={isLoading}
                 className="bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90"
               >
-                {isLoading ? 'Saving...' : 'Save Changes'}
+                {isLoading ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           </form>

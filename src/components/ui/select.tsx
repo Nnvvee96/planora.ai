@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,7 +35,10 @@ export function Select({
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
+      if (
+        selectRef.current &&
+        !selectRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
@@ -51,13 +53,7 @@ export function Select({
   };
 
   return (
-    <div 
-      ref={selectRef}
-      className={cn(
-        "relative w-full", 
-        className
-      )}
-    >
+    <div ref={selectRef} className={cn("relative w-full", className)}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -66,7 +62,7 @@ export function Select({
         <span>{selectedLabel}</span>
         <ChevronDown className="h-4 w-4 opacity-50" />
       </button>
-      
+
       {isOpen && (
         <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-popover border border-white/10 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
           <ul className="py-1">

@@ -1,13 +1,13 @@
 /**
  * useClientOnly Hook
- * 
+ *
  * A custom hook for safely rendering components that access browser APIs.
  * This prevents hydration mismatches between server and client rendering.
- * 
+ *
  * Following Planora's architectural principles of clean code and separation of concerns.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 /**
  * Hook to ensure component only renders on the client side
@@ -15,11 +15,11 @@ import { useState, useEffect } from 'react';
  */
 export function useClientOnly() {
   const [isMounted, setIsMounted] = useState(false);
-  
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
-  
+
   return isMounted;
 }
 

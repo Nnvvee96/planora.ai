@@ -1,6 +1,6 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserManagementTable } from './UserManagementTable';
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UserManagementTable } from "./UserManagementTable";
 
 const AdminDashboard: React.FC = () => {
   return (
@@ -29,4 +29,4 @@ const AdminDashboard: React.FC = () => {
   );
 };
 
-export { AdminDashboard }; 
+export { AdminDashboard };

@@ -1,5 +1,5 @@
-import React, { ReactNode } from 'react';
-import { useUserProfile } from '@/features/user-profile/userProfileApi';
+import React, { ReactNode } from "react";
+import { useUserProfile } from "@/features/user-profile/userProfileApi";
 
 interface BetaFeatureProps {
   children: ReactNode;
@@ -23,4 +23,4 @@ export const BetaFeature: React.FC<BetaFeatureProps> = ({ children }) => {
   }
 
   return <>{children}</>;
-}; 
+};

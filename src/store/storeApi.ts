@@ -1,13 +1,13 @@
 /**
  * Store API
- * 
+ *
  * Public API for store-related functionality.
  * Following Planora's architectural principles with feature-first organization.
  *
  * Configures the global Redux store with all feature slices
  */
-import { configureStore } from '@reduxjs/toolkit';
-import { authReducer } from './slices/authSlice';
+import { configureStore } from "@reduxjs/toolkit";
+import { authReducer } from "./slices/authSlice";
 
 // Configure the store with all reducers
 const store = configureStore({

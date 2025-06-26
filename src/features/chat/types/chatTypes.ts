@@ -1,6 +1,6 @@
 /**
  * Chat Types
- * 
+ *
  * This file defines the types used throughout the chat feature,
  * ensuring type safety and consistency across components.
  */
@@ -9,8 +9,8 @@
  * Message role - who sent the message
  */
 export enum MessageRole {
-  USER = 'user',
-  ASSISTANT = 'assistant'
+  USER = "user",
+  ASSISTANT = "assistant",
 }
 
 /**

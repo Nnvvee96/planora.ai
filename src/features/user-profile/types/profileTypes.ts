@@ -1,6 +1,6 @@
 /**
  * User Profile Types
- * 
+ *
  * Shared types and interfaces for the user profile feature
  * Following Planora's architectural principles with feature-first organization
  */

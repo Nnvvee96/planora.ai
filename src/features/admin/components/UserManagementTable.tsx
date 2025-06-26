@@ -1,9 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { adminService } from '../services/adminService';
-import { DbUserProfile } from '../../user-profile/types/profileTypes';
-import { Switch } from '@/components/ui/switch';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useEffect, useState } from "react";
+import { adminService } from "../services/adminService";
+import { DbUserProfile } from "../../user-profile/types/profileTypes";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const UserManagementTable: React.FC = () => {
   const [users, setUsers] = useState<DbUserProfile[]>([]);
@@ -18,7 +25,7 @@ export const UserManagementTable: React.FC = () => {
         setUsers(allUsers);
         setError(null);
       } catch (err) {
-        setError('Failed to fetch users.');
+        setError("Failed to fetch users.");
         console.error(err);
       } finally {
         setLoading(false);
@@ -30,10 +37,13 @@ export const UserManagementTable: React.FC = () => {
 
   const handleBetaToggle = async (userId: string, currentStatus: boolean) => {
     try {
-      const updatedUser = await adminService.updateBetaTesterStatus(userId, !currentStatus);
-      setUsers(users.map(u => u.id === userId ? updatedUser : u));
+      const updatedUser = await adminService.updateBetaTesterStatus(
+        userId,
+        !currentStatus,
+      );
+      setUsers(users.map((u) => (u.id === userId ? updatedUser : u)));
     } catch (err) {
-      setError('Failed to update beta status.');
+      setError("Failed to update beta status.");
       console.error(err);
     }
   };
@@ -63,7 +73,9 @@ export const UserManagementTable: React.FC = () => {
                 <TableCell>
                   <Switch
                     checked={user.is_beta_tester}
-                    onCheckedChange={(_newStatus) => handleBetaToggle(user.id, user.is_beta_tester)}
+                    onCheckedChange={(_newStatus) =>
+                      handleBetaToggle(user.id, user.is_beta_tester)
+                    }
                   />
                 </TableCell>
               </TableRow>
@@ -73,4 +85,4 @@ export const UserManagementTable: React.FC = () => {
       </CardContent>
     </Card>
   );
-}; 
+};

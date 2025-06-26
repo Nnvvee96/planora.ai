@@ -8,91 +8,71 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
-    }
   },
   plugins: [
     react(),
-    mode === 'development' &&
-    componentTagger(),
+    mode === 'development' && componentTagger(),
   ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  // Environment variables configuration
+  // Environment variables - let Vite handle them naturally
   define: {
-    // Ensure environment variables are properly defined
-    'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL || ''),
-    'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY || ''),
+    // Only define what's absolutely necessary
+    __DEV__: JSON.stringify(mode === 'development'),
   },
   build: {
-    // Production optimizations - DISABLE MINIFICATION to prevent TDZ errors
+    // Production-ready build configuration
     target: 'es2020',
-    minify: false, // COMPLETELY DISABLE MINIFICATION
-    // Code splitting configuration
-    rollupOptions: {
-      output: {
-        // Keep Supabase in its own chunk to prevent TDZ errors
-        manualChunks: (id) => {
-          // Keep React ecosystem together
-          if (id.includes('node_modules')) {
-            if (id.includes('@supabase/supabase-js')) {
-              return 'supabase';
-            }
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom') || id.includes('@radix-ui')) {
-              return 'react-vendor';
-            }
-            if (id.includes('@reduxjs/toolkit') || id.includes('react-redux')) {
-              return 'redux';
-            }
-            return 'vendor';
-          }
-          
-          // Keep UI components with React vendor to prevent load order issues
-          if (id.includes('/src/ui/') || id.includes('/src/components/ui/')) {
-            return 'react-vendor';
-          }
-          
-          // Keep Supabase client separate
-          if (id.includes('/src/lib/supabase/')) {
-            return 'supabase';
-          }
-          
-          // Feature chunks
-          if (id.includes('/src/features/auth/')) {
-            return 'auth';
-          }
-          if (id.includes('/src/features/user-profile/')) {
-            return 'user-profile';
-          }
-          if (id.includes('/src/features/travel-planning/')) {
-            return 'travel-planning';
-          }
-        },
-        entryFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
-        chunkFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
-        assetFileNames: `assets/[name]-[hash]-${Date.now()}.[ext]`
+    minify: 'terser', // Re-enable proper minification
+    terserOptions: {
+      compress: {
+        drop_console: mode === 'production', // Remove console.log in production
+        drop_debugger: true,
+      },
+      mangle: {
+        // Preserve function names for better debugging
+        keep_fnames: /^(React|Component|useState|useEffect)$/,
       },
     },
-    // Bundle size warnings
-    chunkSizeWarningLimit: 1000, // 1MB warning threshold
-    // Source maps for production debugging (external to keep bundle size down)
-    sourcemap: true,
+    // Optimized code splitting
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor chunks for better caching
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['@radix-ui/react-toast', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
+          'supabase': ['@supabase/supabase-js'],
+          'utils': ['clsx', 'tailwind-merge', 'date-fns'],
+        },
+        // Clean file naming for production
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
+      },
+    },
+    // Reasonable bundle size limits
+    chunkSizeWarningLimit: 1000,
+    // Source maps for debugging (external to keep bundle size down)
+    sourcemap: mode === 'development',
     // Asset optimization
-    assetsInlineLimit: 4096, // 4KB
+    assetsInlineLimit: 4096,
     // CSS code splitting
     cssCodeSplit: true,
-    // Enable build reporting
+    // Build reporting
     reportCompressedSize: true,
   },
-  // Optimization settings
+  // Dependency optimization
   optimizeDeps: {
-    include: ['react', 'react-dom', '@supabase/supabase-js', '@radix-ui/react-toast'],
-    exclude: ['@react-three/fiber', '@react-three/drei'], // Exclude heavy 3D libraries from pre-bundling
+    include: [
+      'react',
+      'react-dom', 
+      'react-router-dom',
+      '@supabase/supabase-js',
+      '@radix-ui/react-toast'
+    ],
+    // Let Vite handle all dependencies naturally
   },
 }));

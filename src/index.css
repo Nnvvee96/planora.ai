@@ -1,6 +1,5 @@
-
 /* Import font first to comply with CSS rules */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
 /* CSS linting: the following are valid Tailwind CSS directives */
 /* stylelint-disable-next-line */
@@ -96,7 +95,7 @@
     /* stylelint-disable-next-line */
     @apply relative before:absolute before:inset-0 before:p-[1.5px] before:rounded-full before:bg-gradient-to-r before:from-planora-accent-purple before:via-planora-accent-pink before:to-planora-accent-blue before:-z-10;
   }
-  
+
   .feature-card {
     @apply bg-secondary/40 backdrop-blur-sm border border-white/10 rounded-xl p-6 transition-all duration-300 hover:border-white/20 hover:bg-secondary/60;
   }
@@ -121,7 +120,12 @@
   height: 100%;
   transition: opacity 300ms ease-out;
   opacity: 0.8;
-  background: linear-gradient(to bottom right, var(--planora-accent-purple), var(--planora-accent-pink), var(--planora-accent-blue));
+  background: linear-gradient(
+    to bottom right,
+    var(--planora-accent-purple),
+    var(--planora-accent-pink),
+    var(--planora-accent-blue)
+  );
 }
 
 .gradient-button:hover .gradient-button-background {
@@ -137,7 +141,12 @@
   transition: all 500ms ease-out;
   opacity: 0;
   border-radius: 0.5rem;
-  background: linear-gradient(to bottom right, var(--planora-accent-purple), var(--planora-accent-pink), var(--planora-accent-blue));
+  background: linear-gradient(
+    to bottom right,
+    var(--planora-accent-purple),
+    var(--planora-accent-pink),
+    var(--planora-accent-blue)
+  );
 }
 
 .gradient-button:hover .gradient-button-edge {
@@ -159,46 +168,84 @@
 
 /* Animation classes */
 @keyframes orbit {
-  from { transform: rotate(0deg) translateX(120px) rotate(0deg); }
-  to { transform: rotate(360deg) translateX(120px) rotate(-360deg); }
+  from {
+    transform: rotate(0deg) translateX(120px) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(120px) rotate(-360deg);
+  }
 }
 
 @keyframes orbit-wide {
-  from { transform: rotate(0deg) translateX(150px) rotate(0deg); }
-  to { transform: rotate(360deg) translateX(150px) rotate(-360deg); }
+  from {
+    transform: rotate(0deg) translateX(150px) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(150px) rotate(-360deg);
+  }
 }
 
 @keyframes orbit-wide-reverse {
-  from { transform: rotate(0deg) translateX(180px) rotate(0deg); }
-  to { transform: rotate(-360deg) translateX(180px) rotate(360deg); }
+  from {
+    transform: rotate(0deg) translateX(180px) rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg) translateX(180px) rotate(360deg);
+  }
 }
 
 @keyframes orbit-logo {
-  from { transform: rotate(0deg) translateX(7px) rotate(0deg); }
-  to { transform: rotate(360deg) translateX(7px) rotate(-360deg); }
+  from {
+    transform: rotate(0deg) translateX(7px) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(7px) rotate(-360deg);
+  }
 }
 
 @keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes pulse-light {
-  0% { opacity: 0.6; }
-  50% { opacity: 1; }
-  100% { opacity: 0.6; }
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
 }
 
 @keyframes twinkle {
-  0% { opacity: 0.2; }
-  50% { opacity: 0.8; }
-  100% { opacity: 0.2; }
+  0% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0.2;
+  }
 }
 
 @keyframes drift {
-  0% { transform: translateX(0); }
-  50% { transform: translateX(20px); }
-  100% { transform: translateX(0); }
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(20px);
+  }
+  100% {
+    transform: translateX(0);
+  }
 }
 
 .animate-orbit {

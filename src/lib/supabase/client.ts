@@ -1,42 +1,45 @@
-import { createClient } from '@supabase/supabase-js';
-
 /**
  * Supabase Client Configuration
  *
- * Provides a configured Supabase client instance for frontend authentication operations.
- * Following Planora's architectural principles with feature-first organization.
+ * Simple, production-ready Supabase client configuration.
+ * Following standard patterns that work well with modern bundlers.
  */
 
-// Defensive environment variable access to prevent TDZ errors
-let supabaseUrl: string;
-let supabaseAnonKey: string;
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-try {
-  // Get environment variables from Vite with fallbacks
-  supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-} catch (error) {
-  console.error('Error accessing environment variables:', error);
-  supabaseUrl = '';
-  supabaseAnonKey = '';
-}
+// Environment variables with proper validation
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Validate environment variables
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables:', {
-    url: !!supabaseUrl,
-    key: !!supabaseAnonKey
-  });
-  throw new Error('Missing Supabase environment variables. Check your .env file.');
+  throw new Error(
+    "Missing Supabase environment variables. Please check your .env file.\n" +
+      `VITE_SUPABASE_URL: ${supabaseUrl ? "✓" : "✗"}\n` +
+      `VITE_SUPABASE_ANON_KEY: ${supabaseAnonKey ? "✓" : "✗"}`,
+  );
 }
 
-/**
- * The configured Supabase client instance for frontend authentication.
- * This client is configured with the anonymous key for public access.
- */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  }
-}); 
+// Create and export the Supabase client
+export const supabase: SupabaseClient = createClient(
+  supabaseUrl,
+  supabaseAnonKey,
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+      flowType: "pkce",
+    },
+    global: {
+      headers: {
+        "x-application-name": "planora-web-app",
+      },
+    },
+  },
+);
+
+// Remove default export to comply with architecture rules
+
+// Export types for use in other files
+export type { SupabaseClient } from "@supabase/supabase-js";

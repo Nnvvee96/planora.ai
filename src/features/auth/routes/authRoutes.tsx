@@ -1,29 +1,39 @@
 /**
  * Auth Routes
- * 
+ *
  * Routes for authentication flow.
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import React, { Suspense, lazy } from 'react';
-import { RouteObject } from 'react-router-dom';
+import React, { Suspense, lazy } from "react";
+import { RouteObject } from "react-router-dom";
 
 // Directly lazy-load components to avoid circular dependencies with authApi
-const AuthCallback = lazy(() => import('../components/AuthCallback').then(module => ({
-  default: module.AuthCallback
-})));
-const EmailConfirmation = lazy(() => import('../components/EmailConfirmation').then(module => ({
-  default: module.EmailConfirmation
-})));
-const EmailChangeVerification = lazy(() => import('../components/EmailChangeVerification').then(module => ({
-  default: module.EmailChangeVerification
-})));
-const ForgotPassword = lazy(() => import('../components/ForgotPassword').then(module => ({
-  default: module.ForgotPassword
-})));
-const ResetPassword = lazy(() => import('../components/ResetPassword').then(module => ({
-  default: module.ResetPassword
-})));
+const AuthCallback = lazy(() =>
+  import("../components/AuthCallback").then((module) => ({
+    default: module.AuthCallback,
+  })),
+);
+const EmailConfirmation = lazy(() =>
+  import("../components/EmailConfirmation").then((module) => ({
+    default: module.EmailConfirmation,
+  })),
+);
+const EmailChangeVerification = lazy(() =>
+  import("../components/EmailChangeVerification").then((module) => ({
+    default: module.EmailChangeVerification,
+  })),
+);
+const ForgotPassword = lazy(() =>
+  import("../components/ForgotPassword").then((module) => ({
+    default: module.ForgotPassword,
+  })),
+);
+const ResetPassword = lazy(() =>
+  import("../components/ResetPassword").then((module) => ({
+    default: module.ResetPassword,
+  })),
+);
 
 // Simple loading fallback inline to avoid exporting components from routes file
 const loadingFallback = (
@@ -38,43 +48,43 @@ const loadingFallback = (
  */
 export const authRoutes: RouteObject[] = [
   {
-    path: '/auth/callback',
+    path: "/auth/callback",
     element: (
       <Suspense fallback={loadingFallback}>
         <AuthCallback />
       </Suspense>
-    )
+    ),
   },
   {
-    path: '/auth/email-confirmation',
+    path: "/auth/email-confirmation",
     element: (
       <Suspense fallback={loadingFallback}>
         <EmailConfirmation />
       </Suspense>
-    )
+    ),
   },
   {
-    path: '/auth/email-change-verification',
+    path: "/auth/email-change-verification",
     element: (
       <Suspense fallback={loadingFallback}>
         <EmailChangeVerification />
       </Suspense>
-    )
+    ),
   },
   {
-    path: '/forgot-password',
+    path: "/forgot-password",
     element: (
       <Suspense fallback={loadingFallback}>
         <ForgotPassword />
       </Suspense>
-    )
+    ),
   },
   {
-    path: '/auth/reset-password',
+    path: "/auth/reset-password",
     element: (
       <Suspense fallback={loadingFallback}>
         <ResetPassword />
       </Suspense>
-    )
-  }
+    ),
+  },
 ];

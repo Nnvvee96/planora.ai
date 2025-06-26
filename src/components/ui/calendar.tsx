@@ -29,7 +29,7 @@ function Calendar({
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
+          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
         ),
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
@@ -41,7 +41,7 @@ function Calendar({
         cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
+          "h-9 w-9 p-0 font-normal aria-selected:opacity-100",
         ),
         day_range_end: "day-range-end",
         day_selected:
@@ -60,7 +60,7 @@ function Calendar({
         IconRight: ({ ..._props }) => <ChevronRight className="h-4 w-4" />,
         Dropdown: ({ value, onChange, children, ...dropdownProps }) => {
           const { fromYear, toYear } = useDayPicker();
-          
+
           if (dropdownProps.name === "months") {
             const monthOptions = [
               { value: "0", label: "January" },
@@ -76,7 +76,7 @@ function Calendar({
               { value: "10", label: "November" },
               { value: "11", label: "December" },
             ];
-            
+
             return (
               <Select
                 value={value?.toString()}
@@ -87,8 +87,8 @@ function Calendar({
                     // Create a synthetic event that mimics the expected behavior
                     const syntheticEvent = {
                       target: {
-                        value: newValue
-                      }
+                        value: newValue,
+                      },
                     } as React.ChangeEvent<HTMLSelectElement>;
                     onChange(syntheticEvent);
                   }
@@ -96,21 +96,21 @@ function Calendar({
               />
             );
           }
-          
+
           if (dropdownProps.name === "years") {
             const fromYearActual = fromYear || 1900;
             const toYearActual = toYear || new Date().getFullYear();
-            
+
             const years = Array.from(
               { length: toYearActual - fromYearActual + 1 },
-              (_, i) => toYearActual - i
+              (_, i) => toYearActual - i,
             );
-            
-            const yearOptions = years.map(year => ({ 
-              value: year.toString(), 
-              label: year.toString() 
+
+            const yearOptions = years.map((year) => ({
+              value: year.toString(),
+              label: year.toString(),
             }));
-            
+
             return (
               <Select
                 value={value?.toString()}
@@ -121,8 +121,8 @@ function Calendar({
                     // Create a synthetic event that mimics the expected behavior
                     const syntheticEvent = {
                       target: {
-                        value: newValue
-                      }
+                        value: newValue,
+                      },
                     } as React.ChangeEvent<HTMLSelectElement>;
                     onChange(syntheticEvent);
                   }
@@ -130,9 +130,9 @@ function Calendar({
               />
             );
           }
-          
+
           return <>{children}</>;
-        }
+        },
       }}
       {...props}
     />

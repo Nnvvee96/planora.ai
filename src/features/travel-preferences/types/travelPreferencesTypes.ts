@@ -1,6 +1,6 @@
 /**
  * Travel Preferences Types
- * 
+ *
  * This file defines the types used throughout the travel preferences feature,
  * ensuring type safety and consistency across components.
  * Aligned perfectly with the onboarding flow structure.
@@ -19,15 +19,15 @@ export interface BudgetRange {
 
 // Travel duration from Onboarding - "How long are your trips?"
 export enum TravelDurationType {
-  WEEKEND = 'weekend',
-  WEEK = 'week',
-  TWO_WEEKS = 'two-weeks',
-  LONGER = 'longer'
+  WEEKEND = "weekend",
+  WEEK = "week",
+  TWO_WEEKS = "two-weeks",
+  LONGER = "longer",
 }
 
 /**
  * Date flexibility from Onboarding - "Date Flexibility"
- * 
+ *
  * Complete mapping between UI options and database values:
  * - Fixed Dates → 'fixed' - User has specific travel dates with no flexibility
  * - ± 3 Days → 'flexible-few' - User can travel 3 days before or after their preferred dates
@@ -46,46 +46,46 @@ export enum TravelDurationType {
  * }
  */
 export enum DateFlexibilityType {
-  FLEXIBLE_FEW = 'flexible-few',
-  FLEXIBLE_WEEK = 'flexible-week',
-  FIXED = 'fixed',
-  VERY_FLEXIBLE = 'very-flexible'
+  FLEXIBLE_FEW = "flexible-few",
+  FLEXIBLE_WEEK = "flexible-week",
+  FIXED = "fixed",
+  VERY_FLEXIBLE = "very-flexible",
 }
 
 // Accommodation types from Onboarding - "Where do you prefer to stay?"
 export enum AccommodationType {
-  HOTEL = 'hotel',
-  APARTMENT = 'apartment',
-  HOSTEL = 'hostel',
-  RESORT = 'resort'
+  HOTEL = "hotel",
+  APARTMENT = "apartment",
+  HOSTEL = "hostel",
+  RESORT = "resort",
 }
 
 // Comfort preferences from Onboarding - "What are your accommodation preferences?"
 export enum ComfortPreference {
-  PRIVATE_ROOM = 'private-room',
-  SHARED_ROOM = 'shared-room',
-  PRIVATE_BATHROOM = 'private-bathroom',
-  SHARED_BATHROOM = 'shared-bathroom',
-  LUXURY = 'luxury'
+  PRIVATE_ROOM = "private-room",
+  SHARED_ROOM = "shared-room",
+  PRIVATE_BATHROOM = "private-bathroom",
+  SHARED_BATHROOM = "shared-bathroom",
+  LUXURY = "luxury",
 }
 
 // Planning intent from Onboarding - "Are you dreaming or planning?"
 export enum PlanningIntent {
-  EXPLORING = 'exploring',
-  PLANNING = 'planning'
+  EXPLORING = "exploring",
+  PLANNING = "planning",
 }
 
 // Location preference from Onboarding - "Preferred distance from city center?"
 export enum LocationPreference {
-  CENTER = 'center',
-  NEAR = 'near',
-  OUTSKIRTS = 'outskirts',
-  ANYWHERE = 'anywhere'
+  CENTER = "center",
+  NEAR = "near",
+  OUTSKIRTS = "outskirts",
+  ANYWHERE = "anywhere",
 }
 
 export enum FlightType {
-  DIRECT = 'direct',
-  ANY = 'any'
+  DIRECT = "direct",
+  ANY = "any",
 }
 
 /**
@@ -103,7 +103,7 @@ export interface TravelPreferencesFormValues {
   // 4. Date Flexibility
   dateFlexibility: DateFlexibilityType;
   customDateFlexibility?: string;
-  // 5. Planning Intent 
+  // 5. Planning Intent
   planningIntent: PlanningIntent;
   // 6. Accommodation Types
   accommodationTypes: AccommodationType[];
@@ -127,36 +127,36 @@ export interface TravelPreferences {
   // Database fields
   id?: string; // Optional as it might not exist before saving
   userId: string;
-  
+
   // 1. Budget preferences
   budgetRange: BudgetRange;
-  // 2. Budget flexibility 
+  // 2. Budget flexibility
   budgetFlexibility: number; // Percentage (0-50%)
-  
+
   // 3. Trip Duration and Flexibility
   travelDuration: TravelDurationType;
   dateFlexibility: DateFlexibilityType;
   customDateFlexibility?: string;
-  
+
   // 4. Planning Intent
   planningIntent: PlanningIntent;
-  
+
   // 5. Accommodation Types
   accommodationTypes: AccommodationType[];
   // 6. Accommodation Comfort
   accommodationComfort: ComfortPreference[];
-  
+
   // 7. Location preference
   locationPreference: LocationPreference;
-  
+
   // 8. Flight preferences
   flightType: FlightType;
   preferCheaperWithStopover: boolean;
-  
+
   // 9. Departure location
   departureCity: string;
   departureCountry: string;
-  
+
   // Timestamps
   createdAt?: string;
   updatedAt?: string;

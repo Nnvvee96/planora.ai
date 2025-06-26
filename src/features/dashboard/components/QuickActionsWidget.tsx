@@ -1,7 +1,13 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useToast } from '@/components/ui/use-toast';
+import React from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
 
 export const QuickActionsWidget: React.FC = () => {
   const { toast } = useToast();
@@ -9,24 +15,24 @@ export const QuickActionsWidget: React.FC = () => {
   const handleClearCache = () => {
     // In a real implementation, this would clear localStorage, sessionStorage, etc.
     toast({
-      title: 'Success',
-      description: 'Local cache cleared. (Placeholder)',
+      title: "Success",
+      description: "Local cache cleared. (Placeholder)",
     });
   };
 
   const handleRefetchProfile = () => {
     // This would typically trigger a re-fetch via a global state management library or context
     toast({
-      title: 'Success',
-      description: 'User profile re-fetched. (Placeholder)',
+      title: "Success",
+      description: "User profile re-fetched. (Placeholder)",
     });
   };
-  
+
   const handleTriggerWelcomeEmail = () => {
     // This would call a service to trigger a backend endpoint
     toast({
-      title: 'Success',
-      description: 'Welcome email triggered. (Placeholder)',
+      title: "Success",
+      description: "Welcome email triggered. (Placeholder)",
     });
   };
 
@@ -34,13 +40,19 @@ export const QuickActionsWidget: React.FC = () => {
     <Card>
       <CardHeader>
         <CardTitle>Quick Actions</CardTitle>
-        <CardDescription>Tools for beta testing and development.</CardDescription>
+        <CardDescription>
+          Tools for beta testing and development.
+        </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2">
         <Button onClick={handleClearCache}>Clear Local Cache</Button>
-        <Button onClick={handleRefetchProfile} variant="outline">Re-fetch User Profile</Button>
-        <Button onClick={handleTriggerWelcomeEmail} variant="outline">Trigger Welcome Email</Button>
+        <Button onClick={handleRefetchProfile} variant="outline">
+          Re-fetch User Profile
+        </Button>
+        <Button onClick={handleTriggerWelcomeEmail} variant="outline">
+          Trigger Welcome Email
+        </Button>
       </CardContent>
     </Card>
   );
-}; 
+};

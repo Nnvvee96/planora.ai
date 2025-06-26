@@ -1,11 +1,11 @@
 /**
  * Auth Types
- * 
+ *
  * Type definitions for authentication related functionality.
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import { User } from '@supabase/supabase-js';
+import { User } from "@supabase/supabase-js";
 
 /**
  * Application User interface
@@ -39,10 +39,10 @@ export interface AuthState {
  * User registration status to manage onboarding flow
  */
 export enum UserRegistrationStatus {
-  NEW_USER = 'new_user',         // First time sign-in, needs onboarding
-  RETURNING_USER = 'returning_user',  // Existing user, go to dashboard
-  INCOMPLETE_ONBOARDING = 'incomplete_onboarding', // Started but not completed onboarding
-  ERROR = 'error'                // Authentication error occurred
+  NEW_USER = "new_user", // First time sign-in, needs onboarding
+  RETURNING_USER = "returning_user", // Existing user, go to dashboard
+  INCOMPLETE_ONBOARDING = "incomplete_onboarding", // Started but not completed onboarding
+  ERROR = "error", // Authentication error occurred
 }
 
 /**
@@ -50,9 +50,9 @@ export enum UserRegistrationStatus {
  * Used to identify the method of authentication for a user
  */
 export enum AuthProviderType {
-  EMAIL = 'email',        // Email/password login
-  GOOGLE = 'google',      // Google OAuth
-  ANONYMOUS = 'anonymous' // No authentication or unknown
+  EMAIL = "email", // Email/password login
+  GOOGLE = "google", // Google OAuth
+  ANONYMOUS = "anonymous", // No authentication or unknown
 }
 
 /**
@@ -174,12 +174,17 @@ export interface CompleteSignupResponse {
  */
 export interface AuthService {
   signInWithGoogle(): Promise<void>;
-  signInWithPassword(credentials: { email: string; password: string }): Promise<{ data: unknown; error: Error | null }>;
+  signInWithPassword(credentials: {
+    email: string;
+    password: string;
+  }): Promise<{ data: unknown; error: Error | null }>;
   updateUserMetadata(metadata: Record<string, unknown>): Promise<void>;
   getCurrentUser(): Promise<AppUser | null>;
   logout(): Promise<void>;
   handleAuthCallback(): Promise<AuthResponse>;
-  register(data: RegisterData): Promise<{ user: User | null, emailConfirmationRequired: boolean }>;
+  register(
+    data: RegisterData,
+  ): Promise<{ user: User | null; emailConfirmationRequired: boolean }>;
   verifyEmail(token: string): Promise<boolean>;
   resendVerificationEmail(email: string): Promise<boolean>;
   sendPasswordResetEmail(email: string): Promise<boolean>;
@@ -188,11 +193,20 @@ export interface AuthService {
   updateEmail(newEmail: string, password?: string): Promise<void>;
   getAuthProvider(userId?: string): Promise<AuthProviderType>;
   checkOnboardingStatus(userId: string): Promise<boolean>;
-  updateOnboardingStatus(userId: string, hasCompleted?: boolean): Promise<boolean>;
+  updateOnboardingStatus(
+    userId: string,
+    hasCompleted?: boolean,
+  ): Promise<boolean>;
   checkEmailVerificationStatus(userId: string): Promise<boolean>;
-  sendVerificationCode(userId: string, email: string): Promise<VerificationCodeResponse>;
+  sendVerificationCode(
+    userId: string,
+    email: string,
+  ): Promise<VerificationCodeResponse>;
   verifyCode(userId: string, code: string): Promise<VerificationCodeResponse>;
-  checkCodeStatus(userId: string, code: string): Promise<VerificationCodeStatus>;
+  checkCodeStatus(
+    userId: string,
+    code: string,
+  ): Promise<VerificationCodeStatus>;
   refreshSession(): Promise<void>;
   checkUserRegistrationStatus(userId: string): Promise<{
     isNewUser: boolean;
@@ -203,8 +217,13 @@ export interface AuthService {
   }>;
 
   // New methods for the new signup flow
-  initiateSignup(email: string, password_raw: string): Promise<InitiateSignupResponse>;
-  completeSignup(payload: CompleteSignupPayload): Promise<CompleteSignupResponse>;
+  initiateSignup(
+    email: string,
+    password_raw: string,
+  ): Promise<InitiateSignupResponse>;
+  completeSignup(
+    payload: CompleteSignupPayload,
+  ): Promise<CompleteSignupResponse>;
 }
 
 /**
@@ -218,5 +237,8 @@ export interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   handleAuthCallback: () => Promise<AuthResponse>;
-  updateOnboardingStatus: (userId: string, hasCompleted?: boolean) => Promise<boolean>;
+  updateOnboardingStatus: (
+    userId: string,
+    hasCompleted?: boolean,
+  ) => Promise<boolean>;
 }

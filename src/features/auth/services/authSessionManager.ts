@@ -1,14 +1,14 @@
 /**
  * Session Manager Service
- * 
+ *
  * Central service for managing auth sessions and authenticated operations.
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import { supabaseAuthService } from './supabaseAuthService';
-import { supabase } from '@/lib/supabase/client';
+import { supabaseAuthService } from "./supabaseAuthService";
+import { supabase } from "@/lib/supabase/client";
 
-const _SESSION_KEY = 'supabase.auth.session';
+const _SESSION_KEY = "supabase.auth.session";
 
 /**
  * Session Manager Service
@@ -23,7 +23,7 @@ export const sessionManager = {
   ensureAuthenticatedOperation: async () => {
     return supabaseAuthService.refreshSession();
   },
-  
+
   /**
    * Get the current authenticated user ID
    * @returns User ID or null if not authenticated
@@ -32,7 +32,7 @@ export const sessionManager = {
     const { data } = await supabase.auth.getUser();
     return data.user?.id || null;
   },
-  
+
   /**
    * Check if user is currently authenticated
    * @returns True if user is authenticated
@@ -40,5 +40,5 @@ export const sessionManager = {
   isAuthenticated: async (): Promise<boolean> => {
     const { data } = await supabase.auth.getSession();
     return !!data.session;
-  }
+  },
 };

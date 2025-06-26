@@ -1,16 +1,16 @@
 /**
  * User Profile API
- * 
+ *
  * Public API for user profile functionality.
  * Following Planora's architectural principles with feature-first organization.
  */
 
 // Import types
-import type { UserProfile, DbUserProfile } from './types/profileTypes';
-import { lazy } from 'react';
+import type { UserProfile, DbUserProfile } from "./types/profileTypes";
+import { lazy } from "react";
 
 // Import services
-import { userProfileService as userProfileServiceImpl } from './services/userProfileService';
+import { userProfileService as userProfileServiceImpl } from "./services/userProfileService";
 
 // Re-export types
 export type { UserProfile, DbUserProfile };
@@ -25,36 +25,44 @@ export interface UserProfileMenuProps {
 
 // UserProfileMenu component factory
 export const getUserProfileMenuComponent = () => {
-  return lazy(() => import('./components/UserProfileMenu').then(module => ({ 
-    default: module.UserProfileMenu 
-  })));
+  return lazy(() =>
+    import("./components/UserProfileMenu").then((module) => ({
+      default: module.UserProfileMenu,
+    })),
+  );
 };
 
 // ProfileDialog component factory
 export const getProfileDialogComponent = () => {
-  return lazy(() => import('./components/dialogs/ProfileDialog').then(module => ({
-    default: module.ProfileDialog
-  })));
+  return lazy(() =>
+    import("./components/dialogs/ProfileDialog").then((module) => ({
+      default: module.ProfileDialog,
+    })),
+  );
 };
 
 // SettingsDialog component factory
 export const getSettingsDialogComponent = () => {
-  return lazy(() => import('./components/dialogs/SettingsDialog').then(module => ({
-    default: module.SettingsDialog
-  })));
+  return lazy(() =>
+    import("./components/dialogs/SettingsDialog").then((module) => ({
+      default: module.SettingsDialog,
+    })),
+  );
 };
 
 // DeleteAccountDialog component factory
 export const getDeleteAccountDialogComponent = () => {
-  return lazy(() => import('./components/dialogs/DeleteAccountDialog').then(module => ({
-    default: module.DeleteAccountDialog
-  })));
+  return lazy(() =>
+    import("./components/dialogs/DeleteAccountDialog").then((module) => ({
+      default: module.DeleteAccountDialog,
+    })),
+  );
 };
 
-export { UserProfileMenu } from './components/UserProfileMenu';
-export { SettingsDialog } from './components/dialogs/SettingsDialog';
-export { ProfileDialog } from './components/dialogs/ProfileDialog';
-export { DeleteAccountDialog } from './components/dialogs/DeleteAccountDialog';
+export { UserProfileMenu } from "./components/UserProfileMenu";
+export { SettingsDialog } from "./components/dialogs/SettingsDialog";
+export { ProfileDialog } from "./components/dialogs/ProfileDialog";
+export { DeleteAccountDialog } from "./components/dialogs/DeleteAccountDialog";
 
 /**
  * User profile service
@@ -66,10 +74,14 @@ export const userProfileService = {
    * @param user Supabase user object
    * @returns True if update was successful
    */
-  updateProfileWithGoogleData: async (user: { id: string; email?: string; user_metadata?: Record<string, unknown> }): Promise<boolean> => {
+  updateProfileWithGoogleData: async (user: {
+    id: string;
+    email?: string;
+    user_metadata?: Record<string, unknown>;
+  }): Promise<boolean> => {
     return userProfileServiceImpl.updateProfileWithGoogleData(user);
   },
-  
+
   /**
    * Check if a profile exists for a user
    * @param userId The user ID to check
@@ -100,17 +112,25 @@ export const userProfileService = {
    * @param userId The user ID to update profile for
    * @param profileData The profile data to update
    */
-  updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Promise<UserProfile | null> => {
+  updateUserProfile: async (
+    userId: string,
+    profileData: Partial<UserProfile>,
+  ): Promise<UserProfile | null> => {
     return userProfileServiceImpl.updateUserProfile(userId, profileData);
   },
-  
+
   /**
    * Update onboarding status
    * @param userId The user ID to update
    * @param hasCompleted Whether onboarding is completed
    */
-  updateOnboardingStatus: async (userId: string, hasCompleted: boolean = true): Promise<UserProfile | null> => {
-    return userProfileServiceImpl.updateUserProfile(userId, { hasCompletedOnboarding: hasCompleted });
+  updateOnboardingStatus: async (
+    userId: string,
+    hasCompleted: boolean = true,
+  ): Promise<UserProfile | null> => {
+    return userProfileServiceImpl.updateUserProfile(userId, {
+      hasCompletedOnboarding: hasCompleted,
+    });
   },
 
   /**
@@ -118,7 +138,9 @@ export const userProfileService = {
    * @param userId The user ID to delete
    * @returns Object with success status and optional error
    */
-  deleteUserProfile: async (userId: string): Promise<{ success: boolean; error?: Error }> => {
+  deleteUserProfile: async (
+    userId: string,
+  ): Promise<{ success: boolean; error?: Error }> => {
     return userProfileServiceImpl.deleteUserProfile(userId);
   },
 
@@ -127,11 +149,16 @@ export const userProfileService = {
    * This is a convenience method that gets the current user and deletes their profile
    * @returns Object with success status and optional error
    */
-  deleteCurrentUserProfile: async (): Promise<{ success: boolean; error?: Error }> => {
+  deleteCurrentUserProfile: async (): Promise<{
+    success: boolean;
+    error?: Error;
+  }> => {
     const profile = await userProfileServiceImpl.getCurrentUser();
     if (!profile) {
-      console.error('Cannot delete current user profile: No authenticated user');
-      return { success: false, error: new Error('No authenticated user') };
+      console.error(
+        "Cannot delete current user profile: No authenticated user",
+      );
+      return { success: false, error: new Error("No authenticated user") };
     }
     return userProfileServiceImpl.deleteUserProfile(profile.id);
   },
@@ -145,7 +172,7 @@ export const userProfileService = {
       // Try to fetch a count of profiles as a simple connection test
       return await userProfileServiceImpl.checkDatabaseConnection();
     } catch (error) {
-      console.error('Database connection test failed:', error);
+      console.error("Database connection test failed:", error);
       return false;
     }
   },
@@ -155,23 +182,26 @@ export const userProfileService = {
    * @param userId The user ID to complete the email change for
    * @returns True if the email change was successfully completed
    */
-  completeEmailChange: async (userId: string, newEmail: string): Promise<boolean> => {
+  completeEmailChange: async (
+    userId: string,
+    newEmail: string,
+  ): Promise<boolean> => {
     try {
       return await userProfileServiceImpl.completeEmailChange(userId, newEmail);
     } catch (error) {
-      console.error('Error completing email change:', error);
+      console.error("Error completing email change:", error);
       return false;
     }
-  }
+  },
 };
 
 // Export services as a single API object
 export const userProfileApi = {
-  ...userProfileServiceImpl
+  ...userProfileServiceImpl,
 };
 
 // Export hooks
-export { useUserProfileIntegration } from './hooks/useUserProfileIntegration';
-export { useUserProfile } from './hooks/useUserProfile';
-export { UserProfileProvider } from './components/UserProfileProvider';
-export { mapDbUserToAppUser } from './utils/userProfileMappers';
+export { useUserProfileIntegration } from "./hooks/useUserProfileIntegration";
+export { useUserProfile } from "./hooks/useUserProfile";
+export { UserProfileProvider } from "./components/UserProfileProvider";
+export { mapDbUserToAppUser } from "./utils/userProfileMappers";

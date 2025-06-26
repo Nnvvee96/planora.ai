@@ -1,4 +1,4 @@
-import { UserProfile, DbUserProfile } from '../types/profileTypes';
+import { UserProfile, DbUserProfile } from "../types/profileTypes";
 
 /**
  * Maps a database user profile (snake_case) to an application user profile (camelCase).
@@ -22,4 +22,4 @@ export const mapDbUserToAppUser = (dbUser: DbUserProfile): UserProfile => ({
   updatedAt: dbUser.updated_at,
   onboardingDepartureCountry: dbUser.onboarding_departure_country,
   onboardingDepartureCity: dbUser.onboarding_departure_city,
-}); 
+});

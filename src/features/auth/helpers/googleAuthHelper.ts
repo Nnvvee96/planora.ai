@@ -1,11 +1,11 @@
 /**
  * Google Auth Helper
- * 
+ *
  * Helper functions for Google authentication flow
  * Following Planora's architectural principles with feature-first organization
  */
 
-import { supabaseAuthService } from '../services/supabaseAuthService';
+import { supabaseAuthService } from "../services/supabaseAuthService";
 
 /**
  * Helper to fix common issues with Google authentication
@@ -20,5 +20,5 @@ export const googleAuthHelper = {
   verifyAndRecoverGoogleAuth: async (url: string): Promise<boolean> => {
     const result = await supabaseAuthService.handleGoogleAuthCallback(url);
     return result.success;
-  }
+  },
 };

@@ -1,9 +1,14 @@
-import React, { useState, useEffect, ReactNode } from 'react';
-import { useAuthContext } from '@/features/auth/authApi';
-import { userProfileService } from '../services/userProfileService';
-import { UserProfileContext, type UserProfileContextType } from '../context/userProfileContext';
+import React, { useState, useEffect, ReactNode } from "react";
+import { useAuthContext } from "@/features/auth/authApi";
+import { userProfileService } from "../services/userProfileService";
+import {
+  UserProfileContext,
+  type UserProfileContextType,
+} from "../context/userProfileContext";
 
-export const UserProfileProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const UserProfileProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   const { user: authUser, loading: authLoading } = useAuthContext();
   const [profileState, setProfileState] = useState<UserProfileContextType>({
     profile: null,
@@ -16,11 +21,22 @@ export const UserProfileProvider: React.FC<{ children: ReactNode }> = ({ childre
       if (authUser) {
         try {
           setProfileState({ profile: null, loading: true, error: null });
-          const userProfile = await userProfileService.getUserProfile(authUser.id);
-          setProfileState({ profile: userProfile, loading: false, error: null });
+          const userProfile = await userProfileService.getUserProfile(
+            authUser.id,
+          );
+          setProfileState({
+            profile: userProfile,
+            loading: false,
+            error: null,
+          });
         } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : 'Failed to fetch profile';
-          setProfileState({ profile: null, loading: false, error: errorMessage });
+          const errorMessage =
+            err instanceof Error ? err.message : "Failed to fetch profile";
+          setProfileState({
+            profile: null,
+            loading: false,
+            error: errorMessage,
+          });
           console.error(err);
         }
       } else if (!authLoading) {
@@ -37,4 +53,4 @@ export const UserProfileProvider: React.FC<{ children: ReactNode }> = ({ childre
       {children}
     </UserProfileContext.Provider>
   );
-}; 
+};

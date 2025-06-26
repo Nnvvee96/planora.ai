@@ -1,6 +1,6 @@
 /**
  * Subscription Types
- * 
+ *
  * Type definitions for the subscriptions feature.
  */
 
@@ -52,4 +52,4 @@ export interface Subscription {
   trial_start: string | null;
   trial_end: string | null;
   metadata: Record<string, unknown> | null;
-} 
+}

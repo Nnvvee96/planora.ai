@@ -1,6 +1,6 @@
 /**
  * Service Utilities
- * 
+ *
  * Shared utilities for service layer patterns including retry logic and monitoring hooks.
  * Following Planora's architectural principles for consistent service behavior.
  */
@@ -30,38 +30,48 @@ const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
   retryCondition: (error: Error) => {
     // Retry on network errors, timeouts, and 5xx server errors
     return (
-      error.message.includes('fetch') ||
-      error.message.includes('network') ||
-      error.message.includes('timeout') ||
-      error.message.includes('500') ||
-      error.message.includes('502') ||
-      error.message.includes('503') ||
-      error.message.includes('504')
+      error.message.includes("fetch") ||
+      error.message.includes("network") ||
+      error.message.includes("timeout") ||
+      error.message.includes("500") ||
+      error.message.includes("502") ||
+      error.message.includes("503") ||
+      error.message.includes("504")
     );
-  }
+  },
 };
 
 // Default monitoring hooks (console-based for development)
 const DEFAULT_MONITORING_HOOKS: MonitoringHooks = {
   onStart: (operation: string, params?: Record<string, unknown>) => {
-    console.debug(`[Service] Starting ${operation}`, params ? { params } : '');
+    console.debug(`[Service] Starting ${operation}`, params ? { params } : "");
   },
   onSuccess: (operation: string, result?: unknown, duration?: number) => {
     console.debug(`[Service] ✅ ${operation} completed in ${duration}ms`);
   },
   onError: (operation: string, error: Error, duration?: number) => {
-    console.error(`[Service] ❌ ${operation} failed after ${duration}ms:`, error.message);
+    console.error(
+      `[Service] ❌ ${operation} failed after ${duration}ms:`,
+      error.message,
+    );
   },
   onRetry: (operation: string, attempt: number, error: Error) => {
-    console.warn(`[Service] 🔄 ${operation} retry attempt ${attempt}:`, error.message);
-  }
+    console.warn(
+      `[Service] 🔄 ${operation} retry attempt ${attempt}:`,
+      error.message,
+    );
+  },
 };
 
 /**
  * Calculates delay for exponential backoff with jitter
  */
-function calculateDelay(attempt: number, options: Required<RetryOptions>): number {
-  const exponentialDelay = options.baseDelay * Math.pow(options.backoffMultiplier, attempt - 1);
+function calculateDelay(
+  attempt: number,
+  options: Required<RetryOptions>,
+): number {
+  const exponentialDelay =
+    options.baseDelay * Math.pow(options.backoffMultiplier, attempt - 1);
   const jitteredDelay = exponentialDelay * (0.5 + Math.random() * 0.5); // Add jitter
   return Math.min(jitteredDelay, options.maxDelay);
 }
@@ -70,7 +80,7 @@ function calculateDelay(attempt: number, options: Required<RetryOptions>): numbe
  * Sleep utility for delays
  */
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -81,36 +91,38 @@ export async function withRetry<T>(
   operation: () => Promise<T>,
   operationName: string,
   options: RetryOptions = {},
-  hooks: MonitoringHooks = {}
+  hooks: MonitoringHooks = {},
 ): Promise<T> {
   const retryOptions = { ...DEFAULT_RETRY_OPTIONS, ...options };
   const monitoringHooks = { ...DEFAULT_MONITORING_HOOKS, ...hooks };
-  
+
   const startTime = Date.now();
   let lastError: Error;
-  
+
   // Start monitoring
   monitoringHooks.onStart?.(operationName);
-  
+
   for (let attempt = 1; attempt <= retryOptions.maxAttempts; attempt++) {
     try {
       const result = await operation();
       const duration = Date.now() - startTime;
-      
+
       // Success monitoring
       monitoringHooks.onSuccess?.(operationName, result, duration);
-      
+
       return result;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      
+
       // Check if we should retry
-      const shouldRetry = attempt < retryOptions.maxAttempts && retryOptions.retryCondition(lastError);
-      
+      const shouldRetry =
+        attempt < retryOptions.maxAttempts &&
+        retryOptions.retryCondition(lastError);
+
       if (shouldRetry) {
         // Retry monitoring
         monitoringHooks.onRetry?.(operationName, attempt, lastError);
-        
+
         // Calculate delay and wait
         const delay = calculateDelay(attempt, retryOptions);
         await sleep(delay);
@@ -118,13 +130,13 @@ export async function withRetry<T>(
         // Final error monitoring
         const duration = Date.now() - startTime;
         monitoringHooks.onError?.(operationName, lastError, duration);
-        
+
         // Throw the last error
         throw lastError;
       }
     }
   }
-  
+
   // This should never be reached, but TypeScript needs it
   throw lastError!;
 }
@@ -137,7 +149,7 @@ export async function withRetryAndMonitoring<T>(
   operation: () => Promise<T>,
   operationName: string,
   retryOptions: RetryOptions = {},
-  monitoringHooks: MonitoringHooks = {}
+  monitoringHooks: MonitoringHooks = {},
 ): Promise<T> {
   return withRetry(operation, operationName, retryOptions, monitoringHooks);
-} 
+}
