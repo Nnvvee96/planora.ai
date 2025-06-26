@@ -215,7 +215,7 @@ export const supabaseAuthService = {
           
           // Try identities array first (most reliable for Google)
           if (user_metadata.identities && Array.isArray(user_metadata.identities)) {
-            const googleIdentity = user_metadata.identities.find((identity: any) => 
+            const googleIdentity = user_metadata.identities.find((identity: Record<string, unknown>) => 
               identity.provider === 'google'
             );
             

@@ -88,7 +88,7 @@ const Billing: React.FC = () => {
           ]);
           setSubscription(sub);
           setProducts(prods);
-        } catch (_error) {
+        } catch {
           console.log('Using mock data while subscription service is being set up');
           // Use mock data as fallback
         }

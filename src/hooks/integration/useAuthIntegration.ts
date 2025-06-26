@@ -7,7 +7,7 @@
 
 // Import the main auth hook 
 import { useAuth } from '@/features/auth/authApi';
-import type { AppUser } from '@/features/auth/types/authTypes';
+// import type { AppUser } from '@/features/auth/types/authTypes'; // Unused import
 
 // For backward compatibility (unused)
 // type User = AppUser;

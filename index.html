@@ -6,7 +6,7 @@
     <title>Planora.ai - Your AI-Powered Travel Assistant</title>
     <meta name="description" content="Planora.ai redefines travel planning with conversational AI, delivering personalized flight and accommodation packages in minutes, not hours." />
     <!-- Content Security Policy to allow necessary operations for Supabase Auth -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.gpteng.co https://*.supabase.co https://js.stripe.com https://static.cloudflareinsights.com; connect-src 'self' https://*.supabase.co https://api.stripe.com https://m.stripe.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://m.stripe.network; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; frame-src 'self' https://*.supabase.co https://accounts.google.com https://js.stripe.com https://m.stripe.network; base-uri 'self'; form-action 'self'; object-src 'none';" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.gpteng.co https://*.supabase.co https://js.stripe.com https://static.cloudflareinsights.com blob: data:; connect-src 'self' https://*.supabase.co https://api.stripe.com https://m.stripe.com https://static.cloudflareinsights.com https://cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://m.stripe.network https://js.stripe.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; frame-src 'self' https://*.supabase.co https://accounts.google.com https://js.stripe.com https://m.stripe.network; base-uri 'self'; form-action 'self'; object-src 'none';" />
     <meta name="author" content="Planora.ai" />
 
     <meta property="og:title" content="Planora.ai - Your AI-Powered Travel Assistant" />
@@ -31,7 +31,8 @@
   <body>
     <div id="root"></div>
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    <!-- Temporarily commented out due to production issues -->
+    <!-- <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script> -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
