@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Planora Test Page</title>
+</head>
+<body>
+    <h1>Planora.ai Test Page</h1>
+    <p>If you can see this, basic HTML is working.</p>
+    <p id="js-test">JavaScript is NOT working</p>
+    
+    <script>
+        document.getElementById('js-test').textContent = 'JavaScript IS working!';
+        console.log('Test page loaded successfully');
+    </script>
+    
+    <style>
+        body { 
+            font-family: sans-serif; 
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        h1 { color: #333; }
+        #js-test { 
+            color: green; 
+            font-weight: bold;
+        }
+    </style>
+</body>
+</html> 
