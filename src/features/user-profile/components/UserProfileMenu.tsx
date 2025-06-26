@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, useCallback } from 'react';
+import React, { useState, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +25,7 @@ import {
 
 // Properly import from API boundaries
 import { getAuthService } from '@/features/auth/authApi';
-import { useUserProfileIntegration } from '../hooks/useUserProfileIntegration';
+// Removed: import { useUserProfileIntegration } from '../hooks/useUserProfileIntegration';
 
 // Directly lazy-load components to avoid circular dependencies
 import { lazy } from 'react';
@@ -66,12 +66,7 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
   const navigate = useNavigate();
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
-  const [profileData, setProfileData] = useState({
-    firstName: firstName || '',
-    lastName: lastName || '',
-    email: userEmail || '',
-    birthdate: birthdate || ''
-  });
+  // Removed unused state: const [profileData, setProfileData] = useState(...);
   
   // SIMPLIFIED: Remove the integration hook dependency to prevent infinite loops
   // The ProfileDialog will handle its own data loading, we don't need to pre-fetch here

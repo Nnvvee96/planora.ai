@@ -9,8 +9,8 @@
 import { useAuth } from '@/features/auth/authApi';
 import type { AppUser } from '@/features/auth/types/authTypes';
 
-// For backward compatibility
-type User = AppUser;
+// For backward compatibility (unused)
+// type User = AppUser;
 
 /**
  * useAuthIntegration hook

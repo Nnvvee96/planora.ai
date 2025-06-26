@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, lazy } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from '@/ui/atoms/Button';
 import { Label } from '@/ui/atoms/Label';
@@ -18,7 +18,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 // Lazy load DeleteAccountDialog to avoid circular dependencies
 // Using dynamic import with destructuring to handle named exports
-const DeleteAccountDialog = lazy(() => 
+const _DeleteAccountDialog = lazy(() => 
   import('./DeleteAccountDialog').then(module => ({ 
     default: module.DeleteAccountDialog 
   }))
@@ -85,7 +85,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   const [language, setLanguage] = React.useState("english");
   const [changePasswordOpen, setChangePasswordOpen] = React.useState(false);
   const [emailChangeOpen, setEmailChangeOpen] = React.useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [_deleteDialogOpen, _setDeleteDialogOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [isEmailLoading, setIsEmailLoading] = React.useState(false);
   const [authProvider, setAuthProvider] = useState<AuthProviderType | null>(null);

@@ -15,7 +15,7 @@ import { useUserProfileIntegration } from '../../hooks/useUserProfileIntegration
 import { useToast } from '@/components/ui/use-toast';
 import { Select } from '@/components/ui/select';
 import { countryOptions, getCityOptions } from '@/features/location-data/locationDataApi';
-import { supabase } from '@/lib/supabase/client';
+// import { supabase } from '@/lib/supabase/client'; // Removed: Use services instead
 
 const profileSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required" }),
@@ -107,14 +107,11 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
         if (currentUser && isMounted) {
           console.log('ProfileDialog: Loading profile for user:', currentUser.id);
           
-          // Get the most recent data from the database
-          const { data: dbProfile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', currentUser.id)
-            .single();
-          
-          if (error && error.code !== 'PGRST116') {
+          // Get the most recent data from the database via service
+          let dbProfile = null;
+          try {
+            dbProfile = await userProfileService.getUserProfile(currentUser.id);
+          } catch (error) {
             console.error('ProfileDialog: Database error:', error);
           }
           

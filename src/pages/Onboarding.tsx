@@ -45,7 +45,7 @@ import { userProfileService } from '@/features/user-profile/userProfileApi';
 import { 
   travelPreferencesService
 } from '@/features/travel-preferences/travelPreferencesApi';
-import { supabase } from '@/lib/supabase/client';
+// import { supabase } from '@/lib/supabase/client'; // Use services instead
 
 // Raw Supabase user interface for direct metadata access
 interface SupabaseRawUser {
@@ -333,8 +333,6 @@ const Onboarding = () => {
       // Explicitly refresh the session before any operations
       // Check session using auth service
       await authService.refreshSession();
-      const { data: sessionData } = await supabase.auth.getSession();
-      console.log('Current session:', sessionData?.session ? 'Active' : 'None');
       
       // STEP 1: Get profile data BEFORE updating anything (to preserve name fields)
       let existingFirstName = '';
@@ -359,8 +357,6 @@ const Onboarding = () => {
       
       // Ensure we have the latest session before proceeding
       await authService.refreshSession();
-      const { data: latestSessionData } = await supabase.auth.getSession();
-      console.log('Current session:', latestSessionData?.session ? 'Active' : 'None');
       
       // Prepare travel preferences data
       // Format departure location with both country and city
@@ -521,18 +517,7 @@ const Onboarding = () => {
       // This ensures the session is fully updated with all metadata changes
       try {
         await authService.refreshSession();
-        const { data: finalSessionData } = await supabase.auth.getSession();
-        
-        if (!finalSessionData?.session) {
-          console.warn('Session appears to be lost after onboarding completion, attempting recovery...');
-          // Final recovery attempt if session was lost
-          localStorage.setItem('redirect_after_login', '/dashboard');
-          // Redirect to login with a message about session expiration
-          navigate('/login', { state: { sessionExpired: true } });
-          return;
-        }
-        
-        console.log('Session verified, redirecting to dashboard...');
+        console.log('Session refreshed, redirecting to dashboard...');
         
         // Navigate to dashboard with session intact
         navigate('/dashboard', { replace: true });

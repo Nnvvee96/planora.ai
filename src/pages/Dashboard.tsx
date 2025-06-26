@@ -21,7 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { Footer } from '@/ui/organisms/Footer';
 
 // Import from feature API boundaries only, following architectural principles
-import { useAuth, getAuthService } from '@/features/auth/authApi';
+import { useAuth } from '@/features/auth/authApi';
 import { getUserProfileMenuComponent, UserProfile } from '@/features/user-profile/userProfileApi';
 import { useUserProfileIntegration } from '@/features/user-profile/userProfileApi';
 import { BetaFeature } from '@/features/dev-tools/devToolsApi';
@@ -38,7 +38,7 @@ const Dashboard = () => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   
   // Use the integration hook for cross-feature communication
-  const userProfileIntegration = useUserProfileIntegration();
+  const _userProfileIntegration = useUserProfileIntegration();
   
   // Memoize the UserProfileMenu component to prevent unnecessary re-renders
   const UserProfileMenu = useMemo(() => getUserProfileMenuComponent(), []);

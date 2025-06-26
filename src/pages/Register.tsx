@@ -25,7 +25,7 @@ import {
   CheckCircle,
   Shield,
   ShieldCheck,
-  Plus
+  // Plus, // Unused import
 } from 'lucide-react';
 import { DatePickerInput } from "@/components/ui/DatePickerInput";
 import { useToast } from "@/components/ui/use-toast";
