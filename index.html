@@ -5,8 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Planora.ai - Your AI-Powered Travel Assistant</title>
     <meta name="description" content="Planora.ai redefines travel planning with conversational AI, delivering personalized flight and accommodation packages in minutes, not hours." />
-    <!-- Content Security Policy - Properly configured for Cloudflare services -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.gpteng.co https://*.supabase.co https://js.stripe.com https://static.cloudflareinsights.com; connect-src 'self' https://*.supabase.co https://api.stripe.com https://m.stripe.com https://cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://m.stripe.network; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; frame-src 'self' https://*.supabase.co https://accounts.google.com https://js.stripe.com https://m.stripe.network; base-uri 'self'; form-action 'self'; object-src 'none';" />
+    <!-- Primary Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.gpteng.co https://*.supabase.co https://js.stripe.com https://static.cloudflareinsights.com https://cloudflareinsights.com blob: data:;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://m.stripe.network;
+      style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com data:;
+      img-src 'self' data: blob: https: http:;
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://m.stripe.com https://cloudflareinsights.com https://static.cloudflareinsights.com https://www.google.com;
+      frame-src 'self' https://js.stripe.com https://m.stripe.network https://hooks.stripe.com;
+      worker-src 'self' blob:;
+      object-src 'none';
+      base-uri 'self';
+      form-action 'self';
+      frame-ancestors 'none';
+      upgrade-insecure-requests;
+    ">
     <meta name="author" content="Planora.ai" />
 
     <meta property="og:title" content="Planora.ai - Your AI-Powered Travel Assistant" />
