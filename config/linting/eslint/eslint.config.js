@@ -8,7 +8,7 @@ import tseslint from "typescript-eslint";
 import planoraPlugin from "./index.js";
 
 export default tseslint.config(
-  { ignores: ["dist", "supabase/functions/**/index.ts"] },
+  { ignores: ["dist", "supabase/functions/**/index.ts", "jest.config.js", "*.config.js", "vite.config.ts"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
@@ -33,7 +33,17 @@ export default tseslint.config(
         "warn",
         { allowConstantExport: true },
       ],
-      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          "vars": "all",
+          "args": "after-used",
+          "ignoreRestSiblings": true,
+          "argsIgnorePattern": "^_",
+          "varsIgnorePattern": "^_",
+          "caughtErrors": "all"
+        }
+      ],
       // Enable our custom architectural rules
       "planora/enforce-architecture": "error",
     },

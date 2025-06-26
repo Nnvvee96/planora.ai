@@ -178,14 +178,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const mappedUser = supabaseUser ? mapSupabaseUser(supabaseUser) : null;
         
         // Use functional state update to guarantee latest state
-        setAuthState(prevState => ({
+        setAuthState(_prevState => ({
           isAuthenticated: !!supabaseUser,
           user: mappedUser,
           loading: false,
           error: null
         }));
       } catch (error) {
-        console.error('Error initializing auth service:', error);
+        // Only log non-session-missing errors to reduce console noise
+        if (error instanceof Error && !error.message.includes('Auth session missing')) {
+          console.error('Error initializing auth service:', error);
+        } else {
+          console.log('No existing session found (expected for new users)');
+        }
         
         // Cancel the safety timeout
         if (authInitializationTimer) {
@@ -201,7 +206,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
         
         // Use functional state update
-        setAuthState(prevState => ({
+        setAuthState(_prevState => ({
           isAuthenticated: false,
           user: null,
           loading: false,

@@ -8,10 +8,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select } from '@/components/ui/select';
 import { getAuthService, AuthService, AuthProviderType } from '@/features/auth/authApi';
-import { userProfileService } from '../../services/userProfileService';
 import { useUserProfileIntegration } from '../../hooks/useUserProfileIntegration';
 // DeleteAccountDialog is lazy loaded below
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -91,7 +89,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   const [isLoading, setIsLoading] = React.useState(false);
   const [isEmailLoading, setIsEmailLoading] = React.useState(false);
   const [authProvider, setAuthProvider] = useState<AuthProviderType | null>(null);
-  const [authInitialized, setAuthInitialized] = useState(false);
+  const [_authInitialized, setAuthInitialized] = useState(false);
   
   // Use user profile integration hook for cross-feature operations
   const userProfileIntegration = useUserProfileIntegration();
@@ -171,7 +169,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
     }
   };
 
-  const handleDeleteAccount = async () => {
+  const _handleDeleteAccount = async () => {
     try {
       setIsLoading(true);
       

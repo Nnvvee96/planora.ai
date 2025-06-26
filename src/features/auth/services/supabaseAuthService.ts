@@ -10,7 +10,6 @@ import { supabase } from '@/lib/supabase/client';
 import { 
   AuthResponse, 
   UserRegistrationStatus, 
-  GoogleAuthCredentials,
   RegisterData,
   AuthProviderType,
   VerificationCodeResponse,
@@ -271,7 +270,7 @@ export const supabaseAuthService = {
    * @param userId Optional user ID to check (uses current user if not provided)
    * @returns The detected authentication provider type based on the user session
    */
-  getAuthProvider: async (userId?: string): Promise<AuthProviderType> => {
+  getAuthProvider: async (_userId?: string): Promise<AuthProviderType> => {
     try {
       // Get the current user from the session
       const { data: { user }, error } = await supabase.auth.getUser();
@@ -790,7 +789,10 @@ export const supabaseAuthService = {
   refreshSession: async (): Promise<void> => {
     const { error } = await supabase.auth.refreshSession();
     if (error) {
-      console.error('Error refreshing session:', error);
+      // Only log if it's not a session missing error (which is expected for new users)
+      if (error.message !== 'Auth session missing!' && !error.message.includes('session missing')) {
+        console.error('Error refreshing session:', error);
+      }
       throw error;
     }
   },
@@ -902,19 +904,8 @@ export const supabaseAuthService = {
    */
   checkUserRegistrationStatus: async (userId: string) => {
     try {
-      // Check if user exists in auth.users (managed by Supabase, can't query directly)
-      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
-      
-      if (userError) {
-        console.error('Error checking user registration:', userError);
-        return {
-          isNewUser: false,
-          hasProfile: false,
-          hasCompletedOnboarding: false,
-          hasTravelPreferences: false,
-          registrationStatus: UserRegistrationStatus.ERROR
-        };
-      }
+      // Since we're running this code, the user is already authenticated
+      // We don't need to check auth.users with Admin API (which doesn't work client-side)
       
       // Check if user has a profile
       const { data: profileData, error: profileError } = await supabase
@@ -930,12 +921,12 @@ export const supabaseAuthService = {
           hasProfile: false,
           hasCompletedOnboarding: false,
           hasTravelPreferences: false,
-          registrationStatus: 'error' as UserRegistrationStatus
+          registrationStatus: UserRegistrationStatus.ERROR
         };
       }
       
       // Check if user has travel preferences
-      const { data: travelData, error: travelError } = await supabase
+      const { data: travelData, error: _travelError } = await supabase
         .from('travel_preferences')
         .select('id')
         .eq('user_id', userId)
@@ -1019,13 +1010,13 @@ export const supabaseAuthService = {
         details: null,
       };
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Unexpected error in initiateSignup service:', err);
       return {
         success: false,
         message: null,
         error: "An unexpected error occurred during signup initiation.",
-        details: err.message || String(err),
+        details: err instanceof Error ? err.message : String(err),
       };
     }
   },
@@ -1068,13 +1059,13 @@ export const supabaseAuthService = {
         details: null,
       };
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Unexpected error in completeSignup service:', err);
       return {
         success: false,
         userId: null,
         error: "An unexpected error occurred during signup completion.",
-        details: err.message || String(err),
+        details: err instanceof Error ? err.message : String(err),
       };
     }
   },
@@ -1103,7 +1094,7 @@ export const supabaseAuthService = {
    * @param callback Function to call when auth state changes
    * @returns Subscription that can be unsubscribed
    */
-  subscribeToAuthChanges: (callback: (event: string, session: any) => void) => {
+  subscribeToAuthChanges: (callback: (event: string, session: unknown) => void) => {
     return supabase.auth.onAuthStateChange((event, session) => {
       console.log('Auth state changed event:', event);
       callback(event, session);
@@ -1309,7 +1300,7 @@ export const supabaseAuthService = {
         } else {
           return { success: true };
         }
-      } catch (generationError: any) { // Catch for the inner try block (code generation logic)
+      } catch (generationError: unknown) { // Catch for the inner try block (code generation logic)
         console.error('Error during verification code generation logic:', generationError);
         return { 
           success: false, 
@@ -1513,5 +1504,238 @@ export const supabaseAuthService = {
         message: 'Error checking verification code status'
       };
     }
+  },
+  
+  /**
+   * Handle Google authentication callback and profile creation
+   */
+  async handleGoogleAuthCallback(url: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Check if the URL contains an error related to database user creation
+      if (url.includes('error=server_error') && 
+          url.includes('error_description=Database+error+saving+new+user')) {
+        
+        console.log('Detected database error saving new user, attempting direct profile creation...');
+        
+        // First, try to get the current session
+        const { data: sessionData } = await supabase.auth.getSession();
+        
+        if (sessionData.session) {
+          console.log('Existing session found, attempting to create profile...');
+          const { user } = sessionData.session;
+          
+          if (!user) {
+            return { success: false, error: 'Session exists but no user found' };
+          }
+          
+          // Create profile manually
+          const profileCreated = await this.createGoogleUserProfile(
+            user.id, 
+            user.email || '', 
+            user.user_metadata || {}
+          );
+          
+          return { success: profileCreated };
+        }
+        
+        return { success: false, error: 'No active session found' };
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Google auth callback handling failed:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  },
+
+  /**
+   * Create a profile for a Google-authenticated user
+   */
+  async createGoogleUserProfile(
+    userId: string, 
+    email: string, 
+    metadata: Record<string, unknown>
+  ): Promise<boolean> {
+    try {
+      // Check if profile already exists
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id, email_verified')
+        .eq('id', userId)
+        .single();
+        
+      if (existingProfile) {
+        console.log('Profile already exists for user:', userId);
+        
+        // Update email_verified for Google accounts
+        if (existingProfile.email_verified === false) {
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ email_verified: true })
+            .eq('id', userId);
+            
+          if (updateError) {
+            console.error('Error updating email_verified status:', updateError);
+          }
+        }
+        
+        return true;
+      }
+      
+      // Extract name from metadata
+      const firstName = this.extractFirstName(metadata);
+      const lastName = this.extractLastName(metadata);
+      const timestamp = new Date().toISOString();
+      
+      // Create profile
+      const { error } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          email: email,
+          first_name: firstName,
+          last_name: lastName,
+          avatar_url: (metadata.picture || metadata.avatar_url || '') as string,
+          email_verified: true,  // Always true for Google sign-ins
+          is_beta_tester: false,
+          created_at: timestamp,
+          updated_at: timestamp,
+          has_completed_onboarding: false,
+          account_status: 'active',
+          birthdate: null
+        });
+        
+      if (error) {
+        console.error('Error creating profile:', error);
+        return false;
+      }
+      
+      console.log('Successfully created profile for user:', userId);
+      return true;
+    } catch (error) {
+      console.error('Error in createGoogleUserProfile:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Extract first name from Google metadata
+   */
+  extractFirstName(metadata: Record<string, unknown>): string {
+    console.log('Extracting first name from metadata:', metadata);
+    
+    // Try identities array first (most reliable for Google)
+    if (metadata.identities && Array.isArray(metadata.identities)) {
+      const googleIdentity = metadata.identities.find((identity: Record<string, unknown>) => 
+        identity.provider === 'google'
+      );
+      
+      if (googleIdentity?.identity_data) {
+        const data = googleIdentity.identity_data as Record<string, unknown>;
+        console.log('Google identity data:', data);
+        
+        if (typeof data.given_name === 'string' && data.given_name.trim()) {
+          console.log('Found given_name:', data.given_name);
+          return data.given_name.trim();
+        }
+        if (typeof data.first_name === 'string' && data.first_name.trim()) {
+          console.log('Found first_name:', data.first_name);
+          return data.first_name.trim();
+        }
+        if (typeof data.name === 'string' && data.name.trim()) {
+          const firstName = data.name.trim().split(' ')[0];
+          console.log('Extracted from name:', firstName);
+          return firstName;
+        }
+      }
+    }
+    
+    // Try direct metadata fields as fallback
+    if (typeof metadata.given_name === 'string' && metadata.given_name.trim()) {
+      console.log('Found direct given_name:', metadata.given_name);
+      return metadata.given_name.trim();
+    }
+    if (typeof metadata.first_name === 'string' && metadata.first_name.trim()) {
+      console.log('Found direct first_name:', metadata.first_name);
+      return metadata.first_name.trim();
+    }
+    if (typeof metadata.name === 'string' && metadata.name.trim()) {
+      const firstName = metadata.name.trim().split(' ')[0];
+      console.log('Extracted from direct name:', firstName);
+      return firstName;
+    }
+    if (typeof metadata.full_name === 'string' && metadata.full_name.trim()) {
+      const firstName = metadata.full_name.trim().split(' ')[0];
+      console.log('Extracted from full_name:', firstName);
+      return firstName;
+    }
+    
+    console.log('No first name found in metadata');
+    return '';
+  },
+
+  /**
+   * Extract last name from Google metadata
+   */
+  extractLastName(metadata: Record<string, unknown>): string {
+    console.log('Extracting last name from metadata:', metadata);
+    
+    // Try identities array first (most reliable for Google)
+    if (metadata.identities && Array.isArray(metadata.identities)) {
+      const googleIdentity = metadata.identities.find((identity: Record<string, unknown>) => 
+        identity.provider === 'google'
+      );
+      
+      if (googleIdentity?.identity_data) {
+        const data = googleIdentity.identity_data as Record<string, unknown>;
+        console.log('Google identity data for last name:', data);
+        
+        if (typeof data.family_name === 'string' && data.family_name.trim()) {
+          console.log('Found family_name:', data.family_name);
+          return data.family_name.trim();
+        }
+        if (typeof data.last_name === 'string' && data.last_name.trim()) {
+          console.log('Found last_name:', data.last_name);
+          return data.last_name.trim();
+        }
+        if (typeof data.name === 'string' && data.name.trim()) {
+          const parts = data.name.trim().split(' ');
+          if (parts.length > 1) {
+            const lastName = parts.slice(1).join(' ');
+            console.log('Extracted last name from name:', lastName);
+            return lastName;
+          }
+        }
+      }
+    }
+    
+    // Try direct metadata fields as fallback
+    if (typeof metadata.family_name === 'string' && metadata.family_name.trim()) {
+      console.log('Found direct family_name:', metadata.family_name);
+      return metadata.family_name.trim();
+    }
+    if (typeof metadata.last_name === 'string' && metadata.last_name.trim()) {
+      console.log('Found direct last_name:', metadata.last_name);
+      return metadata.last_name.trim();
+    }
+    if (typeof metadata.name === 'string' && metadata.name.trim()) {
+      const parts = metadata.name.trim().split(' ');
+      if (parts.length > 1) {
+        const lastName = parts.slice(1).join(' ');
+        console.log('Extracted last name from direct name:', lastName);
+        return lastName;
+      }
+    }
+    if (typeof metadata.full_name === 'string' && metadata.full_name.trim()) {
+      const parts = metadata.full_name.trim().split(' ');
+      if (parts.length > 1) {
+        const lastName = parts.slice(1).join(' ');
+        console.log('Extracted last name from full_name:', lastName);
+        return lastName;
+      }
+    }
+    
+    console.log('No last name found in metadata');
+    return '';
   }
 };

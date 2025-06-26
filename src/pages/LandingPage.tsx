@@ -2,9 +2,7 @@ import React, { Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Navigation } from '@/ui/organisms/Navigation';
 import { getTravelCardsComponent } from '@/features/travel-planning/travelPlanningApi';
-import { FeatureCard } from '@/ui/molecules/FeatureCard';
 import { Footer } from '@/ui/organisms/Footer';
-import { Logo } from '@/ui/atoms/Logo';
 import { XCircle } from 'lucide-react';
 import { 
   MessageCircle, 
@@ -24,14 +22,13 @@ import {
   Star,
   Send,
   Plane,
-  Mail,
-  Plus
+  Mail
 } from 'lucide-react';
 import { Button } from "@/ui/atoms/Button";
 import { ReviewCard, ReviewCardProps } from '@/ui/organisms/ReviewCard'; 
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay } from 'swiper/modules'; 
-import EarthScene from '@/ui/organisms/EarthScene';
+import { VanillaEarthScene } from '@/ui/organisms/VanillaEarthScene';
 // import 'swiper/css/pagination';
 // import 'swiper/css/navigation'; // Ensure navigation CSS is also removed/commented
 import 'swiper/css';
@@ -277,7 +274,7 @@ const LandingPage = () => {
               {/* Right column - 3D Earth Visualization */}
               <div className="order-1 lg:order-2 h-[400px] md:h-[600px] lg:h-full w-full">
                 <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-white">Loading 3D Experience...</div>}>
-                  <EarthScene />
+                  <VanillaEarthScene />
                 </Suspense>
               </div>
             </div>

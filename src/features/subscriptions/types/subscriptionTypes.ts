@@ -11,7 +11,7 @@ export interface Product {
   name: string;
   description: string | null;
   image: string | null;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
 }
 
 // Mirrors the public.prices table
@@ -26,7 +26,7 @@ export interface Price {
   interval: string | null;
   interval_count: number | null;
   trial_period_days: number | null;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
 }
 
 // Represents a product with its associated prices
@@ -51,5 +51,5 @@ export interface Subscription {
   canceled_at: string | null;
   trial_start: string | null;
   trial_end: string | null;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
 } 

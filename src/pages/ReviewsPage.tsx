@@ -125,7 +125,7 @@ export const ReviewsPage: React.FC = () => {
         break;
     }
     return reviews;
-  }, [mockReviews, starFilter, sortOrder]);
+  }, [starFilter, sortOrder]);
 
   const closeModal = () => {
     setIsModalOpen(false);

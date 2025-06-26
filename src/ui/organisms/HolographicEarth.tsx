@@ -217,7 +217,7 @@ const HolographicEarth = () => {
   const continentOutlines = useMemo(() => {
     const outlines: THREE.Line[] = [];
     
-    Object.values(continentShapes).forEach((coords, index) => {
+    Object.values(continentShapes).forEach((coords, _index) => {
       const points: THREE.Vector3[] = [];
       coords.forEach(([lat, lng]) => {
         const phi = (90 - lat) * (Math.PI / 180);
@@ -306,4 +306,4 @@ const HolographicEarth = () => {
   );
 };
 
-export default HolographicEarth; 
+export { HolographicEarth }; 

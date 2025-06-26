@@ -109,4 +109,18 @@ export function useTravelPreferencesIntegration() {
 }
 
 // Export types that might be needed by consumers of this integration hook
-export type { TravelPreferences, TravelPreferencesFormValues };
+export type { 
+  TravelPreferences, 
+  TravelPreferencesFormValues
+};
+
+// Re-export the enums from the travel preferences API
+export {
+  TravelDurationType,
+  DateFlexibilityType,
+  PlanningIntent,
+  AccommodationType,
+  ComfortPreference,
+  LocationPreference,
+  FlightType
+} from '@/features/travel-preferences/travelPreferencesApi';

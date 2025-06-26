@@ -1,19 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { useState, useEffect, ReactNode } from 'react';
 import { useAuthContext } from '@/features/auth/authApi';
 import { userProfileService } from '../services/userProfileService';
-import { UserProfile } from '../types/profileTypes';
-
-interface UserProfileContextType {
-  profile: UserProfile | null;
-  loading: boolean;
-  error: string | null;
-}
-
-const UserProfileContext = createContext<UserProfileContextType>({
-  profile: null,
-  loading: true,
-  error: null,
-});
+import { UserProfileContext, type UserProfileContextType } from '../context/userProfileContext';
 
 export const UserProfileProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user: authUser, loading: authLoading } = useAuthContext();
@@ -49,6 +37,4 @@ export const UserProfileProvider: React.FC<{ children: ReactNode }> = ({ childre
       {children}
     </UserProfileContext.Provider>
   );
-};
-
-export const useUserProfile = () => useContext(UserProfileContext); 
+}; 

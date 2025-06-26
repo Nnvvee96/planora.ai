@@ -9,7 +9,6 @@ import { supabase } from '@/lib/supabase/client';
 import { 
   TravelPreferences,
   TravelPreferencesFormValues,
-  BudgetRange,
   TravelDurationType,
   DateFlexibilityType,
   PlanningIntent,
@@ -18,7 +17,7 @@ import {
   LocationPreference,
   FlightType
 } from '../types/travelPreferencesTypes';
-import { AuthError, User } from '@supabase/supabase-js';
+import { User } from '@supabase/supabase-js';
 
 /**
  * Maps database snake_case to application camelCase

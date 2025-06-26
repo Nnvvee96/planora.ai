@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { adminService } from '../services/adminService';
-import { Profile } from '../../user-profile/types/userProfileTypes';
+import { DbUserProfile } from '../../user-profile/types/profileTypes';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export const UserManagementTable: React.FC = () => {
-  const [users, setUsers] = useState<Profile[]>([]);
+  const [users, setUsers] = useState<DbUserProfile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,7 +63,7 @@ export const UserManagementTable: React.FC = () => {
                 <TableCell>
                   <Switch
                     checked={user.is_beta_tester}
-                    onCheckedChange={(newStatus) => handleBetaToggle(user.id, user.is_beta_tester)}
+                    onCheckedChange={(_newStatus) => handleBetaToggle(user.id, user.is_beta_tester)}
                   />
                 </TableCell>
               </TableRow>

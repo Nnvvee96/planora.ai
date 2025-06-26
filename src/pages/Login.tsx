@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { useState, useEffect, lazy } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/ui/atoms/Button";
 import { Input } from "@/ui/atoms/Input";
@@ -7,12 +6,11 @@ import { Label } from "@/ui/atoms/Label";
 import { cn } from "@/lib/utils";
 import { Logo } from '@/ui/atoms/Logo';
 import { useNavigate } from 'react-router-dom';
-import { Apple, Mail, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Apple, Mail } from 'lucide-react';
 import { Footer } from '@/ui/organisms/Footer';
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/authApi";
-import type { GoogleLoginButton as GoogleLoginButtonType } from "@/features/auth/authApi";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+// Database access should be through feature APIs, not direct imports
 // Database access should be through feature APIs, not direct imports
 
 type UserAuthFormProps = React.HTMLAttributes<HTMLDivElement>
@@ -20,15 +18,15 @@ type UserAuthFormProps = React.HTMLAttributes<HTMLDivElement>
 // Define types for components
 
 // Type for lazy-loaded components
-type LazyComponent = React.LazyExoticComponent<React.ComponentType<any>>;
+type LazyComponent = React.LazyExoticComponent<React.ComponentType<Record<string, unknown>>>;
 
 export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   // Import authService directly from the API boundary
   // This follows Planora's architectural principles of importing features through their API boundary
-  const { authService, isAuthenticated, loading: authLoading, error: authError } = useAuth();
-  const [GoogleLoginButton, setGoogleLoginButton] = useState<LazyComponent | null>(null);
+  const { authService, isAuthenticated, loading: _authLoading, error: authError } = useAuth();
+  const [_GoogleLoginButton, _setGoogleLoginButton] = useState<LazyComponent | null>(null);
   
   // Load Google login button dynamically
   useEffect(() => {
@@ -41,13 +39,13 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           import('@/features/auth/authApi')
             .then(module => ({ 
               // Create a default export adapter for the named export
-              default: (props: any) => {
+              default: (props: Record<string, unknown>) => {
                 const GoogleBtn = module.GoogleLoginButton;
                 return <GoogleBtn {...props} />;
               }
             }))
         );
-        setGoogleLoginButton(() => GoogleButton);
+        _setGoogleLoginButton(() => GoogleButton);
       } catch (error) {
         console.error('Error loading Google button component:', error);
       }
@@ -306,12 +304,12 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
 
 export function Login() {
   const location = useLocation();
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
   const [verificationNeeded, setVerificationNeeded] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
-  const [verificationMessage, setVerificationMessage] = useState('');
+  const [_verificationMessage, setVerificationMessage] = useState('');
   const [resendingEmail, setResendingEmail] = useState(false);
-  const [sessionExpired, setSessionExpired] = useState(false);
+  const [_sessionExpired, setSessionExpired] = useState(false);
   const { toast } = useToast();
   const { authService } = useAuth();
   
@@ -360,7 +358,12 @@ export function Login() {
   useEffect(() => {
     // Check if location state contains verification info or session expiration info
     if (location.state) {
-      const { verificationNeeded: needsVerification, email, message, sessionExpired: hasSessionExpired } = location.state as any;
+      const { verificationNeeded: needsVerification, email, message, sessionExpired: hasSessionExpired } = location.state as {
+        verificationNeeded?: boolean;
+        email?: string;
+        message?: string;
+        sessionExpired?: boolean;
+      };
       
       // Handle verification needed state
       if (needsVerification) {
@@ -445,4 +448,4 @@ export function Login() {
   );
 }
 
-export default Login;
+

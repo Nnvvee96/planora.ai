@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/ui/atoms/Button';
 import { Input } from '@/ui/atoms/Input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Label } from '@/ui/atoms/Label';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,7 +14,7 @@ import { userProfileService } from '../../services/userProfileService';
 import { useUserProfileIntegration } from '../../hooks/useUserProfileIntegration';
 import { useToast } from '@/components/ui/use-toast';
 import { Select } from '@/components/ui/select';
-import { countryOptions, getCityOptions } from '@/features/location-data/data/countryCityData';
+import { countryOptions, getCityOptions } from '@/features/location-data/locationDataApi';
 
 const profileSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required" }),
@@ -52,7 +51,7 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
   const [authService, setAuthService] = useState<AuthService | null>(null);
   
   // Helper function to format date to YYYY-MM-DD string
-  const formatDateString = (date: Date | string | undefined | null): string => {
+  const _formatDateString = (date: Date | string | undefined | null): string => {
     if (!date) return '';
     try {
       const d = new Date(date);
@@ -178,7 +177,7 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
         customCity: data.city === 'Other' ? data.customCity : null,
       };
       
-      const effectiveCity = data.city === 'Other' && data.customCity ? data.customCity : data.city;
+      const _effectiveCity = data.city === 'Other' && data.customCity ? data.customCity : data.city;
       
       const isEmailChanged = currentUser.email.toLowerCase() !== data.email.toLowerCase();
       

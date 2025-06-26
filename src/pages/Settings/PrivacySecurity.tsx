@@ -10,13 +10,13 @@ import { DeleteAccountDialog, userProfileApi } from '@/features/user-profile/use
 import { useAuth } from '@/features/auth/authApi';
 import { capitalize } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
-import { ShieldCheck, UserX } from "lucide-react";
+// Security-related imports removed as they're not used in current implementation
 
 const PrivacySecurity: React.FC = (): React.ReactNode => {
   const { user, refreshUser } = useAuth();
   const [unlinkingProvider, setUnlinkingProvider] = useState<string | null>(null);
-  const [activeSessions, setActiveSessions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [_activeSessions, _setActiveSessions] = useState([]);
+  const [_loading, _setLoading] = useState(true);
 
   // Privacy settings
   const [privacySettings, setPrivacySettings] = useState({
@@ -84,7 +84,7 @@ const PrivacySecurity: React.FC = (): React.ReactNode => {
           variant: 'destructive',
         });
       }
-    } catch (e) {
+    } catch {
       toast({
         title: 'Error',
         description: 'An unexpected error occurred. Please try again.',
@@ -95,9 +95,9 @@ const PrivacySecurity: React.FC = (): React.ReactNode => {
     }
   };
 
-  const handleUnbind = async (provider: string) => {
+  const _handleUnbind = async (provider: string) => {
     if (!user) return;
-    const { success, error } = await userProfileApi.unbindOAuthProvider(provider);
+    const { success, error: _error } = await userProfileApi.unbindOAuthProvider(provider);
     if (success) {
       // Refresh sessions or show success message
     } else {

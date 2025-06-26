@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { useAuthContext } from './AuthProvider';
+import { useAuthContext } from '../context/authContext';
 import { FaGoogle } from 'react-icons/fa';
 
 interface GoogleLoginButtonProps {

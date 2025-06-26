@@ -32,12 +32,12 @@
     },
     "esModuleInterop": true,
     "jsx": "react",
-    "noImplicitAny": false,
-    "noUnusedParameters": false,
+    "noImplicitAny": true,
+    "noUnusedParameters": true,
     "skipLibCheck": true,
     "allowJs": true,
-    "noUnusedLocals": false,
-    "strictNullChecks": false,
+    "noUnusedLocals": true,
+    "strictNullChecks": true,
     "moduleResolution": "node"
   }
 }

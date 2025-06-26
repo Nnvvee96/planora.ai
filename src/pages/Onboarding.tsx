@@ -17,10 +17,6 @@ import {
   Clock, 
   Map, 
   Compass, 
-  Bed, 
-  Coffee,
-  Edit,
-  Star,
   Check,
   MapPin
 } from 'lucide-react';
@@ -32,7 +28,6 @@ import { X } from 'lucide-react';
 import { 
   saveTravelPreferences,
   updateOnboardingStatus,
-  TravelPreferencesFormValues,
   TravelDurationType,
   DateFlexibilityType,
   PlanningIntent,
@@ -43,14 +38,12 @@ import {
 } from '@/features/travel-preferences/travelPreferencesApi';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useAuth } from '@/features/auth/authApi';
-import * as z from 'zod';
 // Import location data for country-city selection
-import { countryOptions, getCityOptions, isCustomCityNeeded, CountryOption, CityOption } from '@/features/location-data/locationDataApi';
+import { countryOptions, getCityOptions, isCustomCityNeeded, CityOption } from '@/features/location-data/locationDataApi';
 // Import feature APIs following architectural principles
-import { userProfileService, UserProfile } from '@/features/user-profile/userProfileApi';
+import { userProfileService } from '@/features/user-profile/userProfileApi';
 import { 
-  travelPreferencesService,
-  TravelPreferences
+  travelPreferencesService
 } from '@/features/travel-preferences/travelPreferencesApi';
 
 // Raw Supabase user interface for direct metadata access
@@ -62,7 +55,7 @@ interface SupabaseRawUser {
     country?: string;
     city?: string;
     customCity?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -89,11 +82,11 @@ const Onboarding = () => {
   // Use the auth hook directly instead of managing authService state
   // Get auth data from the useAuth hook
   // Note: The user from useAuth might be a raw Supabase user with user_metadata
-  const { user, loading: authLoading, authService } = useAuth();
+  const { user, loading: _authLoading, authService } = useAuth();
 
   const isModifyingPreferences = location.state?.fromDashboard === true;
   const [step, setStep] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
   
   // State for city selection
   const [cityOptions, setCityOptions] = useState<CityOption[]>([]);
@@ -183,13 +176,24 @@ const Onboarding = () => {
             return;
           }
           
-          // Access user metadata from the raw user object (type assertion needed for TypeScript)
-          // This is necessary because the AppUser interface doesn't include user_metadata
-          const rawUser = user as unknown as SupabaseRawUser;
-          const userMetadata = rawUser?.user_metadata || {};
-          const userCountry = userMetadata.country || '';
-          const userCity = userMetadata.city || '';
-          const userCustomCity = userMetadata.customCity || '';
+          // Access user metadata safely with null checks
+          let userCountry = '';
+          let userCity = '';
+          let userCustomCity = '';
+          
+          try {
+            // Try to access metadata from different possible locations
+            const rawUser = user as unknown as SupabaseRawUser;
+            const userMetadata = rawUser?.user_metadata || {};
+            
+            // Safely extract values with type checking
+            userCountry = typeof userMetadata.country === 'string' ? userMetadata.country : '';
+            userCity = typeof userMetadata.city === 'string' ? userMetadata.city : '';
+            userCustomCity = typeof userMetadata.customCity === 'string' ? userMetadata.customCity : '';
+          } catch (metadataError) {
+            console.warn('Could not access user metadata:', metadataError);
+            // Continue with empty values - this is not a critical error
+          }
           
           // Set form values for country and city
           if (typeof userCountry === 'string') {
@@ -210,7 +214,7 @@ const Onboarding = () => {
     };
     
     loadUserData();
-  }, [form, user]); // Updated dependency to user from useAuth hook
+  }, [form, user, authService]); // Updated dependency to include authService
 
   const validateCurrentStep = () => {
     // Always pass step 0 (budget range) and step 1 (budget flexibility)
@@ -332,7 +336,7 @@ const Onboarding = () => {
         console.error('No active session found before travel preferences save', sessionError);
         
         // Try to refresh the session again
-        const { session: refreshedSession, error: refreshError } = await authService.refreshSession();
+        const { session: refreshedSession, error: _refreshError } = await authService.refreshSession();
         if (!refreshedSession) {
           throw new Error('Unable to restore session, please log in again');
         }

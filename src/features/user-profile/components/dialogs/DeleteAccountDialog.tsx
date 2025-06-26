@@ -4,7 +4,7 @@ import { Button } from '@/ui/atoms/Button';
 import { Input } from '@/ui/atoms/Input';
 import { useToast } from '@/components/ui/use-toast';
 import { userProfileService } from '../../services/userProfileService';
-import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useAuthIntegration } from '@/hooks/integration/useAuthIntegration';
 
 interface DeleteAccountDialogProps {
   isOpen: boolean;
@@ -21,7 +21,7 @@ interface DeleteAccountDialogProps {
 const DeleteAccountDialog: React.FC<DeleteAccountDialogProps> = ({ isOpen, onClose }) => {
   const [confirmation, setConfirmation] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-  const { logout } = useAuth();
+  const { logout } = useAuthIntegration();
   const { toast } = useToast();
   
   const isConfirmed = confirmation.toLowerCase() === 'delete';
@@ -49,13 +49,13 @@ const DeleteAccountDialog: React.FC<DeleteAccountDialogProps> = ({ isOpen, onClo
         // The useAuth hook will handle redirecting to the home page.
       } else {
         // Use a more specific error message if available from the function
-        const errorMessage = error?.context?.function_error || 'Failed to request account deletion. Please try again later.';
+        const errorMessage = (error as Error & { context?: { function_error?: string } })?.context?.function_error || 'Failed to request account deletion. Please try again later.';
         throw new Error(errorMessage);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
         variant: "destructive",
       });
     } finally {

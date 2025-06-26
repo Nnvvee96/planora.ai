@@ -6,7 +6,8 @@
  */
 
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+
 import { Button } from '@/ui/atoms/Button';
 import { Input } from '@/ui/atoms/Input';
 import { Label } from '@/ui/atoms/Label';

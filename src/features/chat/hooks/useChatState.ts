@@ -8,10 +8,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { chatService } from '../services/chatService';
 import { 
-  Conversation, 
-  Message, 
-  CreateConversationDto, 
-  CreateMessageDto,
   ChatState,
   MessageRole
 } from '../types/chatTypes';

@@ -7,10 +7,17 @@
 //   "types": ["@cloudflare/workers-types"]
 // }
 // Alternatively, you can define PagesFunction locally if needed.
-// import type { PagesFunction } from '@cloudflare/workers-types'; // Uncomment if using package
+// Define PagesFunction type locally to avoid dependency issues
+type PagesFunction<Env = unknown> = (context: {
+  request: Request;
+  next: () => Response | Promise<Response>;
+  env: Env;
+}) => Response | Promise<Response>;
 
 interface Env {
     // Define environment variable bindings here if your middleware needs them.
+    // This interface is intentionally minimal for basic middleware functionality
+    [key: string]: unknown;
   }
   
   export const onRequest: PagesFunction<Env> = async (context) => {

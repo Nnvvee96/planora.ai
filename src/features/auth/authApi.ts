@@ -13,11 +13,8 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import type { 
   AuthResponse, 
   UserRegistrationStatus,
-  GoogleAuthCredentials,
-  SessionInfo,
   VerificationCodeResponse,
   VerificationCodeStatus,
-  RegisterData,
   InitiateSignupResponse,
   CompleteSignupPayload,
   CompleteSignupResponse
@@ -27,11 +24,8 @@ import type {
 export type { 
   AuthResponse, 
   UserRegistrationStatus,
-  GoogleAuthCredentials,
-  SessionInfo,
   VerificationCodeResponse,
   VerificationCodeStatus,
-  RegisterData,
   CompleteSignupPayload, // Added for two-phase signup
   InitiateSignupResponse, // Added for two-phase signup
   CompleteSignupResponse // Added for two-phase signup
@@ -106,7 +100,7 @@ export enum AuthProviderType {
  */
 export interface AuthService {
   signInWithGoogle(): Promise<void>;
-  signInWithPassword(credentials: { email: string; password: string }): Promise<{ data: any; error: Error | null }>;
+  signInWithPassword(credentials: { email: string; password: string }): Promise<{ data: SupabaseUser | null; error: Error | null }>;
   updateUserMetadata(metadata: Record<string, unknown>): Promise<void>;
   getCurrentUser(): Promise<AppUser | null>;
   logout(): Promise<void>;
@@ -125,7 +119,7 @@ export interface AuthService {
   sendVerificationCode(userId: string, email: string): Promise<VerificationCodeResponse>;
   verifyCode(userId: string, code: string): Promise<VerificationCodeResponse>;
   checkCodeStatus(userId: string, code: string): Promise<VerificationCodeStatus>;
-  refreshSession(): Promise<{session: any, error: Error | null}>;
+  refreshSession(): Promise<void>;
   /**
    * Determine the authentication provider used by a user
    * @param userId Optional user ID to check (uses current user if not provided)
@@ -203,12 +197,8 @@ export const getVerificationDialogComponent = () => {
 
 // Export auth context hook with a factory function
 // This returns the hook directly, not as a promise
-export const getAuthContextHook = () => {
-  // We import this synchronously to avoid async issues with hooks
-  // Since this is a hook and must be called at the top level, we can't use lazy loading
-  // This is an architectural compromise to maintain React's rules of hooks
-  return require('./components/AuthProvider').useAuthContext;
-};
+// Note: Removed getAuthContextHook due to architectural complexity with React hooks
+// Use direct import: import { useAuthContext } from '@/features/auth/hooks/useAuthContext';
 
 // Note: We've removed the getAuthRoutes function to break circular dependency
 // Routes should be imported directly where needed
@@ -452,7 +442,7 @@ const authService = {
   }
 };
 
-export { useAuthContext } from './components/AuthProvider';
+export { useAuthContext } from './hooks/useAuthContext';
 
 // Export components
 export { AuthProvider } from './components/AuthProvider';

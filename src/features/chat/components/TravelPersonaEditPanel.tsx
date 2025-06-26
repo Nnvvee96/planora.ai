@@ -6,43 +6,38 @@
  * full TravelPreferencesPanel, optimized for the chat context.
  */
 
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/ui/atoms/Card';
-import { Slider } from '@/components/ui/slider';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Checkbox } from '@/components/ui/checkbox';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Input } from '@/components/ui/input';
-import { toast } from '@/components/ui/use-toast';
-import { useForm } from 'react-hook-form';
+import React, { useEffect } from 'react';
 import { z } from 'zod';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { 
-  Plane, 
-  Hotel, 
-  Building, 
-  Tent, 
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { toast } from "@/hooks/use-toast";
+import {
+  Plane,
+  Hotel,
+  Building,
+  Tent,
   Palmtree,
   Map,
-  Clock,
   Euro,
+  Clock,
+  Calendar,
   Settings,
-  X,
-  Save,
-  ChevronRight
+  X
 } from 'lucide-react';
-import { useTravelPreferences } from '@/features/travel-preferences/hooks/useTravelPreferences';
+import { useTravelPreferencesIntegration, TravelPreferences } from '@/hooks/integration/useTravelPreferencesIntegration';
 import { 
-  TravelPreferences,
   TravelDurationType,
   DateFlexibilityType,
-  PlanningIntent,
   AccommodationType,
-  ComfortPreference,
-  LocationPreference,
   FlightType
-} from '@/features/travel-preferences/types/travelPreferencesTypes';
+} from '@/hooks/integration/useTravelPreferencesIntegration';
 
 // Reuse the same schema from the travel preferences feature
 const travelPersonaSchema = z.object({
@@ -85,7 +80,6 @@ interface TravelPersonaEditPanelProps {
  * A simple checkbox card component for multi-select options
  */
 const SimpleCheckboxCard = ({ 
-  value,
   checked,
   onChange,
   icon: Icon,
@@ -121,7 +115,7 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
   isOpen, 
   onClose 
 }) => {
-  const { preferences, savePreferences, loading } = useTravelPreferences();
+  const { preferences, savePreferences, isLoading } = useTravelPreferencesIntegration();
   
   // Set up form with React Hook Form
   const form = useForm<TravelPersonaFormValues>({
@@ -140,7 +134,7 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
   
   // Load preferences when available
   useEffect(() => {
-    if (preferences) {
+    if (preferences && preferences.budgetRange) {
       form.reset({
         budgetRange: {
           min: preferences.budgetRange.min,
@@ -570,10 +564,10 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
               </Button>
               <Button 
                 type="submit"
-                disabled={loading}
+                disabled={isLoading}
                 className="bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90"
               >
-                {loading ? 'Saving...' : 'Save Changes'}
+                {isLoading ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
           </form>
@@ -582,6 +576,3 @@ export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
     </div>
   );
 };
-
-// Add missing Calendar component import
-import { Calendar } from 'lucide-react';

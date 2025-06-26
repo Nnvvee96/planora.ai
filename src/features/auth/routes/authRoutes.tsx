@@ -25,9 +25,8 @@ const ResetPassword = lazy(() => import('../components/ResetPassword').then(modu
   default: module.ResetPassword
 })));
 
-
-// Loading fallback component
-const LoadingFallback = () => (
+// Simple loading fallback inline to avoid exporting components from routes file
+const loadingFallback = (
   <div className="flex items-center justify-center h-screen">
     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-planora-accent-purple"></div>
   </div>
@@ -41,7 +40,7 @@ export const authRoutes: RouteObject[] = [
   {
     path: '/auth/callback',
     element: (
-      <Suspense fallback={<LoadingFallback />}>
+      <Suspense fallback={loadingFallback}>
         <AuthCallback />
       </Suspense>
     )
@@ -49,7 +48,7 @@ export const authRoutes: RouteObject[] = [
   {
     path: '/auth/email-confirmation',
     element: (
-      <Suspense fallback={<LoadingFallback />}>
+      <Suspense fallback={loadingFallback}>
         <EmailConfirmation />
       </Suspense>
     )
@@ -57,7 +56,7 @@ export const authRoutes: RouteObject[] = [
   {
     path: '/auth/email-change-verification',
     element: (
-      <Suspense fallback={<LoadingFallback />}>
+      <Suspense fallback={loadingFallback}>
         <EmailChangeVerification />
       </Suspense>
     )
@@ -65,7 +64,7 @@ export const authRoutes: RouteObject[] = [
   {
     path: '/forgot-password',
     element: (
-      <Suspense fallback={<LoadingFallback />}>
+      <Suspense fallback={loadingFallback}>
         <ForgotPassword />
       </Suspense>
     )
@@ -73,7 +72,7 @@ export const authRoutes: RouteObject[] = [
   {
     path: '/auth/reset-password',
     element: (
-      <Suspense fallback={<LoadingFallback />}>
+      <Suspense fallback={loadingFallback}>
         <ResetPassword />
       </Suspense>
     )

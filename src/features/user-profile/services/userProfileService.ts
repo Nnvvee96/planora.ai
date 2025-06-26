@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase/client';
 import { UserProfile, DbUserProfile } from '../types/profileTypes';
 // Import directly from service to avoid circular dependency through API
 import { travelPreferencesService } from '@/features/travel-preferences/travelPreferencesApi';
+// Import service utilities for retry logic and monitoring
+import { withRetryAndMonitoring, type RetryOptions as _RetryOptions, type MonitoringHooks as _MonitoringHooks } from '@/lib/serviceUtils';
 
 /**
  * Converts snake_case database profile to camelCase application profile
@@ -105,7 +107,15 @@ const extractNameFromGoogleData = (user: { id: string; email?: string; user_meta
     }
     // Try to get from identities array (Google OAuth)
     else if (user_metadata?.identities && Array.isArray(user_metadata.identities)) {
-      const googleIdentity = (user_metadata.identities as any[]).find((identity: any) => 
+      const googleIdentity = (user_metadata.identities as Array<{
+        provider: string;
+        identity_data?: {
+          given_name?: string;
+          first_name?: string;
+          family_name?: string;
+          last_name?: string;
+        };
+      }>).find((identity) => 
         identity.provider === 'google'
       );
       
@@ -308,68 +318,79 @@ export const userProfileService = {
    * @param userId User ID to get profile for
    */
   getUserProfile: async (userId: string): Promise<UserProfile | null> => {
-    try {
-      if (!userId) {
-        console.error('User ID is required to get profile');
-        return null;
-      }
-      
-      // Attempt to get profile from database
-      const { data: dbProfile, error } = await supabase
-        .from('profiles')
-        .select('*, is_beta_tester')
-        .eq('id', userId)
-        .single();
-        
-      if (error) {
-        // Not found error is expected when profile doesn't exist
-        if (error.code === 'PGRST116') {
-          console.log('Profile not found for user ID:', userId);
-        } else {
-          console.error('Error getting profile from database:', error);
+    return withRetryAndMonitoring(
+      async () => {
+        if (!userId) {
+          throw new Error('User ID is required to get profile');
         }
         
-        // Try to get user data from auth as fallback
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
-        if (userError || !user) {
-          console.error('Error getting user data as fallback:', userError);
-          return null;
+        // Attempt to get profile from database
+        const { data: dbProfile, error } = await supabase
+          .from('profiles')
+          .select('*, is_beta_tester')
+          .eq('id', userId)
+          .single();
+          
+        if (error) {
+          // Not found error is expected when profile doesn't exist
+          if (error.code === 'PGRST116') {
+            console.log('Profile not found for user ID:', userId);
+          } else {
+            throw new Error(`Database error: ${error.message}`);
+          }
+          
+          // Try to get user data from auth as fallback
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          
+          if (userError || !user) {
+            throw new Error(`Auth fallback failed: ${userError?.message || 'No user found'}`);
+          }
+          
+          // Create a synthetic profile from auth data
+          if (user.id === userId) {
+            console.log('Creating synthetic profile from auth data');
+            
+            const { firstName, lastName } = extractNameFromGoogleData(user);
+            
+            const syntheticProfile: UserProfile = {
+              id: userId,
+              firstName: firstName || '',
+              lastName: lastName || '',
+              email: user.email || '',
+              avatarUrl: null,
+              birthdate: null,
+              hasCompletedOnboarding: false,
+              emailVerified: !!user.email_confirmed_at,
+              isBetaTester: false,
+              createdAt: user.created_at,
+              updatedAt: user.updated_at
+            };
+            
+            return syntheticProfile;
+          }
         }
         
-        // Create a synthetic profile from auth data
-        if (user.id === userId) {
-          console.log('Creating synthetic profile from auth data');
-          
-          const { firstName, lastName } = extractNameFromGoogleData(user);
-          
-          const syntheticProfile: UserProfile = {
-            id: userId,
-            firstName: firstName || '',
-            lastName: lastName || '',
-            email: user.email || '',
-            avatarUrl: null,
-            birthdate: null,
-            hasCompletedOnboarding: false,
-            emailVerified: !!user.email_confirmed_at,
-            createdAt: user.created_at,
-            updatedAt: user.updated_at
-          };
-          
-          return syntheticProfile;
+        if (dbProfile) {
+          return mapDbProfileToUserProfile(dbProfile);
+        }
+        
+        throw new Error(`No profile found for user ID after all fallbacks: ${userId}`);
+      },
+      `getUserProfile(${userId})`,
+      {
+        maxAttempts: 2, // Lower attempts for read operations
+        retryCondition: (error: Error) => {
+          // Only retry on network/connection errors, not business logic errors
+          return error.message.includes('fetch') || 
+                 error.message.includes('network') || 
+                 error.message.includes('timeout') ||
+                 error.message.includes('connection');
         }
       }
-      
-      if (dbProfile) {
-        return mapDbProfileToUserProfile(dbProfile);
-      }
-      
-      console.warn('No profile found for user ID after all fallbacks:', userId);
-      return null;
-    } catch (error) {
-      console.error('Error getting user profile:', error);
-      return null;
-    }
+    ).catch((error) => {
+      console.warn('getUserProfile failed after retries:', error.message);
+      return null; // Return null instead of throwing for read operations
+    });
   },
   
   /**
@@ -437,151 +458,93 @@ export const userProfileService = {
    * @returns The updated user profile or null on error
    */
   async updateUserProfile(userId: string, profileData: Partial<UserProfile>): Promise<UserProfile | null> {
-    if (!userId) {
-      console.error('User ID is required to update a profile');
-      return null;
-    }
-    
-    try {
-      const dbProfileUpdate = mapUserProfileToDbProfile(profileData);
-      
-      // One-way sync logic for onboarding location
-      // If we are marking onboarding as complete, copy the general location to the onboarding location.
-      if (dbProfileUpdate.has_completed_onboarding === true) {
-        // Fetch the current profile to get the general location
-        const { data: currentProfile, error: fetchError } = await supabase
-          .from('profiles')
-          .select('country, city')
-          .eq('id', userId)
-          .single();
-
-        if (fetchError) {
-          console.error('Error fetching current profile for location sync:', fetchError);
-          // Continue without sync, or handle error as required
-        } else if (currentProfile) {
-          // Add the onboarding location to the update payload
-          dbProfileUpdate.onboarding_departure_country = currentProfile.country;
-          dbProfileUpdate.onboarding_departure_city = currentProfile.city;
+    return withRetryAndMonitoring(
+      async () => {
+        if (!userId) {
+          throw new Error('User ID is required to update a profile');
         }
-      }
-
-      // Add updatedAt timestamp to every update
-      dbProfileUpdate.updated_at = new Date().toISOString();
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(dbProfileUpdate)
-        .eq('id', userId)
-        .select('*, is_beta_tester');
-      
-      if (error) {
-        console.error('Error updating profile in database:', error);
         
-        // Try more specific error handling approaches
-        if (error.code === 'PGRST204' || 
-            (error.message?.includes('column') && 
-             error.message?.includes('does not exist'))) {
-             
-          console.log('Column error detected - trying fallback update strategy');
-          
-          // Strategy 1: Try without the specific field that's causing problems
-          if (error.message?.includes('birthdate')) {
-            console.log('Birthdate column issue detected - removing problematic field');
-            const { error: retryError1 } = await supabase
-              .from('profiles')
-              .update({
-                first_name: dbProfileUpdate.first_name,
-                last_name: dbProfileUpdate.last_name,
-                email: dbProfileUpdate.email,
-                updated_at: new Date().toISOString(),
-                // Explicitly exclude birthdate
-              })
-              .eq('id', userId);
-              
-            if (!retryError1) {
-              console.log('Successfully updated profile with limited fields');
-              return data[0];
-            }
-          }
-          
-          // Strategy 2: Try minimal fields only (names)
-          console.log('Trying minimal update with first_name and last_name only');
-          const { error: retryError2 } = await supabase
+        const dbProfileUpdate = mapUserProfileToDbProfile(profileData);
+        
+        // One-way sync logic for onboarding location
+        // If we are marking onboarding as complete, copy the general location to the onboarding location.
+        if (dbProfileUpdate.has_completed_onboarding === true) {
+          // Fetch the current profile to get the general location
+          const { data: currentProfile, error: fetchError } = await supabase
             .from('profiles')
-            .update({
-              first_name: dbProfileUpdate.first_name,
-              last_name: dbProfileUpdate.last_name,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', userId);
-            
-          if (!retryError2) {
-            console.log('Successfully updated profile with names only');
-            return data[0];
+            .select('country, city')
+            .eq('id', userId)
+            .single();
+
+          if (fetchError) {
+            console.warn('Error fetching current profile for location sync:', fetchError);
+            // Continue without sync, or handle error as required
+          } else if (currentProfile) {
+            // Add the onboarding location to the update payload
+            dbProfileUpdate.onboarding_departure_country = currentProfile.country;
+            dbProfileUpdate.onboarding_departure_city = currentProfile.city;
           }
-          
-          // Strategy 3: Last resort - try to create profile if it doesn't exist
-          if (error.message?.includes('not found') || 
-              error.code === 'PGRST104' || 
-              error.code === 'PGRST116') {
-            console.log('Profile might not exist - trying to create instead');
+        }
+
+        // Add updatedAt timestamp to every update
+        dbProfileUpdate.updated_at = new Date().toISOString();
+        
+        const { data, error } = await supabase
+          .from('profiles')
+          .update(dbProfileUpdate)
+          .eq('id', userId)
+          .select('*, is_beta_tester');
+        
+        if (error) {
+          throw new Error(`Profile update failed: ${error.message}`);
+        }
+        
+        // Sync profile location with travel preferences if location was updated
+        if (dbProfileUpdate.country || dbProfileUpdate.city) {
+          try {
+            // First check if travel preferences exist
+            const prefsExist = await travelPreferencesService.checkTravelPreferencesExist(userId);
             
-            // Construct a minimal profile from the update data
-            const minimalProfile: UserProfile = {
-              id: userId,
-              firstName: profileData.firstName || '',
-              lastName: profileData.lastName || '',
-              email: profileData.email || '',
-              birthdate: profileData.birthdate as string | null | undefined,
-              // Standardized on birthdate field only
-              hasCompletedOnboarding: false,
-              emailVerified: true, // Set to true for new profiles since we have verified emails
-            };
-            
-            const success = await userProfileService.createUserProfile(minimalProfile);
-            if (success) {
-              console.log('Successfully created profile as fallback for update');
-              return data[0];
+            if (prefsExist) {
+              // Get current travel preferences
+              const currentPrefs = await travelPreferencesService.getUserTravelPreferences(userId);
+              
+              if (currentPrefs) {
+                // Update travel preferences with new location data
+                await travelPreferencesService.saveTravelPreferences(userId, {
+                  departureCountry: dbProfileUpdate.country,
+                  departureCity: dbProfileUpdate.city === 'Other' ? dbProfileUpdate.custom_city : dbProfileUpdate.city
+                });
+                console.log('Successfully synced profile location with travel preferences');
+              }
             }
+          } catch (syncError) {
+            // Non-critical error, continue even if sync fails
+            console.warn('Failed to sync profile location with travel preferences:', syncError);
           }
         }
         
-        return null;
-      }
-      
-      // Sync profile location with travel preferences if location was updated
-      if (dbProfileUpdate.country || dbProfileUpdate.city) {
-        try {
-          // First check if travel preferences exist
-          const prefsExist = await travelPreferencesService.checkTravelPreferencesExist(userId);
-          
-          if (prefsExist) {
-            // Get current travel preferences
-            const currentPrefs = await travelPreferencesService.getUserTravelPreferences(userId);
-            
-            if (currentPrefs) {
-              // Update travel preferences with new location data
-              await travelPreferencesService.saveTravelPreferences(userId, {
-                departureCountry: dbProfileUpdate.country,
-                departureCity: dbProfileUpdate.city === 'Other' ? dbProfileUpdate.custom_city : dbProfileUpdate.city
-              });
-              console.log('Successfully synced profile location with travel preferences');
-            }
-          }
-        } catch (syncError) {
-          // Non-critical error, continue even if sync fails
-          console.warn('Failed to sync profile location with travel preferences:', syncError);
+        return data?.[0] || null;
+      },
+      `updateUserProfile(${userId})`,
+      {
+        maxAttempts: 3, // Standard retry attempts for write operations
+        retryCondition: (error: Error) => {
+          // Retry on network errors and some database errors, but not validation errors
+          const message = error.message.toLowerCase();
+          return message.includes('fetch') || 
+                 message.includes('network') || 
+                 message.includes('timeout') ||
+                 message.includes('connection') ||
+                 message.includes('500') ||
+                 message.includes('502') ||
+                 message.includes('503');
         }
       }
-      
-      return data[0];
-    } catch (error) {
-      console.error('Unexpected error updating profile:', error);
-      if (error instanceof Error) {
-        console.error('Error details:', error.message);
-      }
+    ).catch((error) => {
+      console.error('updateUserProfile failed after retries:', error.message);
       return null;
-    }
+    });
   },
   
   /**
@@ -841,7 +804,7 @@ export const userProfileService = {
   checkDatabaseConnection: async (): Promise<boolean> => {
     try {
       // Simple ping to Supabase using profiles table to test connection
-      const { data, error } = await supabase
+      const { data: _data, error } = await supabase
         .from('profiles')
         .select('count', { count: 'exact', head: true });
       
@@ -914,7 +877,7 @@ export const userProfileService = {
    */
   initiateAccountDeletion: async (): Promise<{ success: boolean; error?: Error | null }> => {
     try {
-      const { data, error } = await supabase.functions.invoke('delete-user-account', {
+      const { data: _data, error } = await supabase.functions.invoke('delete-user-account', {
         method: 'POST',
       });
 

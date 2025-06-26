@@ -12,24 +12,13 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { 
-  Plane, 
-  Hotel, 
-  Building, 
-  Tent, 
-  Palmtree,
-  Map,
-  Compass,
   Clock,
-  Bed,
-  Coffee,
   Edit,
   Check,
   X
 } from 'lucide-react';
 import { useTravelPreferences } from '../hooks/useTravelPreferences';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { 
-  TravelPreferences,
   TravelDurationType,
   DateFlexibilityType,
   PlanningIntent,
@@ -105,7 +94,7 @@ const SimpleCheckboxCard: React.FC<{
   selected: boolean;
   onToggle: () => void;
   disabled?: boolean;
-}> = ({ label, value, selected, onToggle, disabled = false }) => {
+}> = ({ label, value: _value, selected, onToggle, disabled = false }) => {
   // Use a stable reference for the click handler to prevent re-renders
   const handleClick = React.useCallback(() => {
     if (!disabled) {
@@ -303,15 +292,7 @@ const TravelPreferencesPanel: React.FC<TravelPreferencesPanelProps> = ({
     setEditing(!editing);
   };
 
-  // Helper for toggling array selections - with extra safety checks
-  const toggleArrayItem = (arr: string[] | undefined, item: string): string[] => {
-    // Ensure we always have a valid array to work with
-    const safeArray = Array.isArray(arr) ? [...arr] : [];
-    
-    return safeArray.includes(item)
-      ? safeArray.filter(i => i !== item)
-      : [...safeArray, item];
-  };
+
 
   return (
     <div className="max-w-4xl mx-auto p-4">
@@ -579,7 +560,7 @@ const TravelPreferencesPanel: React.FC<TravelPreferencesPanelProps> = ({
                   <FormField
                     control={form.control}
                     name="accommodationTypes"
-                    render={({ field }) => (
+                    render={({ field: _field }) => (
                       <div className="space-y-2">
                       <p className="font-semibold mb-3">Where do you prefer to stay?</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

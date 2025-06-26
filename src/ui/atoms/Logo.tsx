@@ -37,7 +37,7 @@ const Logo: React.FC<LogoProps> = ({
       
       // If authenticated, go to dashboard
       return '/dashboard';
-    } catch (error) {
+    } catch {
       // If there's any error accessing auth state, default to landing page
       console.warn('Auth state error in Logo component, defaulting to landing page');
       return '/';

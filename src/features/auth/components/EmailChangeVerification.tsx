@@ -57,7 +57,17 @@ const EmailChangeVerification: React.FC = () => {
           return;
         }
         
-        const success = await supabaseAuthService.verifyEmail(token);
+        // Add proper error handling for email verification
+        let success = false;
+        try {
+          success = await supabaseAuthService.verifyEmail(token);
+        } catch (verificationError) {
+          console.error('Email verification service error:', verificationError);
+          setError('Email verification service temporarily unavailable. Please try again later.');
+          setVerificationSuccess(false);
+          setIsVerifying(false);
+          return;
+        }
         
         if (!success) {
           setError('Failed to verify email change. The link may have expired or been used already.');
@@ -66,8 +76,14 @@ const EmailChangeVerification: React.FC = () => {
           return;
         }
         
-        // Get the current user after verification
-        const user = await supabaseAuthService.getCurrentUser();
+        // Get the current user after verification with error handling
+        let user = null;
+        try {
+          user = await supabaseAuthService.getCurrentUser();
+        } catch (userError) {
+          console.error('Error getting current user after verification:', userError);
+          // This is not critical - continue with verification success
+        }
         
         if (!user) {
           // This is expected - user might be logged out during email verification

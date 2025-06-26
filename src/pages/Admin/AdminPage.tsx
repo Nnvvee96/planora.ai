@@ -1,59 +1,52 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/features/auth/authApi';
-import { supabase } from '@/lib/supabase/client';
+import { adminService } from '@/features/admin/adminApi';
 import { AdminDashboard } from '@/features/admin/adminApi';
+import { useAuth } from '@/features/auth/authApi';
 
-const AdminPage: React.FC = () => {
-  const { user, loading } = useAuth();
+export function AdminPage() {
   const navigate = useNavigate();
-  const [isAdminOrEditor, setIsAdminOrEditor] = useState(false);
-  const [isCheckingRoles, setIsCheckingRoles] = useState(true);
+  const { user } = useAuth();
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const checkRoles = async () => {
-      if (loading) return;
-
+    const checkAuthorization = async () => {
       if (!user) {
         navigate('/login');
         return;
       }
 
-      // Use the is_user_in_role function for both roles
-      const { data: isAdmin, error: adminError } = await supabase.rpc('is_user_in_role', {
-        p_user_id: user.id,
-        p_role_name: 'admin',
-      });
-
-      const { data: isEditor, error: editorError } = await supabase.rpc('is_user_in_role', {
-        p_user_id: user.id,
-        p_role_name: 'editor',
-      });
-
-      if (adminError || editorError) {
-        console.error('Error checking user roles:', adminError || editorError);
-        navigate('/'); // Redirect to home on error
-        return;
+      try {
+        const { isAdmin, isEditor } = await adminService.checkAdminPrivileges(user.id);
+        
+        if (isAdmin || isEditor) {
+          setIsAuthorized(true);
+        } else {
+          navigate('/dashboard');
+        }
+      } catch (error) {
+        console.error('Error checking authorization:', error);
+        navigate('/dashboard');
+      } finally {
+        setIsLoading(false);
       }
-
-      if (isAdmin || isEditor) {
-        setIsAdminOrEditor(true);
-      } else {
-        navigate('/'); // Redirect if not admin or editor
-      }
-      
-      setIsCheckingRoles(false);
     };
 
-    checkRoles();
-  }, [user, loading, navigate]);
+    checkAuthorization();
+  }, [user, navigate]);
 
-  if (isCheckingRoles) {
-    // You can return a loader here
-    return <div>Loading...</div>;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Loading...</p>
+      </div>
+    );
   }
 
-  return isAdminOrEditor ? <AdminDashboard /> : null;
-};
+  if (!isAuthorized) {
+    return null;
+  }
 
-export { AdminPage }; 
+  return <AdminDashboard />;
+} 

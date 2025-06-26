@@ -5,10 +5,9 @@
  * Following Planora's architectural principles with feature-first organization.
  */
 
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuthContext } from './AuthProvider';
-import type { AppUser } from '../types/authTypes';
+import { useAuth } from '../hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
 // DO NOT import supabase directly - rely on auth context instead to prevent race conditions
@@ -35,36 +34,6 @@ const safeGetLocalStorage = (key: string): string | null => {
 };
 
 /**
- * Safe access to localStorage.setItem that works in both server and client environments
- */
-const safeSetLocalStorage = (key: string, value: string): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(key, value);
-  }
-};
-
-/**
- * ClientOnly component to safely render content only on the client side
- * This prevents hydration mismatches between server and client
- */
-const ClientOnly: React.FC<{children: React.ReactNode, fallback?: React.ReactNode}> = ({ 
-  children, 
-  fallback = null 
-}) => {
-  const [mounted, setMounted] = useState(false);
-  
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-  
-  if (!mounted) {
-    return <>{fallback}</>;
-  }
-  
-  return <>{children}</>;
-};
-
-/**
  * Simple loader component to show while auth is initializing
  */
 const AuthLoader: React.FC = () => (
@@ -81,7 +50,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   redirectToIfAuthenticated
 }) => {
   // Get auth state ONLY from the context - no direct Supabase calls
-  const { isAuthenticated, user, loading } = useAuthContext();
+  const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
   const [isMounted, setIsMounted] = useState(false);
   

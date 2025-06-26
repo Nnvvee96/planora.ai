@@ -10,7 +10,6 @@ import {
   ProductWithPrices,
   Subscription
 } from '@/features/subscriptions/subscriptionsApi';
-import { supabase } from '@/lib/supabase';
 // We will use these later when we fetch live data
 // import { useNavigate } from 'react-router-dom';
 // import { useAuth } from '@/features/auth/authApi';
@@ -20,7 +19,7 @@ const Billing: React.FC = () => {
   const [products, setProducts] = useState<ProductWithPrices[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
-  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [_checkoutLoading, _setCheckoutLoading] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {

@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Provider } from 'react-redux';
 import { store } from './store/storeApi';
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
 
 // Import the auth components directly using named imports following Planora's architectural principles
 import { EmailConfirmation } from './features/auth/components/EmailConfirmation';
@@ -57,7 +57,7 @@ import { PrivacySecurity } from "./pages/Settings/PrivacySecurity";
 import { SupportPage } from "./pages/SupportPage";
 import { ReviewsPage } from "./pages/ReviewsPage";
 import { DebugScreen } from "./pages/DebugScreen";
-import AccountRecoveryPage from "./features/user-profile/components/AccountRecoveryPage";
+import { AccountRecoveryPage } from "./features/user-profile/components/AccountRecoveryPage";
 import { AdminPage } from "./pages/Admin/AdminPage";
 
 const queryClient = new QueryClient();

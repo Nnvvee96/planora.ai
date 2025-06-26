@@ -4,7 +4,7 @@
  * Contains reusable functions for date manipulation and formatting
  */
 
-import { format, addDays, differenceInDays, isAfter, isBefore, isValid } from 'date-fns';
+import { format, differenceInDays, isAfter, isBefore, isValid } from 'date-fns';
 
 /**
  * Format a date using a specific format string

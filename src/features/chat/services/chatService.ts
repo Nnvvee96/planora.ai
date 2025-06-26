@@ -148,7 +148,7 @@ export const createConversation = async (data: CreateConversationDto): Promise<C
  */
 export const updateConversation = async (data: UpdateConversationDto): Promise<Conversation> => {
   try {
-    const updateData: any = {};
+    const updateData: Record<string, string | undefined> = {};
     
     if (data.title !== undefined) {
       updateData.title = data.title;

@@ -64,7 +64,7 @@ const Navigation: React.FC = () => {
     
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [location.pathname]);
   
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 

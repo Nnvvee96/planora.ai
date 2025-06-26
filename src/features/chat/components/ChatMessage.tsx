@@ -17,7 +17,7 @@ interface ChatMessageProps {
 }
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({
-  id,
+  id: _id,
   role,
   content,
   timestamp

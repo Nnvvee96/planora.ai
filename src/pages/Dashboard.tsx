@@ -5,26 +5,22 @@ import {
   Search, 
   MapPin, 
   Calendar, 
-  Settings,
   Plane,
-  Home,
-  Star,
-  History,
   Plus,
   Clock,
   CheckCircle,
   XCircle
 } from 'lucide-react';
 import { Logo } from '@/ui/atoms/Logo';
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/ui/atoms/Card';
 import { Progress } from '@/components/ui/progress';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Footer } from '@/ui/organisms/Footer';
 
 // Import from feature API boundaries only, following architectural principles
-import { useAuth, AppUser, getAuthService } from '@/features/auth/authApi';
+import { useAuth, getAuthService } from '@/features/auth/authApi';
 import { getUserProfileMenuComponent, UserProfile } from '@/features/user-profile/userProfileApi';
 import { useUserProfileIntegration } from '@/features/user-profile/userProfileApi';
 import { BetaFeature } from '@/features/dev-tools/devToolsApi';
@@ -45,53 +41,60 @@ const Dashboard = () => {
   // Get the UserProfileMenu component using the factory function
   const UserProfileMenu = getUserProfileMenuComponent();
   
-  // Load user profile data when user is available
+  // Load user profile data when user is available - with debouncing to reduce flicker
   useEffect(() => {
+    let isMounted = true;
+    
     const loadUserProfile = async () => {
+      // Only proceed if we have a user from the auth hook and component is still mounted
+      if (!user || !isMounted) return;
+      
       try {
         setLoading(true);
         
-        // Only proceed if we have a user from the auth hook
-        if (user) {
-          try {
-            // Use the integration hook to fetch the combined user and profile data
-            const combinedData = await userProfileIntegration.getUserWithProfile(user.id);
-            
-            if (combinedData) {
-              // The getUserWithProfile method returns a merged object of AppUser and UserProfile
-              // Extract the profile-specific properties to create a UserProfile object
-              const profileData: UserProfile = {
-                id: combinedData.id,
-                email: combinedData.email,
-                firstName: combinedData.firstName || '',
-                lastName: combinedData.lastName || '',
-                birthdate: combinedData.birthdate,
-                avatarUrl: combinedData.avatarUrl,
-                city: combinedData.city,
-                customCity: combinedData.customCity,
-                country: combinedData.country,
-                isBetaTester: combinedData.isBetaTester,
-                hasCompletedOnboarding: combinedData.hasCompletedOnboarding,
-                emailVerified: combinedData.emailVerified,
-                createdAt: combinedData.createdAt,
-                updatedAt: combinedData.updatedAt
-              };
-              
-              setUserProfile(profileData);
-            }
-          } catch (profileError) {
-            console.error('Error loading profile data:', profileError);
-          }
+        // Use the integration hook to fetch the combined user and profile data
+        const combinedData = await userProfileIntegration.getUserWithProfile(user.id);
+        
+        if (combinedData && isMounted) {
+          // The getUserWithProfile method returns a merged object of AppUser and UserProfile
+          // Extract the profile-specific properties to create a UserProfile object
+          const profileData: UserProfile = {
+            id: combinedData.id,
+            email: combinedData.email,
+            firstName: combinedData.firstName || '',
+            lastName: combinedData.lastName || '',
+            birthdate: combinedData.birthdate,
+            avatarUrl: combinedData.avatarUrl,
+            city: combinedData.city,
+            customCity: combinedData.customCity,
+            country: combinedData.country,
+            isBetaTester: combinedData.isBetaTester,
+            hasCompletedOnboarding: combinedData.hasCompletedOnboarding,
+            emailVerified: combinedData.emailVerified,
+            createdAt: combinedData.createdAt,
+            updatedAt: combinedData.updatedAt
+          };
+          
+          setUserProfile(profileData);
         }
       } catch (error) {
         console.error('Error loading user data:', error);
+        // Don't show error to user for profile loading issues
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     
-    loadUserProfile();
-  }, [user, userProfileIntegration]);
+    // Debounce the loading to prevent rapid re-renders
+    const timeoutId = setTimeout(loadUserProfile, 100);
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [user?.id]);
   
   // Get user's name from various sources in priority order
   const userFirstName = user?.firstName || userProfile?.firstName || '';
@@ -115,9 +118,12 @@ const Dashboard = () => {
           // Force a session refresh to ensure we have the latest session state
           // Get auth service via factory function to avoid circular dependencies
           const authService = getAuthService();
-          const { session } = await authService.refreshSession();
+          await authService.refreshSession();
           
-          if (session) {
+          // Now get the current user after refresh
+          const currentUser = await authService.getCurrentUser();
+          
+          if (currentUser) {
             console.log('Active session found during verification, but missing user in context');
             // We have a session but no user in context - trigger a user reload
             // Use the proper auth service to get current user

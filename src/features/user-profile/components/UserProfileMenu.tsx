@@ -24,7 +24,6 @@ import {
 } from 'lucide-react';
 
 // Properly import from API boundaries
-import { userProfileService } from '../services/userProfileService';
 import { getAuthService } from '@/features/auth/authApi';
 import { useUserProfileIntegration } from '../hooks/useUserProfileIntegration';
 
@@ -38,7 +37,7 @@ const SettingsDialog = lazy(() => import('./dialogs/SettingsDialog').then(module
   default: module.SettingsDialog
 })));
 
-import { ProfileFormData } from '@/features/user-profile/types/profileTypes';
+
 
 /**
  * UserProfileMenu - A component that displays the user profile menu with dropdown options
@@ -63,7 +62,7 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
   mini = false,
   onLogout
 }) => {
-  const nameInitial = userName.charAt(0);
+  const _nameInitial = userName.charAt(0);
   const navigate = useNavigate();
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);

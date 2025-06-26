@@ -6,13 +6,11 @@
  */
 
 // Import types
-import type { FC } from 'react';
 import type { UserProfile, DbUserProfile } from './types/profileTypes';
 import { lazy } from 'react';
 
 // Import services
 import { userProfileService as userProfileServiceImpl } from './services/userProfileService';
-import { userProfileDataManager as userDataManagerImpl } from './services/userProfileDataManager';
 
 // Re-export types
 export type { UserProfile, DbUserProfile };
@@ -102,7 +100,7 @@ export const userProfileService = {
    * @param userId The user ID to update profile for
    * @param profileData The profile data to update
    */
-  updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Promise<boolean> => {
+  updateUserProfile: async (userId: string, profileData: Partial<UserProfile>): Promise<UserProfile | null> => {
     return userProfileServiceImpl.updateUserProfile(userId, profileData);
   },
   
@@ -111,33 +109,31 @@ export const userProfileService = {
    * @param userId The user ID to update
    * @param hasCompleted Whether onboarding is completed
    */
-  updateOnboardingStatus: async (userId: string, hasCompleted: boolean = true): Promise<boolean> => {
+  updateOnboardingStatus: async (userId: string, hasCompleted: boolean = true): Promise<UserProfile | null> => {
     return userProfileServiceImpl.updateUserProfile(userId, { hasCompletedOnboarding: hasCompleted });
   },
 
   /**
    * Delete a user's profile and account
    * @param userId The user ID to delete
-   * @param deleteAuth Whether to delete the auth record too (requires admin privileges)
-   * @returns True if deletion was successful
+   * @returns Object with success status and optional error
    */
-  deleteUserProfile: async (userId: string, deleteAuth: boolean = false): Promise<boolean> => {
-    return userProfileServiceImpl.deleteUserProfile(userId, deleteAuth);
+  deleteUserProfile: async (userId: string): Promise<{ success: boolean; error?: Error }> => {
+    return userProfileServiceImpl.deleteUserProfile(userId);
   },
 
   /**
    * Delete the current user's profile and account
    * This is a convenience method that gets the current user and deletes their profile
-   * @param deleteAuth Whether to delete the auth record too (requires admin privileges)
-   * @returns True if deletion was successful
+   * @returns Object with success status and optional error
    */
-  deleteCurrentUserProfile: async (deleteAuth: boolean = false): Promise<boolean> => {
+  deleteCurrentUserProfile: async (): Promise<{ success: boolean; error?: Error }> => {
     const profile = await userProfileServiceImpl.getCurrentUser();
     if (!profile) {
       console.error('Cannot delete current user profile: No authenticated user');
-      return false;
+      return { success: false, error: new Error('No authenticated user') };
     }
-    return userProfileServiceImpl.deleteUserProfile(profile.id, deleteAuth);
+    return userProfileServiceImpl.deleteUserProfile(profile.id);
   },
 
   /**
@@ -171,11 +167,11 @@ export const userProfileService = {
 
 // Export services as a single API object
 export const userProfileApi = {
-  ...userProfileServiceImpl,
-  ...userDataManagerImpl
+  ...userProfileServiceImpl
 };
 
 // Export hooks
 export { useUserProfileIntegration } from './hooks/useUserProfileIntegration';
-export { useUserProfile, UserProfileProvider } from './components/UserProfileProvider';
+export { useUserProfile } from './hooks/useUserProfile';
+export { UserProfileProvider } from './components/UserProfileProvider';
 export { mapDbUserToAppUser } from './utils/userProfileMappers';

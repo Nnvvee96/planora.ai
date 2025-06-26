@@ -20,8 +20,6 @@ import {
 } from '../types/travelPreferencesTypes';
 // Import service directly to avoid circular dependency
 import { supabaseAuthService } from '../../auth/services/supabaseAuthService';
-// Import AuthService interface from authApi where it's defined
-import type { AuthService } from '../../auth/authApi';
 import { travelPreferencesService } from '../services/travelPreferencesService';
 
 // Define the return type for our hook

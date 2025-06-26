@@ -43,12 +43,18 @@ const EmailConfirmation: React.FC = () => {
         }
         
         // Use service directly to avoid circular dependency
-        const success = await supabaseAuthService.verifyEmail(token);
-        
-        setVerificationSuccess(success);
-        
-        if (!success) {
-          setError('Failed to verify email. The link may have expired or been used already.');
+        // Add proper error handling for email verification
+        try {
+          const success = await supabaseAuthService.verifyEmail(token);
+          setVerificationSuccess(success);
+          
+          if (!success) {
+            setError('Failed to verify email. The link may have expired or been used already.');
+          }
+        } catch (verificationError) {
+          console.error('Email verification service error:', verificationError);
+          setError('Email verification service temporarily unavailable. Please try again later.');
+          setVerificationSuccess(false);
         }
       } catch (err) {
         console.error('Error during email verification:', err);

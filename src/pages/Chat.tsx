@@ -6,7 +6,7 @@
  * components. It follows Planora's architectural principles of separation of concerns.
  */
 
-import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/authApi';
 import { getUserProfileMenuComponent } from '@/features/user-profile/userProfileApi';
@@ -14,7 +14,6 @@ import { getUserProfileMenuComponent } from '@/features/user-profile/userProfile
 // Import from chat feature API - following architectural principles
 import {
   useChatState,
-  MessageRole,
   getConversationSidebarComponent,
   getChatHeaderComponent,
   getChatInputComponent,
@@ -57,14 +56,19 @@ const Chat: React.FC = () => {
   const [isTravelPersonaEditOpen, setIsTravelPersonaEditOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
+  // Track window width for responsive design with SSR safety
+  const [_windowWidth, setWindowWidth] = useState(0);
+  const [isMobileView, setIsMobileView] = useState(false);
+  
   // Get the UserProfileMenu component using the factory function
   const UserProfileMenu = getUserProfileMenuComponent();
   
+  // Use client-only hook at the top level to avoid conditional hook calls
+  const isClientMounted = useClientOnly();
+  
   // Create a client-only component wrapper to avoid hydration issues
   const ClientOnlyProfileMenu = () => {
-    const isMounted = useClientOnly();
-    
-    if (!isMounted) {
+    if (!isClientMounted) {
       return <div className="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>;
     }
     
@@ -101,6 +105,24 @@ const Chat: React.FC = () => {
     }
   }, [activeConversation?.messages]);
   
+  // Safe window access after component mount
+  useEffect(() => {
+    if (isClientMounted) {
+      // Set initial width
+      setWindowWidth(window.innerWidth);
+      setIsMobileView(window.innerWidth < 768);
+      
+      // Update width on resize
+      const handleResize = () => {
+        setWindowWidth(window.innerWidth);
+        setIsMobileView(window.innerWidth < 768);
+      };
+      
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, [isClientMounted]);
+  
   // Handle sending a message
   const handleSendMessage = useCallback(async (content: string) => {
     if (!userId) return;
@@ -115,7 +137,7 @@ const Chat: React.FC = () => {
   }, [chatState, userId]);
   
   // Toggle the mobile menu
-  const toggleMobileMenu = useCallback(() => {
+  const _toggleMobileMenu = useCallback(() => {
     setIsMobileMenuOpen(prev => !prev);
   }, []);
   
@@ -132,31 +154,6 @@ const Chat: React.FC = () => {
       </div>
     );
   }
-  
-  // Use client-only hook to safely handle browser APIs
-  const isMounted = useClientOnly();
-  
-  // Track window width for responsive design with SSR safety
-  const [windowWidth, setWindowWidth] = useState(0);
-  const [isMobileView, setIsMobileView] = useState(false);
-  
-  // Safe window access after component mount
-  useEffect(() => {
-    if (isMounted) {
-      // Set initial width
-      setWindowWidth(window.innerWidth);
-      setIsMobileView(window.innerWidth < 768);
-      
-      // Update width on resize
-      const handleResize = () => {
-        setWindowWidth(window.innerWidth);
-        setIsMobileView(window.innerWidth < 768);
-      };
-      
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-    }
-  }, [isMounted]);
   
   return (
     <div className="flex h-screen overflow-hidden bg-planora-purple-dark">

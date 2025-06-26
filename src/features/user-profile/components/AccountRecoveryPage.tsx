@@ -108,4 +108,4 @@ const AccountRecoveryPage: React.FC = () => {
   );
 };
 
-export default AccountRecoveryPage;
+export { AccountRecoveryPage };

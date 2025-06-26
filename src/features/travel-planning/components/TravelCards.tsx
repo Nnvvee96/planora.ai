@@ -1,7 +1,6 @@
 import React from 'react';
-import { Star, MapPin, BarChart, Plane } from 'lucide-react';
+import { Star, MapPin, Plane } from 'lucide-react';
 import { Badge } from '@/components/ui/badge'; // Using shadcn/ui Badge
-import { Destination } from '../types/travelPlanningTypes';
 
 // Define a simplified Destination interface for UI presentation purposes
 export interface TravelCardDestination {

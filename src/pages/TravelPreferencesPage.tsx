@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense } from 'react';
 
 // Import through proper API boundary rather than internal component
 import { getTravelPreferencesPanelComponent } from '@/features/travel-preferences/travelPreferencesApi';

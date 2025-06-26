@@ -21,17 +21,14 @@ import {
   Lock,
   MapPin,
   Calendar,
-  ShieldCheck,
   Apple,
   CheckCircle,
   Shield,
 } from 'lucide-react';
 import { DatePickerInput } from "@/components/ui/DatePickerInput";
-import { Footer } from '@/ui/organisms/Footer';
 import { useToast } from "@/components/ui/use-toast";
 import {
   useAuth,
-  type InitiateSignupResponse,
   type CompleteSignupPayload,
 } from "@/features/auth/authApi";
 import { 
@@ -40,6 +37,7 @@ import {
   isCustomCityNeeded,
   type CityOption 
 } from "@/features/location-data/locationDataApi";
+import { Footer } from '@/ui/organisms/Footer';
 
 const today = new Date();
 const sixteenYearsAgo = new Date(today.getFullYear() - 16, today.getMonth(), today.getDate());
@@ -75,7 +73,7 @@ export const Register = () => {
   const { toast } = useToast();
   const { authService, signInWithGoogle } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
   const [signupPhase, setSignupPhase] = useState<'details' | 'verify'>('details');
   const [pendingRegistrationData, setPendingRegistrationData] = useState<FormValues | null>(null);
   const [verificationCode, setVerificationCode] = useState('');
@@ -147,7 +145,7 @@ export const Register = () => {
           variant: "destructive",
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Registration failed. Please try again.';
       setError(errorMessage);
       toast({
@@ -229,9 +227,9 @@ export const Register = () => {
           variant: "destructive",
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Verification submission error:', err);
-      const errorMsg = err.message || "An unexpected error occurred during verification.";
+      const errorMsg = err instanceof Error ? err.message : "An unexpected error occurred during verification.";
       setVerificationErrorText(errorMsg);
       toast({
         title: "Verification Error",
@@ -270,8 +268,8 @@ export const Register = () => {
           variant: "destructive",
         });
       }
-    } catch (err: any) {
-      const errorMsg = err.message || "An unexpected error occurred while resending code.";
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "An unexpected error occurred while resending code.";
       setError(errorMsg);
       toast({
         title: "Resend Error",
@@ -424,6 +422,11 @@ export const Register = () => {
             </div>
           </CardFooter>
         </Card>
+      </div>
+      
+      {/* Footer */}
+      <div className="mt-auto relative z-10">
+        <Footer />
       </div>
     </div>
   );

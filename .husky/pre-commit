@@ -1,22 +1,46 @@
 #!/usr/bin/env sh
 
+# Run security check first (fail fast on secrets)
+echo "🔍 Running security check..."
+bash config/deployment/check-secrets.sh
+if [ $? -ne 0 ]; then
+  echo "❌ Security check failed! Please remove any secrets before committing."
+  exit 1
+fi
+
+# Check formatting
+echo "🎨 Checking code formatting..."
+npm run format:check
+if [ $? -ne 0 ]; then
+  echo "❌ Code formatting issues found! Run 'npm run format' to fix."
+  exit 1
+fi
+
 # Run lint-staged to check staged files (faster checks only)
 npx lint-staged
 
-# Architecture validation on changed files only
+# Quick architecture validation on changed files only
 changed_ts_files=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.tsx?$' | tr '\n' ' ')
 
 if [ -n "$changed_ts_files" ]; then
-  echo "🔍 Running architecture validation on changed files..."
-  node scripts/architecture-validator.js --files "$changed_ts_files" --quick
-  validation_exit_code=$?
-  
-  if [ $validation_exit_code -ne 0 ]; then
-    echo "❌ Architecture validation failed! Please fix architectural violations before committing."
-    exit 1
+  # Check if SKIP_ARCH_CHECK is set to skip architecture validation
+  if [ "$SKIP_ARCH_CHECK" != "1" ]; then
+    echo "🔍 Running quick architecture validation on changed files..."
+    echo "💡 Tip: Use 'SKIP_ARCH_CHECK=1 git commit' to skip architecture validation"
+    
+    node scripts/architecture-validator.js --files "$changed_ts_files" --quick
+    validation_exit_code=$?
+    
+    if [ $validation_exit_code -ne 0 ]; then
+      echo "❌ Architecture validation failed! Please fix architectural violations before committing."
+      echo "   Or use 'SKIP_ARCH_CHECK=1 git commit' if you're sure the changes are valid."
+      exit 1
+    fi
+    
+    echo "✅ Architecture validation passed!"
+  else
+    echo "⚠️  Skipping architecture validation (SKIP_ARCH_CHECK=1)"
   fi
-  
-  echo "✅ Architecture validation passed!"
 fi
 
 echo "✅ All pre-commit checks passed! Your code follows architecture guidelines."

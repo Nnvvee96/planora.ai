@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+
+# Validate commit message format
+commit_regex='^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .{1,100}$'
+commit_msg=$(cat "$1")
+
+if ! echo "$commit_msg" | grep -qE "$commit_regex"; then
+  echo "❌ Invalid commit message format!"
+  echo ""
+  echo "Commit message must follow the Conventional Commits format:"
+  echo "  <type>(<scope>): <subject>"
+  echo ""
+  echo "Examples:"
+  echo "  feat(auth): add Google OAuth integration"
+  echo "  fix(ui): resolve button alignment issue"
+  echo "  docs(readme): update installation instructions"
+  echo ""
+  echo "Types: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert"
+  exit 1
+fi
+
+echo "✅ Commit message format is valid!" 
