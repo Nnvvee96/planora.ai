@@ -7,16 +7,36 @@ import { createClient } from '@supabase/supabase-js';
  * Following Planora's architectural principles with feature-first organization.
  */
 
-// Get environment variables from Vite
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Defensive environment variable access to prevent TDZ errors
+let supabaseUrl: string;
+let supabaseAnonKey: string;
+
+try {
+  // Get environment variables from Vite with fallbacks
+  supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+  supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+} catch (error) {
+  console.error('Error accessing environment variables:', error);
+  supabaseUrl = '';
+  supabaseAnonKey = '';
+}
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+  console.error('Missing Supabase environment variables:', {
+    url: !!supabaseUrl,
+    key: !!supabaseAnonKey
+  });
+  throw new Error('Missing Supabase environment variables. Check your .env file.');
 }
 
 /**
  * The configured Supabase client instance for frontend authentication.
  * This client is configured with the anonymous key for public access.
  */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey); 
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+}); 

@@ -9,12 +9,12 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <!-- Primary Content Security Policy -->
+    <!-- Primary Content Security Policy (fixed for autoconsent.js) -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
       script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.gpteng.co https://*.supabase.co https://js.stripe.com https://static.cloudflareinsights.com https://cloudflareinsights.com blob: data:;
-      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://m.stripe.network;
-      style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://m.stripe.network data:;
+      style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com data:;
       font-src 'self' https://fonts.gstatic.com data:;
       img-src 'self' data: blob: https: http:;
       connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://m.stripe.com https://cloudflareinsights.com https://static.cloudflareinsights.com https://www.google.com;
@@ -22,9 +22,7 @@
       worker-src 'self' blob:;
       object-src 'none';
       base-uri 'self';
-      form-action 'self';
-      upgrade-insecure-requests;
-    ">
+      form-action 'self';" />
     <meta name="author" content="Planora.ai" />
 
     <meta property="og:title" content="Planora.ai - Your AI-Powered Travel Assistant" />
@@ -44,6 +42,27 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
     <!-- Stripe.js -->
     <script src="https://js.stripe.com/v3/"></script>
+    <!-- Preload critical resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Global error handler for production debugging -->
+    <script>
+      window.addEventListener('error', function(event) {
+        console.error('Global error caught:', {
+          message: event.message,
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+          error: event.error,
+          stack: event.error?.stack
+        });
+      });
+      
+      window.addEventListener('unhandledrejection', function(event) {
+        console.error('Unhandled promise rejection:', event.reason);
+      });
+    </script>
   </head>
 
   <body>

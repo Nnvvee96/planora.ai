@@ -11,18 +11,26 @@
   CF-RAY: off
   CF-Visitor: off
   
-  # Primary Content Security Policy
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.gpteng.co https://*.supabase.co https://js.stripe.com https://static.cloudflareinsights.com https://cloudflareinsights.com blob: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://m.stripe.network; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https: http:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://m.stripe.com https://cloudflareinsights.com https://static.cloudflareinsights.com https://www.google.com; frame-src 'self' https://js.stripe.com https://m.stripe.network https://hooks.stripe.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;
+  # CORS Headers
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+  Access-Control-Allow-Headers: Content-Type, Authorization
+  
+  # Primary Content Security Policy (fixed for autoconsent.js)
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.gpteng.co https://*.supabase.co https://js.stripe.com https://static.cloudflareinsights.com https://cloudflareinsights.com blob: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://m.stripe.network data:; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com data:; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https: http:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://m.stripe.com https://cloudflareinsights.com https://static.cloudflareinsights.com https://www.google.com; frame-src 'self' https://js.stripe.com https://m.stripe.network https://hooks.stripe.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'
   
   # Security Headers
-  X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
   X-XSS-Protection: 1; mode=block
   Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: accelerometer=(), ambient-light-sensor=(), autoplay=(), battery=(), camera=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), layout-animations=(), legacy-image-formats=(), magnetometer=(), microphone=(), midi=(), oversized-images=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), sync-xhr=(), usb=(), vr=(), wake-lock=(), screen-wake-lock=(), web-share=(), xr-spatial-tracking=()
-
+  
+  # Performance Headers
+  Vary: Accept-Encoding
+  
+# Static Assets Cache (but still with bypass for now)
 /assets/*
-  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  Cache-Control: no-cache, no-store, must-revalidate
   CF-Edge-Cache: no-cache
 
 /*.js

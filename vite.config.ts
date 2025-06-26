@@ -24,36 +24,28 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Environment variables configuration
+  define: {
+    // Ensure environment variables are properly defined
+    'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL || ''),
+    'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY || ''),
+  },
   build: {
-    // Production optimizations
+    // Production optimizations - DISABLE MINIFICATION to prevent TDZ errors
     target: 'es2020',
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: false,
-        drop_debugger: false,
-        // Prevent breaking React forwardRef patterns
-        keep_fargs: true,
-        keep_fnames: true,
-      },
-      mangle: {
-        // Don't mangle React component names
-        keep_fnames: true,
-        reserved: ['React', 'forwardRef', 'createElement', 'Component']
-      }
-    },
+    minify: false, // COMPLETELY DISABLE MINIFICATION
     // Code splitting configuration
     rollupOptions: {
       output: {
-        // Simplified chunking to avoid load order issues
+        // Keep Supabase in its own chunk to prevent TDZ errors
         manualChunks: (id) => {
           // Keep React ecosystem together
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom') || id.includes('@radix-ui')) {
-              return 'react-vendor';
-            }
             if (id.includes('@supabase/supabase-js')) {
               return 'supabase';
+            }
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom') || id.includes('@radix-ui')) {
+              return 'react-vendor';
             }
             if (id.includes('@reduxjs/toolkit') || id.includes('react-redux')) {
               return 'redux';
@@ -64,6 +56,11 @@ export default defineConfig(({ mode }) => ({
           // Keep UI components with React vendor to prevent load order issues
           if (id.includes('/src/ui/') || id.includes('/src/components/ui/')) {
             return 'react-vendor';
+          }
+          
+          // Keep Supabase client separate
+          if (id.includes('/src/lib/supabase/')) {
+            return 'supabase';
           }
           
           // Feature chunks
