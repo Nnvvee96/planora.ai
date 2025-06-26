@@ -94,7 +94,7 @@ const Dashboard = () => {
       isMounted = false;
       clearTimeout(timeoutId);
     };
-  }, [user?.id]);
+  }, [user, userProfileIntegration]);
   
   // Get user's name from various sources in priority order
   const userFirstName = user?.firstName || userProfile?.firstName || '';

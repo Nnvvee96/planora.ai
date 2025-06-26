@@ -15,6 +15,9 @@ const VanillaEarthScene: React.FC = () => {
 
   useEffect(() => {
     if (!mountRef.current) return;
+    
+    // Capture the mount ref at the start to avoid stale closure issues
+    const mount = mountRef.current;
 
     // Scene setup
     const scene = new THREE.Scene();
@@ -27,7 +30,7 @@ const VanillaEarthScene: React.FC = () => {
     // Configure renderer
     renderer.setSize(400, 400);
     renderer.setClearColor(0x000000, 0);
-    mountRef.current.appendChild(renderer.domElement);
+    mount.appendChild(renderer.domElement);
 
     // Create Earth group
     const earthGroup = new THREE.Group();
@@ -250,8 +253,8 @@ const VanillaEarthScene: React.FC = () => {
     // Position camera
     camera.position.z = 5;
 
-    // Create orbital trails
-    const createOrbitTrail = (radius: number, color: number, speed: number) => {
+    // Create orbital rings
+    const createOrbitRing = (radius: number, color: number, speed: number) => {
       const points = [];
       for (let i = 0; i <= 100; i++) {
         const angle = (i / 100) * Math.PI * 2;
@@ -274,10 +277,10 @@ const VanillaEarthScene: React.FC = () => {
       return { line, speed };
     };
 
-    const trails = [
-      createOrbitTrail(2.5, 0xff6b6b, 0.5),
-      createOrbitTrail(2.7, 0x4ecdc4, -0.3),
-      createOrbitTrail(2.6, 0xffe66d, 0.7),
+    const rings = [
+      createOrbitRing(2.5, 0xff6b6b, 0.5),
+      createOrbitRing(2.7, 0x4ecdc4, -0.3),
+      createOrbitRing(2.6, 0xffe66d, 0.7),
     ];
 
     // Animation loop
@@ -301,8 +304,8 @@ const VanillaEarthScene: React.FC = () => {
         (oceanParticles.material as THREE.PointsMaterial).opacity = 0.6 + Math.sin(time * 2.0) * 0.2;
       }
 
-      // Animate trails
-      trails.forEach(({ line, speed }) => {
+      // Animate rings
+      rings.forEach(({ line, speed }) => {
         line.rotation.y = time * speed;
         line.rotation.x = Math.sin(time * 0.5) * 0.1;
       });
@@ -312,8 +315,8 @@ const VanillaEarthScene: React.FC = () => {
 
     // Handle resize
     const handleResize = () => {
-      if (!mountRef.current) return;
-      const { clientWidth, clientHeight } = mountRef.current;
+      if (!mount) return;
+      const { clientWidth, clientHeight } = mount;
       camera.aspect = clientWidth / clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(clientWidth, clientHeight);
@@ -333,8 +336,8 @@ const VanillaEarthScene: React.FC = () => {
         cancelAnimationFrame(sceneRef.current.animationId);
       }
       
-      if (sceneRef.current.renderer && mountRef.current) {
-        mountRef.current.removeChild(sceneRef.current.renderer.domElement);
+      if (sceneRef.current.renderer && mount) {
+        mount.removeChild(sceneRef.current.renderer.domElement);
         sceneRef.current.renderer.dispose();
       }
       
