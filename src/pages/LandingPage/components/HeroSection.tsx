@@ -5,16 +5,19 @@
  */
 
 import React, { Suspense } from "react";
-import { useNavigate } from "react-router-dom";
-import { Zap, ArrowRight } from "lucide-react";
 import { Button } from "@/ui/atoms/Button";
+import { Zap, ArrowRight } from "lucide-react";
 import { VanillaEarthScene } from "@/ui/organisms/VanillaEarthScene";
 
-export const HeroSection = () => {
-  const navigate = useNavigate();
+interface HeroSectionProps {
+  onChatWithPlanora: () => void;
+}
 
-  const handleChatWithPlanora = () => {
-    navigate("/register");
+export const HeroSection: React.FC<HeroSectionProps> = ({ onChatWithPlanora }) => {
+  const handleLearnMore = () => {
+    document
+      .getElementById("features")
+      ?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
@@ -76,7 +79,7 @@ export const HeroSection = () => {
                 variant="gradient"
                 size="lg"
                 className="flex items-center gap-2"
-                onClick={handleChatWithPlanora}
+                onClick={onChatWithPlanora}
               >
                 <Zap className="w-5 h-5" />
                 Start Planning for Free
@@ -85,11 +88,7 @@ export const HeroSection = () => {
                 variant="glass"
                 size="lg"
                 className="flex items-center gap-2"
-                onClick={() =>
-                  document
-                    .getElementById("features")
-                    ?.scrollIntoView({ behavior: "smooth" })
-                }
+                onClick={handleLearnMore}
               >
                 Learn More
                 <ArrowRight className="w-5 h-5" />
