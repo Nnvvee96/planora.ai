@@ -11,7 +11,7 @@ import {
 import { PlusCircle, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const SavedTrips: React.FC = () => {
+const SavedTrips = () => {
   const navigate = useNavigate();
 
   // Sample saved trips data

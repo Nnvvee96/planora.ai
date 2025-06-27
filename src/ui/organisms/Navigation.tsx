@@ -45,7 +45,7 @@ const navItems = [
   // Add other items like FAQ if they are primarily scroll targets on landing
 ];
 
-const Navigation: React.FC = () => {
+const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("home"); // Default to 'home' (maps to 'hero' or '/' path)

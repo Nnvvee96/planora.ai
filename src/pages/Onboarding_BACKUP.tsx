@@ -36,7 +36,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Select } from "@/components/ui/select";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { X } from "lucide-react";
 import {
   saveTravelPreferences,
@@ -329,7 +329,7 @@ const Onboarding = () => {
     return true;
   };
 
-  const goToNextStep = async () => {
+  const _goToNextStep = async () => {
     // For budget steps (0 and 1), skip validation entirely
     if (step < totalSteps - 1) {
       setStep(step + 1);
@@ -357,7 +357,9 @@ const Onboarding = () => {
 
       // Get form data and ensure correct types
       const formData = form.getValues();
-      console.log("Raw form data:", formData);
+              if (import.meta.env.DEV) {
+          console.log("Raw form data:", formData);
+        }
 
       // Check if budgetRange is properly formatted as an object
       const budgetRangeData =
@@ -386,10 +388,12 @@ const Onboarding = () => {
         if (profileData) {
           existingFirstName = profileData.firstName || "";
           existingLastName = profileData.lastName || "";
-          console.log("Retrieved existing profile data:", {
-            existingFirstName,
-            existingLastName,
-          });
+          if (import.meta.env.DEV) {
+            console.log("Retrieved existing profile data:", {
+              existingFirstName,
+              existingLastName,
+            });
+          }
         }
       } catch (profileFetchError) {
         console.warn(
@@ -399,10 +403,12 @@ const Onboarding = () => {
       }
 
       // STEP 2: Save travel preferences to the database first
-      console.log(
-        "🚀 DIRECT DB PATH: Saving travel preferences directly to database",
-      );
-      console.log("User ID:", currentUser.id);
+              if (import.meta.env.DEV) {
+          console.log(
+            "🚀 DIRECT DB PATH: Saving travel preferences directly to database",
+          );
+          console.log("User ID:", currentUser.id);
+        }
 
       // Ensure we have the latest session before proceeding
       await authService.refreshSession();
@@ -442,16 +448,20 @@ const Onboarding = () => {
         updated_at: new Date().toISOString(),
       };
 
-      console.log("Travel preferences data for insertion:", prefData);
+              if (import.meta.env.DEV) {
+          console.log("Travel preferences data for insertion:", prefData);
+        }
 
       // First check if preferences already exist using travel preferences service
       const existingPrefs =
         await travelPreferencesService.getUserTravelPreferences(currentUser.id);
 
-      console.log(
-        "Existing preferences check:",
-        existingPrefs ? "Found" : "Not found",
-      );
+      if (import.meta.env.DEV) {
+        console.log(
+          "Existing preferences check:",
+          existingPrefs ? "Found" : "Not found",
+        );
+      }
 
       // Format data for the travel preferences service
       const travelPreferencesData = {
@@ -484,7 +494,11 @@ const Onboarding = () => {
         travelPreferencesData,
       );
 
-      console.log("Travel preferences save result:", saveResult);
+      if (import.meta.env.DEV) {
+        if (import.meta.env.DEV) {
+          console.log("Travel preferences save result:", saveResult);
+        }
+      }
 
       if (!saveResult) {
         console.error("Error saving travel preferences");
@@ -494,7 +508,11 @@ const Onboarding = () => {
       // STEP 3: Update profiles table to mark onboarding as completed
       // IMPORTANT: Preserve existing first_name and last_name values!
       try {
-        console.log("Updating profiles table directly...");
+        if (import.meta.env.DEV) {
+          if (import.meta.env.DEV) {
+          console.log("Updating profiles table directly...");
+        }
+        }
 
         // Prepare profile update data with preference for existing values
         // following Planora's API model conventions with camelCase fields
@@ -518,14 +536,20 @@ const Onboarding = () => {
           onboardingDepartureCity: finalDepartureCity || "",
         };
 
-        console.log("Profile update data:", profileUpdateData);
+        if (import.meta.env.DEV) {
+          if (import.meta.env.DEV) {
+          console.log("Profile update data:", profileUpdateData);
+        }
+        }
 
         const profileUpdate = await userProfileService.updateUserProfile(
           currentUser.id,
           profileUpdateData,
         );
 
-        console.log("Profile update result:", profileUpdate);
+        if (import.meta.env.DEV) {
+          console.log("Profile update result:", profileUpdate);
+        }
 
         if (!profileUpdate) {
           console.error("Profile update failed");
@@ -558,7 +582,9 @@ const Onboarding = () => {
       // STEP 7: Call the official onboarding status update function
       // This function already handles multiple sources (profile table, metadata, etc.)
       try {
-        console.log("Updating onboarding status via official API...");
+        if (import.meta.env.DEV) {
+          console.log("Updating onboarding status via official API...");
+        }
         await updateOnboardingStatus(currentUser.id, true);
       } catch (onboardingError) {
         console.error(
@@ -571,7 +597,9 @@ const Onboarding = () => {
       try {
         // STEP 4: Update user metadata to mark onboarding as complete
         // Include country and city in the metadata for profile display
-        console.log("Updating user metadata with onboarding status");
+        if (import.meta.env.DEV) {
+          console.log("Updating user metadata with onboarding status");
+        }
 
         // Format departure location with both country and city
         let departureCity = formData.departureCity;
@@ -615,7 +643,9 @@ const Onboarding = () => {
       // This ensures the session is fully updated with all metadata changes
       try {
         await authService.refreshSession();
-        console.log("Session refreshed, redirecting to dashboard...");
+        if (import.meta.env.DEV) {
+          console.log("Session refreshed, redirecting to dashboard...");
+        }
 
         // Navigate to dashboard with session intact
         navigate("/dashboard", { replace: true });
@@ -1511,7 +1541,7 @@ const Onboarding = () => {
                 >
                   Back
                 </Button>
-                <GradientButton onClick={goToNextStep} type="button">
+                <GradientButton onClick={handleCompleteOnboarding} type="button">
                   {step === totalSteps - 1 ? "Complete" : "Next"}
                 </GradientButton>
               </div>

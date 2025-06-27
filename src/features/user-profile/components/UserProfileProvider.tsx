@@ -6,9 +6,9 @@ import {
   type UserProfileContextType,
 } from "../context/userProfileContext";
 
-export const UserProfileProvider: React.FC<{ children: ReactNode }> = ({
+export const UserProfileProvider = ({
   children,
-}) => {
+}: { children: ReactNode }) => {
   const { user: authUser, loading: authLoading } = useAuthContext();
   const [profileState, setProfileState] = useState<UserProfileContextType>({
     profile: null,

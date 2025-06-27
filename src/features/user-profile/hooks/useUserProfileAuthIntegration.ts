@@ -1,7 +1,7 @@
 /**
- * User Profile Integration Hook
+ * User Profile Auth Integration Hook
  *
- * Integration layer between user-profile and other features.
+ * Integration layer between user-profile and auth features specifically.
  * Following Planora's architectural principles with feature-first organization.
  * This hook resolves circular dependencies by providing a single integration point.
  */
@@ -11,10 +11,10 @@ import { userProfileService } from "../services/userProfileService";
 import { useAuthIntegration } from "@/hooks/integration/useAuthIntegration";
 
 /**
- * Hook for integrating user profile with other features
- * Provides methods for user profile operations that interact with other features
+ * Hook for integrating user profile with auth features
+ * Provides methods for user profile-auth operations that interact between features
  */
-export const useUserProfileIntegration = () => {
+export const useUserProfileAuthIntegration = () => {
   const { user, isAuthenticated } = useAuthIntegration();
 
   /**
@@ -119,7 +119,9 @@ export const useUserProfileIntegration = () => {
         let userProfile = null;
         try {
           userProfile = await userProfileService.getUserProfile(userId);
-          console.log("Profile service returned:", userProfile);
+          if (import.meta.env.DEV) {
+        console.log("Profile service returned:", userProfile);
+      }
         } catch (profileError) {
           console.warn(
             "Profile service failed, will use auth data only:",
@@ -130,7 +132,9 @@ export const useUserProfileIntegration = () => {
 
         // If profile is null or empty, create a minimal profile from auth data
         if (!userProfile) {
+          if (import.meta.env.DEV) {
           console.log("Creating profile from auth data for user:", userId);
+        }
           return {
             id: authUser.id,
             email: authUser.email,

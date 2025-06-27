@@ -19,7 +19,7 @@ import { supabaseAuthService } from "../services/supabaseAuthService";
  * EmailChangeVerification component handles the verification of email changes
  * and proper synchronization between auth state and database state
  */
-const EmailChangeVerification: React.FC = () => {
+const EmailChangeVerification = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [isVerifying, setIsVerifying] = useState(true);

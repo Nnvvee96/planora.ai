@@ -9,7 +9,7 @@ interface BetaFeatureProps {
  * A wrapper component that only renders its children if the currently
  * authenticated user is a beta tester.
  */
-export const BetaFeature: React.FC<BetaFeatureProps> = ({ children }) => {
+export const BetaFeature = ({ children }: BetaFeatureProps) => {
   const { profile, loading } = useUserProfile();
 
   if (loading) {

@@ -76,7 +76,7 @@ const mockPlans = [
   },
 ];
 
-const Billing: React.FC = () => {
+const Billing = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [products, setProducts] = useState<ProductWithPrices[]>([]);
@@ -96,9 +96,11 @@ const Billing: React.FC = () => {
           setSubscription(sub);
           setProducts(prods);
         } catch {
-          console.log(
-            "Using mock data while subscription service is being set up",
-          );
+          if (import.meta.env.DEV) {
+            console.log(
+              "Using mock data while subscription service is being set up",
+            );
+          }
           // Use mock data as fallback
         }
         setLoading(false);
@@ -108,12 +110,17 @@ const Billing: React.FC = () => {
   }, [user]);
 
   const handleUpgrade = async (planId: string) => {
+    if (import.meta.env.DEV) {
+      console.log("Upgrading to plan:", planId);
+    }
     setCheckoutLoading(planId);
     // Simulate API call
     setTimeout(() => {
       setCheckoutLoading(null);
       // Here you would integrate with Stripe checkout
-      console.log("Upgrading to plan:", planId);
+      if (import.meta.env.DEV) {
+        console.log("Upgrading to plan:", planId);
+      }
     }, 2000);
   };
 

@@ -16,12 +16,12 @@ interface ChatMessageProps {
   timestamp: Date;
 }
 
-export const ChatMessage: React.FC<ChatMessageProps> = ({
+export const ChatMessage = ({
   id: _id,
   role,
   content,
   timestamp,
-}) => {
+}: ChatMessageProps) => {
   return (
     <div
       className={cn(

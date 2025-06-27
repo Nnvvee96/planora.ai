@@ -38,8 +38,10 @@ export { useAuth } from "./hooks/useAuth";
 export { AuthCallback } from "./components/AuthCallback";
 export { GoogleLoginButton } from "./components/GoogleLoginButton";
 
-// Import the auth service directly to prevent circular dependencies
+// Import the auth services directly to prevent circular dependencies
 import { supabaseAuthService } from "./services/supabaseAuthService";
+import { authProviderService } from "./services/authProviderService";
+import { authProfileService } from "./services/authProfileService";
 import { sessionManager } from "./services/authSessionManager";
 
 /**
@@ -238,8 +240,17 @@ export const getVerificationDialogComponent = () => {
 // Note: We've removed the getAuthRoutes function to break circular dependency
 // Routes should be imported directly where needed
 
-// Export session manager
+// Export session manager and new services
 export { sessionManager };
+export { authProviderService };
+export { authProfileService };
+
+// Export new specialized services for direct access if needed
+export { sessionService } from "./services/sessionService";
+export { googleAuthService } from "./services/googleAuthService";
+export { emailAuthService } from "./services/emailAuthService";
+export { emailVerificationService } from "./services/emailVerificationService";
+export { authCallbackService } from "./services/authCallbackService";
 
 /**
  * Factory function for auth service
@@ -267,43 +278,53 @@ const authService = {
   },
 
   /**
-   * Verify email address using token
-   * @param token The verification token from email link
+   * Verify email address using token (placeholder - implement if needed)
+   * @param _token The verification token from email link
    */
-  verifyEmail: async (token: string): Promise<boolean> => {
-    return supabaseAuthService.verifyEmail(token);
+  verifyEmail: async (_token: string): Promise<boolean> => {
+    // TODO: Implement email verification with token
+    console.warn("verifyEmail not yet implemented in refactored service");
+    return false;
   },
 
   /**
-   * Resend verification email
-   * @param email The email address to resend verification to
+   * Resend verification email (placeholder - implement if needed)
+   * @param _email The email address to resend verification to
    */
-  resendVerificationEmail: async (email: string): Promise<boolean> => {
-    return supabaseAuthService.resendVerificationEmail(email);
+  resendVerificationEmail: async (_email: string): Promise<boolean> => {
+    // TODO: Implement resend verification email
+    console.warn("resendVerificationEmail not yet implemented in refactored service");
+    return false;
   },
 
   /**
-   * Check if a user's email is verified
-   * @param userId The user ID to check verification status for
+   * Check if a user's email is verified (placeholder - implement if needed)
+   * @param _userId The user ID to check verification status for
    */
-  checkEmailVerificationStatus: async (userId: string): Promise<boolean> => {
-    return supabaseAuthService.checkEmailVerificationStatus(userId);
+  checkEmailVerificationStatus: async (_userId: string): Promise<boolean> => {
+    // TODO: Implement email verification status check
+    console.warn("checkEmailVerificationStatus not yet implemented in refactored service");
+    return false;
   },
 
   /**
-   * Send password reset email
-   * @param email The email address to send password reset to
+   * Send password reset email (placeholder - implement if needed)
+   * @param _email The email address to send password reset to
    */
-  sendPasswordResetEmail: async (email: string): Promise<boolean> => {
-    return supabaseAuthService.sendPasswordResetEmail(email);
+  sendPasswordResetEmail: async (_email: string): Promise<boolean> => {
+    // TODO: Implement password reset email
+    console.warn("sendPasswordResetEmail not yet implemented in refactored service");
+    return false;
   },
 
   /**
-   * Reset password with reset token
-   * @param newPassword The new password to set
+   * Reset password with reset token (placeholder - implement if needed)
+   * @param _newPassword The new password to set
    */
-  resetPassword: async (newPassword: string): Promise<boolean> => {
-    return supabaseAuthService.resetPassword(newPassword);
+  resetPassword: async (_newPassword: string): Promise<boolean> => {
+    // TODO: Implement password reset
+    console.warn("resetPassword not yet implemented in refactored service");
+    return false;
   },
 
   /**

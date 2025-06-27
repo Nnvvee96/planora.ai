@@ -1,20 +1,13 @@
 /**
  * User Profile Service
- *
- * Service for managing user profile data in Supabase.
- * Following Planora's architectural principles with feature-first organization.
+ * 
+ * Comprehensive user profile management service
+ * Handles all profile operations including creation, updates, and data mapping
  */
 
 import { supabase } from "@/lib/supabase/client";
-import { UserProfile, DbUserProfile } from "../types/profileTypes";
-// Note: Cross-feature operations should use integration hooks
-// Direct imports removed to follow architectural principles
-// Import service utilities for retry logic and monitoring
-import {
-  withRetryAndMonitoring,
-  type RetryOptions as _RetryOptions,
-  type MonitoringHooks as _MonitoringHooks,
-} from "@/lib/serviceUtils";
+import type { UserProfile, DbUserProfile } from "../types/profileTypes";
+import { withRetryAndMonitoring } from "@/lib/serviceUtils";
 
 /**
  * Converts snake_case database profile to camelCase application profile
@@ -168,7 +161,11 @@ const extractNameFromGoogleData = (user: {
       }
     }
 
-    console.log(`Extracted name: ${firstName} ${lastName}`);
+    if (import.meta.env.DEV) {
+            if (import.meta.env.DEV) {
+          console.log(`Extracted name: ${firstName} ${lastName}`);
+        }
+    }
   } catch (e) {
     console.error("Error extracting name from metadata:", e);
   }
@@ -213,9 +210,11 @@ export const userProfileService = {
           checkError.code === "PGRST104" ||
           checkError.message?.includes("not found")
         ) {
+          if (import.meta.env.DEV) {
           console.log(
             "Profile not found, creating new profile for Google user",
           );
+          }
 
           const timestamp = new Date().toISOString();
           const emailVerified = true; // Google accounts are pre-verified
@@ -243,7 +242,11 @@ export const userProfileService = {
             return false;
           }
 
+          if (import.meta.env.DEV) {
+          if (import.meta.env.DEV) {
           console.log("Successfully created profile for Google user");
+        }
+          }
           return true;
         }
 
@@ -251,7 +254,11 @@ export const userProfileService = {
       }
 
       if (existingProfile) {
-        console.log("Updating existing profile with Google data");
+        if (import.meta.env.DEV) {
+        if (import.meta.env.DEV) {
+          console.log("Updating existing profile with Google data");
+        }
+        }
 
         // Only use birthdate as the standard field
         // Profile is now using standardized birthdate field
@@ -275,7 +282,11 @@ export const userProfileService = {
           return false;
         }
 
-        console.log("Successfully updated profile with Google data");
+        if (import.meta.env.DEV) {
+        if (import.meta.env.DEV) {
+          console.log("Successfully updated profile with Google data");
+        }
+        }
         return true;
       }
 
@@ -396,7 +407,11 @@ export const userProfileService = {
         if (error) {
           // Not found error is expected when profile doesn't exist
           if (error.code === "PGRST116") {
-            console.log("Profile not found for user ID:", userId);
+            if (import.meta.env.DEV) {
+            if (import.meta.env.DEV) {
+          console.log("Profile not found for user ID:", userId);
+        }
+            }
           } else {
             throw new Error(`Database error: ${error.message}`);
           }
@@ -415,7 +430,11 @@ export const userProfileService = {
 
           // Create a synthetic profile from auth data
           if (user.id === userId) {
-            console.log("Creating synthetic profile from auth data");
+            if (import.meta.env.DEV) {
+            if (import.meta.env.DEV) {
+          console.log("Creating synthetic profile from auth data");
+        }
+            }
 
             const { firstName, lastName } = extractNameFromGoogleData(user);
 
@@ -491,7 +510,11 @@ export const userProfileService = {
 
         // Check if it's a unique constraint violation (profile already exists)
         if (error.code === "23505") {
+          if (import.meta.env.DEV) {
+          if (import.meta.env.DEV) {
           console.log("Profile already exists, attempting update instead");
+        }
+          }
 
           // Try updating instead
           const { error: updateError } = await supabase
@@ -616,6 +639,16 @@ export const userProfileService = {
       if (!user) {
         console.warn("No authenticated user found");
         return null;
+      }
+
+      // Check if we need to update the profile with Google data
+      if (user.user_metadata) {
+        if (import.meta.env.DEV) {
+          console.log(
+            "Updating profile with Google user metadata:",
+            user.user_metadata,
+          );
+        }
       }
 
       return userProfileService.getUserProfile(user.id);

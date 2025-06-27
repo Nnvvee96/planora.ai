@@ -42,7 +42,7 @@ interface AuthProviderProps {
  * Auth Provider component
  * Provides authentication state and methods to the application
  */
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+export const AuthProvider = ({ children }: AuthProviderProps) => {
   // Implement auth logic directly here to avoid circular dependencies
   const [authState, setAuthState] = React.useState<AuthState>({
     isAuthenticated: false,
@@ -157,7 +157,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const checkAuth = async () => {
       try {
+        if (import.meta.env.DEV) {
         console.log("Initializing auth service...");
+      }
 
         // Start a safety timeout to ensure we don't hang indefinitely
         // This guarantees we exit loading state even if Supabase calls hang
@@ -177,7 +179,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         let supabaseUser = null;
         try {
           supabaseUser = await supabaseAuthService.getCurrentUser();
+          if (import.meta.env.DEV) {
           console.log("User data loaded successfully:", !!supabaseUser);
+        }
         } catch (loadError) {
           console.error("Error loading user data:", loadError);
         }
@@ -191,7 +195,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Mark auth service as initialized before updating state
         if (isInitializing) {
           setIsAuthServiceInitialized(true);
+          if (import.meta.env.DEV) {
           console.log("Auth service successfully initialized");
+        }
           isInitializing = false;
         }
 
@@ -213,7 +219,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         ) {
           console.error("Error initializing auth service:", error);
         } else {
+          if (import.meta.env.DEV) {
           console.log("No existing session found (expected for new users)");
+        }
         }
 
         // Cancel the safety timeout
@@ -225,7 +233,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Even on error, mark as initialized to prevent hanging
         if (isInitializing) {
           setIsAuthServiceInitialized(true);
+          if (import.meta.env.DEV) {
           console.log("Auth service marked as initialized despite error");
+        }
           isInitializing = false;
         }
 
@@ -246,14 +256,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const {
       data: { subscription },
     } = supabaseAuthService.subscribeToAuthChanges((event, session) => {
-      console.log("Auth state changed:", event, !!session);
+      if (import.meta.env.DEV) {
+        console.log("Auth state changed:", event, !!session);
+      }
 
       // On any auth change, update our local state
       try {
         if (session?.user) {
           // Safely map user with comprehensive null checking
           const mappedUser = mapSupabaseUser(session.user);
+          if (import.meta.env.DEV) {
           console.log("Auth state update with user:", !!mappedUser);
+        }
 
           setAuthState({
             isAuthenticated: true,
@@ -262,7 +276,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             error: null,
           });
         } else {
+          if (import.meta.env.DEV) {
           console.log("Auth state update: No user in session");
+        }
 
           setAuthState({
             isAuthenticated: false,

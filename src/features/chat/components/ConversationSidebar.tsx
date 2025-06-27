@@ -26,7 +26,7 @@ interface ConversationSidebarProps {
   userProfileComponent: React.ReactNode;
 }
 
-export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
+export const ConversationSidebar = ({
   conversations,
   activeConversationId,
   onSelectConversation,
@@ -37,7 +37,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   isOpen = true,
   onClose,
   userProfileComponent,
-}) => {
+}: ConversationSidebarProps) => {
   // If it's a mobile view and the sidebar is closed, don't render
   if (isMobile && !isOpen) return null;
 

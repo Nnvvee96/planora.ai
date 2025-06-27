@@ -1,7 +1,7 @@
 /**
- * Auth Integration Hook
+ * Auth Profile Integration Hook
  *
- * Integration layer between auth and other features.
+ * Integration layer between auth and profile features specifically.
  * Following Planora's architectural principles with feature-first organization.
  * This hook resolves circular dependencies by providing a single integration point.
  */
@@ -12,10 +12,10 @@ import { userProfileService } from "@/features/user-profile/userProfileApi";
 import type { AppUser } from "../types/authTypes";
 
 /**
- * Hook for integrating auth with other features
- * Provides methods for auth-related operations that interact with other features
+ * Hook for integrating auth with profile features
+ * Provides methods for auth-profile operations that interact between features
  */
-export const useAuthIntegration = () => {
+export const useAuthProfileIntegration = () => {
   /**
    * Update user profile after successful authentication
    * @param user The authenticated user

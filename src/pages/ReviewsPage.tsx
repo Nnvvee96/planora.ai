@@ -79,7 +79,7 @@ const mockReviews: ReviewData[] = [
   },
 ];
 
-export const ReviewsPage: React.FC = () => {
+export const ReviewsPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [reviewTitle, setReviewTitle] = useState("");
   const [reviewDescription, setReviewDescription] = useState("");
@@ -146,11 +146,13 @@ export const ReviewsPage: React.FC = () => {
 
   const handleReviewSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    console.log("New Review Submitted:", {
-      title: reviewTitle,
-      description: reviewDescription,
-      rating: reviewRating,
-    });
+    if (import.meta.env.DEV) {
+      console.log("New Review Submitted:", {
+        title: reviewTitle,
+        description: reviewDescription,
+        rating: reviewRating,
+      });
+    }
     // Here you would typically send data to a backend
     // For now, we'll just add it to the mockReviews array for demonstration
     const newReview: ReviewData = {

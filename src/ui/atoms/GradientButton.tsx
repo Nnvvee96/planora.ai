@@ -9,7 +9,7 @@ interface GradientButtonProps
   iconRight?: React.ReactNode;
 }
 
-const GradientButton: React.FC<GradientButtonProps> = ({
+const GradientButton = ({
   children,
   className,
   variant = "primary",
@@ -17,7 +17,7 @@ const GradientButton: React.FC<GradientButtonProps> = ({
   iconLeft,
   iconRight,
   ...props
-}) => {
+}: GradientButtonProps) => {
   const variants = {
     primary:
       "bg-gradient-to-r from-planora-purple to-planora-accent-purple text-white",

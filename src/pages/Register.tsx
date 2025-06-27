@@ -42,7 +42,7 @@ import {
   // Plus, // Unused import
 } from "lucide-react";
 import { DatePickerInput } from "@/components/ui/DatePickerInput";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth, type CompleteSignupPayload } from "@/features/auth/authApi";
 import {
   countryOptions,

@@ -19,10 +19,10 @@ export interface TestModeIndicatorProps {
  * Test Mode Indicator Component
  * Displays a visible badge when the application is running in test/development mode
  */
-export const TestModeIndicator: React.FC<TestModeIndicatorProps> = ({
+export const TestModeIndicator = ({
   position = "bottom-right",
   customLabel,
-}) => {
+}: TestModeIndicatorProps) => {
   // Only show in development/test mode
   const isTestMode = import.meta.env.DEV || import.meta.env.MODE === "test";
 

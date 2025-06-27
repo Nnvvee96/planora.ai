@@ -17,7 +17,7 @@ import {
 import { Button } from "@/ui/atoms/Button";
 import { Input } from "@/ui/atoms/Input";
 import { Loader2 } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 // Import directly from services to avoid circular dependencies
 import { supabaseAuthService } from "../services/supabaseAuthService";
 import { VerificationCodeResponse } from "../types/authTypes";
@@ -64,7 +64,9 @@ export function VerificationDialog({
         // Refresh the session to ensure the user is logged in with updated verification status
         try {
           await supabaseAuthService.refreshSession();
+          if (import.meta.env.DEV) {
           console.log("Session refreshed after verification");
+        }
 
           // Check if onboarding is completed
           const hasCompletedOnboarding =

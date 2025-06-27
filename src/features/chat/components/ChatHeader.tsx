@@ -18,12 +18,12 @@ interface ChatHeaderProps {
   isMobile: boolean;
 }
 
-export const ChatHeader: React.FC<ChatHeaderProps> = ({
+export const ChatHeader = ({
   title,
   onToggleSidebar,
   onEditTravelPersona,
   isMobile,
-}) => {
+}: ChatHeaderProps) => {
   return (
     <header className="bg-background/80 backdrop-blur-md border-b border-white/10 p-4 flex items-center justify-between">
       <div className="flex items-center gap-3">

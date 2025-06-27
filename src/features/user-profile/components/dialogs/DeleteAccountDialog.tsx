@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/ui/atoms/Button";
 import { Input } from "@/ui/atoms/Input";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { userProfileService } from "../../services/userProfileService";
 import { useAuthIntegration } from "@/hooks/integration/useAuthIntegration";
 
@@ -25,10 +25,10 @@ interface DeleteAccountDialogProps {
  * industry best practices. It requires the user to type "delete" to confirm the deletion
  * and clearly explains the 30-day recovery period.
  */
-const DeleteAccountDialog: React.FC<DeleteAccountDialogProps> = ({
+const DeleteAccountDialog = ({
   isOpen,
   onClose,
-}) => {
+}: DeleteAccountDialogProps) => {
   const [confirmation, setConfirmation] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const { logout } = useAuthIntegration();

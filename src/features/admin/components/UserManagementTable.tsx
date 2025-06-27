@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export const UserManagementTable: React.FC = () => {
+export const UserManagementTable = () => {
   const [users, setUsers] = useState<DbUserProfile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

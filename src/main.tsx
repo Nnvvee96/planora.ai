@@ -50,18 +50,13 @@ if (!rootElement) {
 // Create React root with error boundary
 const root = ReactDOM.createRoot(rootElement);
 
-// App wrapper with error boundary
-const AppWithErrorBoundary = () => {
-  return (
+// Render the application
+try {
+  root.render(
     <React.StrictMode>
       <App />
     </React.StrictMode>
   );
-};
-
-// Render the application
-try {
-  root.render(<AppWithErrorBoundary />);
 } catch (error) {
   console.error("Failed to render application:", error);
   handleGlobalError(error as Error);

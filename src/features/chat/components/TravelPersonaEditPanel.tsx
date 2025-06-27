@@ -24,7 +24,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import {
   Plane,
   Hotel,
@@ -124,10 +124,10 @@ const SimpleCheckboxCard = ({
 /**
  * Travel Persona Edit Panel Component
  */
-export const TravelPersonaEditPanel: React.FC<TravelPersonaEditPanelProps> = ({
+export const TravelPersonaEditPanel = ({
   isOpen,
   onClose,
-}) => {
+}: TravelPersonaEditPanelProps) => {
   const { preferences, savePreferences, isLoading } =
     useTravelPreferencesIntegration();
 

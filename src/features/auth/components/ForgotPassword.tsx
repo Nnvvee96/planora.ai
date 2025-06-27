@@ -14,11 +14,11 @@ import { Label } from "@/ui/atoms/Label";
 import { Logo } from "@/ui/atoms/Logo";
 import { ArrowLeft, Mail, CheckCircle } from "lucide-react";
 import { Footer } from "@/ui/organisms/Footer";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 // Import service directly to avoid circular dependency
 import { supabaseAuthService } from "../services/supabaseAuthService";
 
-export const ForgotPassword: React.FC = () => {
+export const ForgotPassword = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [email, setEmail] = useState("");

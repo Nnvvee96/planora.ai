@@ -28,13 +28,13 @@ interface GoogleLoginButtonProps {
  * Google login button component
  * Triggers the Google OAuth flow when clicked
  */
-export const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({
+export const GoogleLoginButton = ({
   className = "",
   variant = "default",
   size = "default",
   fullWidth = false,
   text = "Sign in with Google",
-}) => {
+}: GoogleLoginButtonProps) => {
   const { signInWithGoogle, loading } = useAuthContext();
 
   const handleGoogleLogin = async () => {

@@ -8,7 +8,7 @@ import { Logo } from "@/ui/atoms/Logo";
 import { useNavigate } from "react-router-dom";
 import { Apple, Mail } from "lucide-react";
 import { Footer } from "@/ui/organisms/Footer";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/features/auth/authApi";
 // Database access should be through feature APIs, not direct imports
 // Database access should be through feature APIs, not direct imports

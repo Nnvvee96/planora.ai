@@ -7,9 +7,9 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
-export const QuickActionsWidget: React.FC = () => {
+export const QuickActionsWidget = () => {
   const { toast } = useToast();
 
   const handleClearCache = () => {

@@ -7,7 +7,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-const FaqAccordion: React.FC = () => {
+const FaqAccordion = () => {
   return (
     <Card className="bg-black/30 backdrop-blur-lg border border-white/10 shadow-xl">
       <CardHeader>

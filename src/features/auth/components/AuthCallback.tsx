@@ -22,7 +22,9 @@ export function AuthCallback() {
 
     const handleCallback = async () => {
       try {
-        console.log("🔄 Processing auth callback...");
+        if (import.meta.env.DEV) {
+      console.log("🔄 Processing auth callback...");
+    }
 
         if (!isMounted) return;
 
@@ -43,12 +45,16 @@ export function AuthCallback() {
 
           // Special handling for Google auth errors
           if (errorDescription?.includes("Database error saving new user")) {
-            console.log("🔄 Attempting Google auth recovery...");
+            if (import.meta.env.DEV) {
+          console.log("🔄 Attempting Google auth recovery...");
+        }
             const recovered =
               await googleAuthHelper.verifyAndRecoverGoogleAuth(currentUrl);
 
             if (recovered && isMounted) {
-              console.log("✅ Google auth recovery successful!");
+              if (import.meta.env.DEV) {
+          console.log("✅ Google auth recovery successful!");
+        }
               toast.success("Account created successfully! Redirecting...");
 
               // Give time for the profile to be created and refresh user data
@@ -70,10 +76,14 @@ export function AuthCallback() {
         }
 
         // No error, proceed with normal flow
+        if (import.meta.env.DEV) {
         console.log("✅ Auth callback successful, checking user status...");
+      }
 
         // CRITICAL FIX: Call the proper handleAuthCallback method that includes Google name extraction
+        if (import.meta.env.DEV) {
         console.log("🔄 Calling supabaseAuthService.handleAuthCallback()...");
+      }
         const authResponse = await supabaseAuthService.handleAuthCallback();
 
         if (!authResponse.success || !authResponse.user) {
@@ -96,8 +106,10 @@ export function AuthCallback() {
           return;
         }
 
-        console.log("✅ User authenticated:", currentUser.email);
-        console.log("🔍 Auth response:", authResponse);
+        if (import.meta.env.DEV) {
+          console.log("✅ User authenticated:", currentUser.email);
+          console.log("🔍 Auth response:", authResponse);
+        }
 
         // The handleAuthCallback method already processed Google profile extraction
         // No need for duplicate processing here

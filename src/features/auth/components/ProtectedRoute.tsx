@@ -36,19 +36,19 @@ const safeGetLocalStorage = (key: string): string | null => {
 /**
  * Simple loader component to show while auth is initializing
  */
-const AuthLoader: React.FC = () => (
+const AuthLoader = () => (
   <div className="flex items-center justify-center h-screen bg-planora-background">
     <Loader2 className="h-8 w-8 animate-spin text-planora-accent-purple" />
     <p className="ml-2 text-planora-accent-purple">Authenticating...</p>
   </div>
 );
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+export const ProtectedRoute = ({
   children,
   requireOnboarding = false,
   requireAuth = true,
   redirectToIfAuthenticated,
-}) => {
+}: ProtectedRouteProps) => {
   // Get auth state ONLY from the context - no direct Supabase calls
   const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
@@ -88,9 +88,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (requireAuth && !isAuthenticated) {
     // Only redirect if we're sure the user is not authenticated (not loading)
     if (!loading) {
-      console.log(
-        "🔒 Access denied: User not authenticated, redirecting to login",
-      );
+      if (import.meta.env.DEV) {
+        console.log(
+          "🔒 Access denied: User not authenticated, redirecting to login",
+        );
+      }
       return <Navigate to="/login" state={{ from: location }} replace />;
     }
     // Still loading, show loader
@@ -99,11 +101,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // If onboarding is required and not completed (only for authenticated users)
   if (requireOnboarding && isAuthenticated && !hasCompletedOnboarding) {
-    console.log("📝 Onboarding required, redirecting to onboarding");
+    if (import.meta.env.DEV) {
+      console.log("📝 Onboarding required, redirecting to onboarding");
+    }
     return <Navigate to="/onboarding" state={{ from: location }} replace />;
   }
 
   // User is authenticated and meets all requirements
-  console.log("✅ Access granted to protected route");
+  if (import.meta.env.DEV) {
+    console.log("✅ Access granted to protected route");
+  }
   return <>{children}</>;
 };

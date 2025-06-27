@@ -55,7 +55,7 @@ export interface UserProfileMenuProps {
   onLogout?: () => void;
 }
 
-const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
+const UserProfileMenu = ({
   userName,
   userEmail,
   firstName,
@@ -63,7 +63,7 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
   birthdate,
   mini = false,
   onLogout,
-}) => {
+}: UserProfileMenuProps) => {
   const _nameInitial = userName.charAt(0);
   const navigate = useNavigate();
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);

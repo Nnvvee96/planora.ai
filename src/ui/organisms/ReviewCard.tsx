@@ -13,7 +13,7 @@ export interface ReviewCardProps {
   className?: string;
 }
 
-export const ReviewCard: React.FC<ReviewCardProps> = ({
+export const ReviewCard = ({
   title,
   authorName,
   authorAvatarUrl,
@@ -22,7 +22,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   date,
   source,
   className,
-}) => {
+}: ReviewCardProps) => {
   const renderStars = () => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {

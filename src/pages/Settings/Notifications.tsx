@@ -10,9 +10,9 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 
-const Notifications: React.FC = () => {
+const Notifications = () => {
   // Email notification settings
   const [emailSettings, setEmailSettings] = useState({
     tripUpdates: true,

@@ -25,8 +25,8 @@ import {
 import { getAuthService, AuthService } from "@/features/auth/authApi";
 // Properly import from API boundary
 import { userProfileService } from "../../services/userProfileService";
-import { useUserProfileIntegration } from "../../hooks/useUserProfileIntegration";
-import { useToast } from "@/components/ui/use-toast";
+import { useUserProfileAuthIntegration } from "../../hooks/useUserProfileAuthIntegration";
+import { useToast } from "@/hooks/use-toast";
 import { Select } from "@/components/ui/select";
 import {
   countryOptions,
@@ -53,7 +53,7 @@ import { ProfileDialogProps } from "@/features/user-profile/types/profileTypes";
  * ProfileDialog - A component for editing user profile information
  * This dialog allows users to update their personal details such as name, email, and birthdate
  */
-const ProfileDialog: React.FC<ProfileDialogProps> = ({
+const ProfileDialog = ({
   open,
   onOpenChange,
   userName,
@@ -62,7 +62,7 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
   lastName,
   birthdate,
   onProfileUpdate,
-}) => {
+}: ProfileDialogProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false); // For initial data loading
   const [isSaving, setIsSaving] = useState(false); // For saving changes
@@ -108,7 +108,7 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
   const [showCustomCityInput, setShowCustomCityInput] = useState(false);
   const hasLoadedData = useRef(false); // Track if we've loaded data to prevent loops
 
-  const userProfileIntegration = useUserProfileIntegration();
+  const userProfileIntegration = useUserProfileAuthIntegration();
 
   useEffect(() => {
     let isMounted = true;
@@ -152,7 +152,9 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
             customCity: dbProfile?.custom_city || "",
           };
 
-          console.log("ProfileDialog: Form data prepared:", formData);
+          if (import.meta.env.DEV) {
+            console.log("ProfileDialog: Form data prepared:", formData);
+          }
           form.reset(formData);
 
           // Set up city options if country is selected
@@ -186,7 +188,9 @@ const ProfileDialog: React.FC<ProfileDialogProps> = ({
           customCity: "",
         };
 
-        console.log("ProfileDialog: Using fallback data:", fallbackData);
+        if (import.meta.env.DEV) {
+          console.log("ProfileDialog: Using fallback data:", fallbackData);
+        }
         form.reset(fallbackData);
       } finally {
         if (isMounted) {

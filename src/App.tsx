@@ -36,26 +36,28 @@ import { ScrollToTop } from "./utils/ScrollToTop"; // Adjusted import path
 // Print environment variables to console (without keys)
 const DebugComponent = () => {
   useEffect(() => {
-    console.log("Environment variables check:");
-    console.log(
-      "VITE_SUPABASE_URL exists:",
-      !!import.meta.env.VITE_SUPABASE_URL,
-    );
-    console.log(
-      "VITE_ENABLE_GOOGLE_AUTH:",
-      import.meta.env.VITE_ENABLE_GOOGLE_AUTH,
-    );
+    if (import.meta.env.DEV) {
+      console.log("Environment variables check:");
+      console.log(
+        "VITE_SUPABASE_URL exists:",
+        !!import.meta.env.VITE_SUPABASE_URL,
+      );
+      console.log(
+        "VITE_ENABLE_GOOGLE_AUTH:",
+        import.meta.env.VITE_ENABLE_GOOGLE_AUTH,
+      );
+    }
   }, []);
 
   return null;
 };
 
 // Pages
-import { LandingPage } from "./pages/LandingPage";
+import { LandingPage } from "./pages/LandingPage/LandingPage";
 import { NotFound } from "./pages/NotFound";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
-import { Onboarding } from "./pages/Onboarding";
+import { Onboarding } from "./pages/Onboarding/Onboarding";
 import { Dashboard } from "./pages/Dashboard";
 import { Chat } from "./pages/Chat";
 import { SavedTrips } from "./pages/SavedTrips";
@@ -223,7 +225,10 @@ const App = () => {
                           </Suspense>
                         }
                       />
-                      <Route path="/debug" element={<DebugScreen />} />
+                      {/* Debug route only available in development */}
+                      {import.meta.env.DEV && (
+                        <Route path="/debug" element={<DebugScreen />} />
+                      )}
 
                       {/* Protected routes that require authentication */}
                       <Route

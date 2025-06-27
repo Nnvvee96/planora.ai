@@ -28,11 +28,11 @@ import {
   AuthService,
   AuthProviderType,
 } from "@/features/auth/authApi";
-import { useUserProfileIntegration } from "../../hooks/useUserProfileIntegration";
+import { useUserProfileAuthIntegration } from "../../hooks/useUserProfileAuthIntegration";
 // DeleteAccountDialog is lazy loaded below
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InfoIcon, AlertCircle } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 // Lazy load DeleteAccountDialog to avoid circular dependencies
 // Using dynamic import with destructuring to handle named exports
@@ -99,14 +99,14 @@ export interface SettingsDialogProps {
  * SettingsDialog - A component for managing user account settings
  * This dialog provides options for theme preferences, language selection, password change, and account deletion
  */
-const SettingsDialog: React.FC<SettingsDialogProps> = ({
+const SettingsDialog = ({
   open,
   onOpenChange,
   onDeleteAccount,
   onPasswordChange,
   onThemeChange,
   onLanguageChange,
-}) => {
+}: SettingsDialogProps) => {
   const { toast } = useToast();
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [language, setLanguage] = React.useState("english");
@@ -121,7 +121,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   const [_authInitialized, setAuthInitialized] = useState(false);
 
   // Use user profile integration hook for cross-feature operations
-  const userProfileIntegration = useUserProfileIntegration();
+  const userProfileIntegration = useUserProfileAuthIntegration();
 
   // Initialize auth service using factory function
   const [authService, setAuthService] = useState<AuthService | null>(null);
@@ -138,7 +138,9 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
 
       try {
         const provider = await authService.getAuthProvider();
-        console.log("Detected authentication provider:", provider);
+        if (import.meta.env.DEV) {
+          console.log("Detected authentication provider:", provider);
+        }
         setAuthProvider(provider);
       } catch (error) {
         console.error("Error detecting authentication provider:", error);

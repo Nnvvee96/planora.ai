@@ -18,7 +18,7 @@ import { supabaseAuthService } from "../services/supabaseAuthService";
  * Email confirmation component for handling verification links
  * Follows Planora's architecture with feature-first organization
  */
-const EmailConfirmation: React.FC = () => {
+const EmailConfirmation = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [isVerifying, setIsVerifying] = useState(true);

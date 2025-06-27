@@ -33,7 +33,7 @@ import {
   getUserProfileMenuComponent,
   UserProfile,
 } from "@/features/user-profile/userProfileApi";
-import { useUserProfileIntegration } from "@/features/user-profile/userProfileApi";
+import { useUserProfileAuthIntegration } from "@/features/user-profile/userProfileApi";
 import { BetaFeature } from "@/features/dev-tools/devToolsApi";
 import { QuickActionsWidget } from "@/features/dashboard/dashboardApi";
 import { userProfileService } from "@/features/user-profile/userProfileApi";
@@ -48,7 +48,7 @@ const Dashboard = () => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   // Use the integration hook for cross-feature communication
-  const _userProfileIntegration = useUserProfileIntegration();
+  const _userProfileIntegration = useUserProfileAuthIntegration();
 
   // Memoize the UserProfileMenu component to prevent unnecessary re-renders
   const UserProfileMenu = useMemo(() => getUserProfileMenuComponent(), []);
@@ -74,14 +74,20 @@ const Dashboard = () => {
 
       try {
         setLoading(true);
+        if (user) {
+          if (import.meta.env.DEV) {
+            if (import.meta.env.DEV) {
         console.log("Dashboard: Loading profile for user:", user.id);
-
-        // Use direct profile service call instead of integration hook to avoid auth loops
-        const profileData = await userProfileService.getUserProfile(user.id);
-
-        if (isMounted && profileData) {
-          setUserProfile(profileData);
-          console.log("Dashboard: Profile loaded successfully");
+      }
+          }
+          const profile = await userProfileService.getUserProfile(user.id);
+          
+          if (profile) {
+            if (import.meta.env.DEV) {
+              console.log("Dashboard: Profile loaded successfully");
+            }
+            setUserProfile(profile);
+          }
         }
       } catch (error) {
         console.error("Dashboard: Error loading profile:", error);
@@ -113,13 +119,15 @@ const Dashboard = () => {
     return () => {
       isMounted = false;
     };
-  }, [user?.id, user?.email, user?.firstName, user?.lastName, authLoading]); // Include all user dependencies
+  }, [user, authLoading]); // Include user object and authLoading
 
   // Session verification - simplified and only when necessary
   useEffect(() => {
     if (user || authLoading) return; // Don't run if we have user or auth is loading
 
-    console.log("Dashboard: No user found, redirecting to login");
+    if (import.meta.env.DEV) {
+      console.log("Dashboard: No user found, redirecting to login");
+    }
     navigate("/login");
   }, [user, authLoading, navigate]);
 
@@ -320,9 +328,11 @@ const Dashboard = () => {
             variant="outline"
             className="h-auto py-6 border-white/10 bg-white/5 hover:bg-white/10"
             onClick={() => {
-              console.log(
-                "Navigating to preferences from Modify Preferences button",
-              );
+              if (import.meta.env.DEV) {
+                console.log(
+                  "Navigating to preferences from Modify Preferences button",
+                );
+              }
               window.location.href = "/preferences";
             }}
           >
@@ -639,8 +649,10 @@ const Dashboard = () => {
                     className="mt-6 bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90"
                     type="button"
                     onClick={() => {
-                      console.log("Direct navigation to /preferences");
-                      window.location.href = "/preferences";
+                      if (import.meta.env.DEV) {
+                        console.log("Direct navigation to /preferences");
+                      }
+                      navigate("/preferences");
                     }}
                   >
                     Travel Preferences

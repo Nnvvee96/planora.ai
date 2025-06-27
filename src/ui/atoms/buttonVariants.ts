@@ -1,4 +1,4 @@
-import { buttonVariants as shadcnButtonVariants } from "@/components/ui/buttonVariants";
+import { buttonVariants as shadcnButtonVariants } from "@/components/ui/variants/buttonVariants";
 import { cn } from "@/lib/utils";
 import { cva } from "class-variance-authority";
 

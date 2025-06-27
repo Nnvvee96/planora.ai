@@ -23,12 +23,12 @@ export interface TravelCardsProps {
   limit?: number;
 }
 
-const TravelCards: React.FC<TravelCardsProps> = ({
+const TravelCards = ({
   customDestinations,
   onViewAllClick,
   onExploreMoreClick,
   limit,
-}) => {
+}: TravelCardsProps) => {
   const defaultDestinations = [
     {
       id: 1,

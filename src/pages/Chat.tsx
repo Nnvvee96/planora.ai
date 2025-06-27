@@ -46,7 +46,7 @@ import { useClientOnly } from "@/ui/hooks/useClientOnly";
 // Import icons
 import { MessageCircle } from "lucide-react";
 
-const Chat: React.FC = () => {
+const Chat = () => {
   // Navigation
   const navigate = useNavigate();
 

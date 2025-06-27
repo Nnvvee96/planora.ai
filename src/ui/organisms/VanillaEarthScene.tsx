@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import * as THREE from "three";
 
-const VanillaEarthScene: React.FC = () => {
+const VanillaEarthScene = () => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<{
     scene?: THREE.Scene;

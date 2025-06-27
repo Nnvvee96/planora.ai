@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import {
   Table,
   TableBody,
@@ -28,7 +28,7 @@ import { capitalize } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 // Security-related imports removed as they're not used in current implementation
 
-const PrivacySecurity: React.FC = (): React.ReactNode => {
+const PrivacySecurity = (): React.ReactNode => {
   const { user, refreshUser } = useAuth();
   const [unlinkingProvider, setUnlinkingProvider] = useState<string | null>(
     null,

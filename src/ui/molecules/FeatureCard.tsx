@@ -8,12 +8,12 @@ interface FeatureCardProps {
   className?: string;
 }
 
-const FeatureCard: React.FC<FeatureCardProps> = ({
+const FeatureCard = ({
   title,
   description,
   icon: Icon, // Rename to capital Icon to indicate it's a component
   className = "",
-}) => {
+}: FeatureCardProps) => {
   return (
     <div
       className={`bg-white/5 border border-white/10 p-6 rounded-xl shadow-lg hover:bg-white/10 transition duration-300 ${className}`}

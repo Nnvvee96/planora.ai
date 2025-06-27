@@ -74,7 +74,9 @@ export const useAuth = () => {
 
     const initializeAuth = async () => {
       try {
-        console.log("🔑 Initializing auth state...");
+        if (import.meta.env.DEV) {
+          console.log("🔑 Initializing auth state...");
+        }
 
         if (!isMounted) return;
 
@@ -89,11 +91,15 @@ export const useAuth = () => {
             const mappedUser = mapUserToAppUser(currentUser);
             setUser(mappedUser);
             setIsAuthenticated(true);
-            console.log("✅ User authenticated:", mappedUser?.email);
+            if (import.meta.env.DEV) {
+              console.log("✅ User authenticated:", mappedUser?.email);
+            }
           } else {
             setUser(null);
             setIsAuthenticated(false);
-            console.log("🚫 No authenticated user");
+            if (import.meta.env.DEV) {
+              console.log("🚫 No authenticated user");
+            }
           }
 
           setIsInitialized(true);
@@ -115,11 +121,13 @@ export const useAuth = () => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log(
-        "🔄 Auth state change:",
-        event,
-        session?.user?.email || "no user",
-      );
+      if (import.meta.env.DEV) {
+        console.log(
+          "🔄 Auth state change:",
+          event,
+          session?.user?.email || "no user",
+        );
+      }
 
       if (!isMounted) return;
 
@@ -151,7 +159,9 @@ export const useAuth = () => {
    */
   const signInWithGoogle = useCallback(async () => {
     try {
-      console.log("🔄 Starting Google sign-in...");
+      if (import.meta.env.DEV) {
+        console.log("🔄 Starting Google sign-in...");
+      }
       setLoading(true);
       setError(null);
 
@@ -170,7 +180,9 @@ export const useAuth = () => {
    */
   const logout = useCallback(async () => {
     try {
-      console.log("🔄 Signing out...");
+      if (import.meta.env.DEV) {
+        console.log("🔄 Signing out...");
+      }
       setLoading(true);
       setError(null);
 
@@ -193,7 +205,9 @@ export const useAuth = () => {
    */
   const handleAuthCallback = useCallback(async (): Promise<AuthResponse> => {
     try {
-      console.log("🔄 Processing auth callback...");
+      if (import.meta.env.DEV) {
+        console.log("🔄 Processing auth callback...");
+      }
       setLoading(true);
       setError(null);
 
@@ -204,7 +218,9 @@ export const useAuth = () => {
         throw new Error(response.error || "Authentication failed");
       }
 
-      console.log("✅ Auth callback successful:", response.registrationStatus);
+      if (import.meta.env.DEV) {
+        console.log("✅ Auth callback successful:", response.registrationStatus);
+      }
 
       // Don't manually update state here - let the auth state listener handle it
       return response;
@@ -254,7 +270,9 @@ export const useAuth = () => {
    */
   const refreshUser = useCallback(async () => {
     try {
-      console.log("🔄 Refreshing user data...");
+      if (import.meta.env.DEV) {
+        console.log("🔄 Refreshing user data...");
+      }
 
       // Refresh the session to get the latest data from Supabase Auth
       await supabaseAuthService.refreshSession();
@@ -266,12 +284,16 @@ export const useAuth = () => {
       if (refreshedUser) {
         setUser(refreshedUser);
         setIsAuthenticated(true);
-        console.log("✅ User data refreshed:", refreshedUser.email);
+        if (import.meta.env.DEV) {
+          console.log("✅ User data refreshed:", refreshedUser.email);
+        }
       } else {
         // If no user is found after refresh, treat as logged out
         setUser(null);
         setIsAuthenticated(false);
-        console.log("🚫 No user found after refresh");
+        if (import.meta.env.DEV) {
+          console.log("🚫 No user found after refresh");
+        }
       }
     } catch (err) {
       console.error("❌ Error refreshing user data:", err);

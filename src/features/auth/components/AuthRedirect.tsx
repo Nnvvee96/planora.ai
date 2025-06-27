@@ -14,11 +14,11 @@ interface AuthRedirectProps {
   delay?: number; // Delay in milliseconds before redirecting
 }
 
-export const AuthRedirect: React.FC<AuthRedirectProps> = ({
+export const AuthRedirect = ({
   message = "Signing you in...",
   redirectTo,
   delay = 1500, // Default 1.5 seconds
-}) => {
+}: AuthRedirectProps) => {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {

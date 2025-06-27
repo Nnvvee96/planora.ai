@@ -14,7 +14,7 @@ import { userProfileService } from "@/features/user-profile/userProfileApi";
  * Debug screen component for diagnosing production issues
  * Shows environment, Supabase connection, and authentication status
  */
-export const DebugScreen: React.FC = () => {
+export const DebugScreen = () => {
   const [supabaseUrl, setSupabaseUrl] = useState<string>("");
   const [connectionStatus, setConnectionStatus] =
     useState<string>("Checking...");
@@ -66,10 +66,13 @@ export const DebugScreen: React.FC = () => {
     try {
       // Use auth service through proper API boundary
       const authService = getAuthService();
-      const { session, error } = await authService.refreshSession();
-      console.log("Auth session test:", session);
+      await authService.refreshSession();
+      const user = await authService.getCurrentUser();
+      if (import.meta.env.DEV) {
+      console.log("Auth session test - current user:", user);
+    }
       alert(
-        `Auth session test: ${error ? "Error: " + error.message : "Success - check console for details"}`,
+        `Auth session test: ${user ? "Success - User found" : "No user session"}`,
       );
     } catch (err) {
       console.error("Auth test error:", err);

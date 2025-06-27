@@ -18,11 +18,11 @@ interface TravelAvatarProps {
   size?: "sm" | "md" | "lg";
 }
 
-export const TravelAvatar: React.FC<TravelAvatarProps> = ({
+export const TravelAvatar = ({
   userName,
   className,
   size = "md",
-}) => {
+}: TravelAvatarProps) => {
   // Use a hash of the username to consistently pick the same icon for the same user
   const getHashCode = (str: string) => {
     let hash = 0;

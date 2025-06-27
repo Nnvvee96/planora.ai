@@ -16,11 +16,11 @@ interface ChatInputProps {
   autoFocus?: boolean;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({
+export const ChatInput = ({
   onSendMessage,
   disabled = false,
   autoFocus = true,
-}) => {
+}: ChatInputProps) => {
   const [inputMessage, setInputMessage] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 

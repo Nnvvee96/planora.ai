@@ -13,14 +13,14 @@ interface LogoProps {
   noLink?: boolean; // When true, renders without Link wrapper to avoid nested anchors
 }
 
-const Logo: React.FC<LogoProps> = ({
+const Logo = ({
   className = "",
   href,
   size = "md",
   variant = "full",
   isAuthenticated = false,
   noLink = false,
-}) => {
+}: LogoProps) => {
   // Determine correct href based on auth state and explicit props
   // Always prioritize explicit href if provided
   const getDestination = () => {

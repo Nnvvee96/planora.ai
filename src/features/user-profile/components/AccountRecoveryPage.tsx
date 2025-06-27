@@ -17,7 +17,7 @@ import { userProfileService } from "../services/userProfileService";
  * This component processes recovery tokens from email links and allows
  * users to recover their accounts during the 30-day deletion period.
  */
-const AccountRecoveryPage: React.FC = () => {
+const AccountRecoveryPage = () => {
   const [isProcessing, setIsProcessing] = useState(true);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
