@@ -4,27 +4,28 @@
  * Second step of onboarding - budget flexibility selection
  */
 
-import React from "react";
-import {
-  FormField,
-  FormItem,
-  FormControl,
-} from "@/components/ui/form";
-import { Slider } from "@/components/ui/slider";
-import { OnboardingStepProps } from "../../types/onboardingTypes";
+import React from 'react';
+import { FormField, FormItem, FormControl } from '@/components/ui/form';
+import { Slider } from '@/components/ui/slider';
+import { Control } from 'react-hook-form';
 
-export const BudgetToleranceStep = ({ form }: OnboardingStepProps) => {
-  const formatBudgetTolerance = (value: number) => `±${value}%`;
+interface BudgetToleranceStepProps {
+  control: Control<any>;
+  formatBudgetTolerance: (value: number) => string;
+}
 
+const BudgetToleranceStep = ({ control, formatBudgetTolerance }: BudgetToleranceStepProps) => {
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-medium">How flexible is your budget?</h3>
+      <h3 className="text-lg font-medium">
+        How flexible is your budget?
+      </h3>
       <p className="text-sm text-white/60">
         Select your tolerance for price variations.
       </p>
 
       <FormField
-        control={form.control}
+        control={control}
         name="budgetTolerance"
         render={({ field }) => (
           <FormItem className="pt-8">
@@ -35,7 +36,9 @@ export const BudgetToleranceStep = ({ form }: OnboardingStepProps) => {
                   max={25}
                   step={5}
                   value={[field.value]}
-                  onValueChange={(values) => field.onChange(values[0])}
+                  onValueChange={(values) =>
+                    field.onChange(values[0])
+                  }
                   className="w-full"
                 />
                 <div className="text-center">
@@ -54,4 +57,6 @@ export const BudgetToleranceStep = ({ form }: OnboardingStepProps) => {
       />
     </div>
   );
-}; 
+};
+
+export { BudgetToleranceStep }; 

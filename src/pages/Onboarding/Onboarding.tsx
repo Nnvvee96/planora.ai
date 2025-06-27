@@ -63,6 +63,10 @@ import { userProfileService } from "@/features/user-profile/userProfileApi";
 import { travelPreferencesService } from "@/features/travel-preferences/travelPreferencesApi";
 // import { supabase } from '@/lib/supabase/client'; // Use services instead
 
+// Import step components
+import { BudgetRangeStep } from "./components/steps/BudgetRangeStep";
+import { BudgetToleranceStep } from "./components/steps/BudgetToleranceStep";
+
 // Raw Supabase user interface for direct metadata access
 interface SupabaseRawUser {
   id: string;
@@ -785,142 +789,18 @@ const Onboarding = () => {
             <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
               {/* Step 1: Budget Range Selection */}
               {step === 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">
-                    What's your budget range?
-                  </h3>
-                  <p className="text-sm text-white/60">
-                    We'll use this to recommend suitable options.
-                  </p>
-
-                  <FormField
-                    control={form.control}
-                    name="budgetRange"
-                    render={({ field }) => (
-                      <FormItem className="pt-4">
-                        <div className="space-y-8">
-                          {/* Category buttons */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                field.onChange({ min: 500, max: 1000 })
-                              }
-                              className={`p-4 border rounded-lg text-center ${
-                                field.value.min === 500 &&
-                                field.value.max === 1000
-                                  ? "border-planora-accent-purple bg-planora-accent-purple/20 text-white"
-                                  : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
-                              }`}
-                            >
-                              <div className="font-bold">Budget</div>
-                              <div className="text-sm mt-1">€500 - €1000</div>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                field.onChange({ min: 1000, max: 2000 })
-                              }
-                              className={`p-4 border rounded-lg text-center ${
-                                field.value.min === 1000 &&
-                                field.value.max === 2000
-                                  ? "border-planora-accent-purple bg-planora-accent-purple/20 text-white"
-                                  : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
-                              }`}
-                            >
-                              <div className="font-bold">Standard</div>
-                              <div className="text-sm mt-1">€1000 - €2000</div>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                field.onChange({ min: 2000, max: 3500 })
-                              }
-                              className={`p-4 border rounded-lg text-center ${
-                                field.value.min === 2000 &&
-                                field.value.max === 3500
-                                  ? "border-planora-accent-purple bg-planora-accent-purple/20 text-white"
-                                  : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
-                              }`}
-                            >
-                              <div className="font-bold">Premium</div>
-                              <div className="text-sm mt-1">€2000 - €3500</div>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                field.onChange({ min: 3500, max: 10000 })
-                              }
-                              className={`p-4 border rounded-lg text-center ${
-                                field.value.min === 3500 &&
-                                field.value.max === 10000
-                                  ? "border-planora-accent-purple bg-planora-accent-purple/20 text-white"
-                                  : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
-                              }`}
-                            >
-                              <div className="font-bold">Luxury</div>
-                              <div className="text-sm mt-1">€3500+</div>
-                            </button>
-                          </div>
-
-                          {/* Current selection indicator */}
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-planora-accent-purple">
-                              {formatBudgetRange(
-                                field.value.min,
-                                field.value.max,
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                <BudgetRangeStep 
+                  control={form.control} 
+                  formatBudgetRange={formatBudgetRange} 
+                />
               )}
 
               {/* Step 2: Budget Tolerance */}
               {step === 1 && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">
-                    How flexible is your budget?
-                  </h3>
-                  <p className="text-sm text-white/60">
-                    Select your tolerance for price variations.
-                  </p>
-
-                  <FormField
-                    control={form.control}
-                    name="budgetTolerance"
-                    render={({ field }) => (
-                      <FormItem className="pt-8">
-                        <FormControl>
-                          <div className="space-y-6">
-                            <Slider
-                              min={0}
-                              max={25}
-                              step={5}
-                              value={[field.value]}
-                              onValueChange={(values) =>
-                                field.onChange(values[0])
-                              }
-                              className="w-full"
-                            />
-                            <div className="text-center">
-                              <div className="text-2xl font-bold text-planora-accent-purple">
-                                {formatBudgetTolerance(field.value)}
-                              </div>
-                              <div className="flex justify-between text-xs text-white/60 mt-2">
-                                <span>Fixed Budget</span>
-                                <span>Very Flexible</span>
-                              </div>
-                            </div>
-                          </div>
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                <BudgetToleranceStep 
+                  control={form.control} 
+                  formatBudgetTolerance={formatBudgetTolerance} 
+                />
               )}
 
               {/* Step 3: Travel Duration & Date Flexibility */}

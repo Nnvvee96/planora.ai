@@ -9,20 +9,25 @@ import {
   FormField,
   FormItem,
 } from "@/components/ui/form";
-import { OnboardingStepProps } from "../../types/onboardingTypes";
+import { Control } from 'react-hook-form';
 
-export const BudgetRangeStep = ({ form }: OnboardingStepProps) => {
-  const formatBudgetRange = (min: number, max: number) => `€${min} - €${max}`;
+interface BudgetRangeStepProps {
+  control: Control<any>;
+  formatBudgetRange: (min: number, max: number) => string;
+}
 
+const BudgetRangeStep = ({ control, formatBudgetRange }: BudgetRangeStepProps) => {
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-medium">What's your budget range?</h3>
+      <h3 className="text-lg font-medium">
+        What's your budget range?
+      </h3>
       <p className="text-sm text-white/60">
         We'll use this to recommend suitable options.
       </p>
 
       <FormField
-        control={form.control}
+        control={control}
         name="budgetRange"
         render={({ field }) => (
           <FormItem className="pt-4">
@@ -31,9 +36,12 @@ export const BudgetRangeStep = ({ form }: OnboardingStepProps) => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <button
                   type="button"
-                  onClick={() => field.onChange({ min: 500, max: 1000 })}
+                  onClick={() =>
+                    field.onChange({ min: 500, max: 1000 })
+                  }
                   className={`p-4 border rounded-lg text-center ${
-                    field.value.min === 500 && field.value.max === 1000
+                    field.value.min === 500 &&
+                    field.value.max === 1000
                       ? "border-planora-accent-purple bg-planora-accent-purple/20 text-white"
                       : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
                   }`}
@@ -43,9 +51,12 @@ export const BudgetRangeStep = ({ form }: OnboardingStepProps) => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => field.onChange({ min: 1000, max: 2000 })}
+                  onClick={() =>
+                    field.onChange({ min: 1000, max: 2000 })
+                  }
                   className={`p-4 border rounded-lg text-center ${
-                    field.value.min === 1000 && field.value.max === 2000
+                    field.value.min === 1000 &&
+                    field.value.max === 2000
                       ? "border-planora-accent-purple bg-planora-accent-purple/20 text-white"
                       : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
                   }`}
@@ -55,9 +66,12 @@ export const BudgetRangeStep = ({ form }: OnboardingStepProps) => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => field.onChange({ min: 2000, max: 3500 })}
+                  onClick={() =>
+                    field.onChange({ min: 2000, max: 3500 })
+                  }
                   className={`p-4 border rounded-lg text-center ${
-                    field.value.min === 2000 && field.value.max === 3500
+                    field.value.min === 2000 &&
+                    field.value.max === 3500
                       ? "border-planora-accent-purple bg-planora-accent-purple/20 text-white"
                       : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
                   }`}
@@ -67,9 +81,12 @@ export const BudgetRangeStep = ({ form }: OnboardingStepProps) => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => field.onChange({ min: 3500, max: 10000 })}
+                  onClick={() =>
+                    field.onChange({ min: 3500, max: 10000 })
+                  }
                   className={`p-4 border rounded-lg text-center ${
-                    field.value.min === 3500 && field.value.max === 10000
+                    field.value.min === 3500 &&
+                    field.value.max === 10000
                       ? "border-planora-accent-purple bg-planora-accent-purple/20 text-white"
                       : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
                   }`}
@@ -82,7 +99,10 @@ export const BudgetRangeStep = ({ form }: OnboardingStepProps) => {
               {/* Current selection indicator */}
               <div className="text-center">
                 <div className="text-2xl font-bold text-planora-accent-purple">
-                  {formatBudgetRange(field.value.min, field.value.max)}
+                  {formatBudgetRange(
+                    field.value.min,
+                    field.value.max,
+                  )}
                 </div>
               </div>
             </div>
@@ -91,4 +111,6 @@ export const BudgetRangeStep = ({ form }: OnboardingStepProps) => {
       />
     </div>
   );
-}; 
+};
+
+export { BudgetRangeStep }; 
