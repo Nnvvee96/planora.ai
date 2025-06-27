@@ -25,7 +25,7 @@ import {
   Mail,
 } from "lucide-react";
 import { Button } from "@/ui/atoms/Button";
-import { ReviewCard, ReviewCardProps } from "@/ui/organisms/ReviewCard";
+import { ReviewCard } from "@/ui/organisms/ReviewCard";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
 import { VanillaEarthScene } from "@/ui/organisms/VanillaEarthScene";
@@ -34,71 +34,10 @@ import { VanillaEarthScene } from "@/ui/organisms/VanillaEarthScene";
 import "swiper/css";
 import { Input } from "@/ui/atoms/Input";
 
-// Define a type for the review data including id, extending ReviewCardProps
-interface ReviewData extends ReviewCardProps {
-  id: string;
-}
-
-const mockReviews: ReviewData[] = [
-  {
-    id: "1",
-    authorName: "Sarah L.",
-    authorAvatarUrl: "https://randomuser.me/api/portraits/women/68.jpg",
-    rating: 5,
-    reviewText:
-      "Planora made my Euro trip planning a breeze! I discovered so many hidden gems I wouldn't have found otherwise. The itinerary was perfectly paced.",
-    date: "June 2024",
-    source: "Planora App",
-  },
-  {
-    id: "2",
-    authorName: "Mike P.",
-    authorAvatarUrl: "https://randomuser.me/api/portraits/men/32.jpg",
-    rating: 4,
-    reviewText:
-      "Really intuitive and helpful for organizing complex trips. Saved me hours of research. The collaboration feature is a plus for group travel!",
-    date: "May 2024",
-    source: "Google Play",
-  },
-  {
-    id: "3",
-    authorName: "Jessica Chen",
-    rating: 5,
-    reviewText:
-      "I used to dread planning vacations, but Planora actually made it fun! The AI suggestions were spot on. Highly recommend this app.",
-    date: "May 2024",
-    source: "App Store",
-  },
-  {
-    id: "4",
-    authorName: "David K.",
-    authorAvatarUrl: "https://randomuser.me/api/portraits/men/45.jpg",
-    rating: 4,
-    reviewText:
-      "A solid travel planner with a sleek interface. The offline maps were a lifesaver during my trip. Would love to see more direct booking integrations.",
-    date: "April 2024",
-    source: "Planora App",
-  },
-  {
-    id: "5",
-    authorName: "Emily R.",
-    authorAvatarUrl: "https://randomuser.me/api/portraits/women/44.jpg",
-    rating: 5,
-    reviewText:
-      "Absolutely essential for anyone who loves to travel but hates the hassle of planning. My go-to app for all my adventures now!",
-    date: "April 2024",
-    source: "Google Play",
-  },
-  {
-    id: "6",
-    authorName: "Tom B.",
-    rating: 4,
-    reviewText:
-      "Great for discovering new destinations and activities. The budget tracker is also a nice touch. Overall, a very useful tool for travelers.",
-    date: "March 2024",
-    source: "App Store",
-  },
-];
+// Import data from extracted files
+import { mockReviews } from "./data/mockReviews";
+import { pricingTiers } from "./data/pricingTiers";
+import { faqItems } from "./data/faqItems";
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -109,87 +48,6 @@ const LandingPage = () => {
   const handleChatWithPlanora = () => {
     navigate("/register");
   };
-
-  // Pricing tiers
-  const pricingTiers = [
-    {
-      name: "Basic",
-      price: "Free",
-      description: "Perfect for casual travelers",
-      features: [
-        "AI-powered trip suggestions",
-        "Basic itinerary planning",
-        "Limited conversation history",
-        "Email support",
-      ],
-      limitations: [
-        "Limited to 3 trips per month",
-        "No group planning features",
-        "Basic recommendations only",
-      ],
-      highlighted: false,
-    },
-    {
-      name: "Explorer",
-      price: "$9.99",
-      period: "per month",
-      description: "For frequent travelers",
-      features: [
-        "Unlimited trip planning",
-        "Advanced destination insights",
-        "Extended conversation history",
-        "Group trip coordination",
-        "Priority support",
-      ],
-      limitations: [],
-      highlighted: true,
-    },
-    {
-      name: "Voyager",
-      price: "$19.99",
-      period: "per month",
-      description: "For travel enthusiasts",
-      features: [
-        "All Explorer features",
-        "Premium destination insights",
-        "Unlimited conversation history",
-        "Advanced group coordination",
-        "Concierge support",
-        "Custom travel persona",
-      ],
-      limitations: [],
-      highlighted: false,
-    },
-  ];
-
-  // FAQ items
-  const faqItems = [
-    {
-      question: "How does Planora.ai work?",
-      answer:
-        "Planora.ai uses advanced AI to understand your travel preferences through natural conversation. It then searches and filters through thousands of options to create personalized recommendations tailored to your needs, preferences, and budget.",
-    },
-    {
-      question: "Is my personal information secure?",
-      answer:
-        "Yes, we take data security seriously. All your personal information is encrypted and stored securely. We never share your data with third parties without your explicit consent.",
-    },
-    {
-      question: "Can I use Planora.ai for group trips?",
-      answer:
-        "Absolutely! Planora.ai excels at coordinating group trips. It can harmonize different preferences, budgets, and availability to create travel plans that work for everyone in your group.",
-    },
-    {
-      question: "How accurate are the travel recommendations?",
-      answer:
-        "Planora.ai sources real-time data from trusted travel partners to ensure accurate and up-to-date recommendations. Our AI continuously improves based on user feedback and travel trends.",
-    },
-    {
-      question: "Can I book trips directly through Planora.ai?",
-      answer:
-        "Currently, Planora.ai provides recommendations and planning assistance. For bookings, we connect you directly to our trusted travel partners where you can complete your reservation.",
-    },
-  ];
 
   return (
     <div className="relative min-h-screen bg-planora-purple-dark flex flex-col overflow-hidden">
