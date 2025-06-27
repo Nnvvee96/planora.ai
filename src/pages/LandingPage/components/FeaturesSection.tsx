@@ -14,7 +14,7 @@ import {
   Users,
 } from "lucide-react";
 
-export const FeaturesSection = () => {
+export const FeaturesSection: React.FC = () => {
   return (
     <section
       id="features"
