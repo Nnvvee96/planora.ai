@@ -8,6 +8,12 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    hmr: {
+      overlay: false,
+    },
+    warmup: {
+      clientFiles: ['./src/main.tsx', './src/App.tsx'],
+    },
   },
   plugins: [
     react(),
@@ -71,8 +77,11 @@ export default defineConfig(({ mode }) => ({
       'react-dom', 
       'react-router-dom',
       '@supabase/supabase-js',
-      '@radix-ui/react-toast'
+      '@radix-ui/react-toast',
+      'react-hook-form',
+      'lucide-react'
     ],
-    // Let Vite handle all dependencies naturally
+    // Force re-optimization on config changes
+    force: mode === 'development',
   },
 }));

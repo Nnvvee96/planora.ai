@@ -40,7 +40,7 @@ const Logo = ({
       return "/dashboard";
     } catch {
       // If there's any error accessing auth state, default to landing page
-      console.warn(
+      if (import.meta.env.DEV) console.warn(
         "Auth state error in Logo component, defaulting to landing page",
       );
       return "/";

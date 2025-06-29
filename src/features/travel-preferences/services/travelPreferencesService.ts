@@ -85,13 +85,18 @@ const mapDbToTravelPreferences = (
           safeEnumCast(c, ComfortPreference, defaultComfortPreference),
         )
       : [defaultComfortPreference],
+    comfortLevel: (dbData.comfort_level as 'budget' | 'standard' | 'premium' | 'luxury') || 'standard',
     locationPreference: safeEnumCast(
       dbData.location_preference,
       LocationPreference,
       defaultLocationPreference,
     ),
+    cityDistancePreference: dbData.city_distance_preference 
+      ? (dbData.city_distance_preference as 'very-close' | 'up-to-5km' | 'up-to-10km' | 'more-than-10km')
+      : undefined,
     flightType: safeEnumCast(dbData.flight_type, FlightType, defaultFlightType),
     preferCheaperWithStopover: Boolean(dbData.prefer_cheaper_with_stopover),
+    priceVsConvenience: (dbData.price_vs_convenience as 'price' | 'balanced' | 'convenience') || 'balanced',
     departureCity: String(dbData.departure_city || ""),
     departureCountry: String(dbData.departure_country || ""),
     createdAt: dbData.created_at ? String(dbData.created_at) : undefined,
@@ -128,11 +133,17 @@ const mapToDbTravelPreferences = (
     dbData.accommodation_types = prefs.accommodationTypes;
   if (prefs.accommodationComfort !== undefined)
     dbData.accommodation_comfort = prefs.accommodationComfort;
+  if (prefs.comfortLevel !== undefined)
+    dbData.comfort_level = prefs.comfortLevel;
   if (prefs.locationPreference !== undefined)
     dbData.location_preference = prefs.locationPreference;
+  if (prefs.cityDistancePreference !== undefined)
+    dbData.city_distance_preference = prefs.cityDistancePreference;
   if (prefs.flightType !== undefined) dbData.flight_type = prefs.flightType;
   if (prefs.preferCheaperWithStopover !== undefined)
     dbData.prefer_cheaper_with_stopover = prefs.preferCheaperWithStopover;
+  if (prefs.priceVsConvenience !== undefined)
+    dbData.price_vs_convenience = prefs.priceVsConvenience;
   if (prefs.departureCity !== undefined)
     dbData.departure_city = prefs.departureCity;
   if (prefs.departureCountry !== undefined)

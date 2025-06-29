@@ -29,7 +29,6 @@ import { useEffect } from "react";
 // Import dev tools
 import {
   getTestModeIndicatorComponent,
-  BetaFeature,
 } from "@/features/dev-tools/devToolsApi";
 import { ScrollToTop } from "./utils/ScrollToTop"; // Adjusted import path
 
@@ -37,12 +36,12 @@ import { ScrollToTop } from "./utils/ScrollToTop"; // Adjusted import path
 const DebugComponent = () => {
   useEffect(() => {
     if (import.meta.env.DEV) {
-      console.log("Environment variables check:");
-      console.log(
+      if (import.meta.env.DEV) console.log("Environment variables check:");
+      if (import.meta.env.DEV) console.log(
         "VITE_SUPABASE_URL exists:",
         !!import.meta.env.VITE_SUPABASE_URL,
       );
-      console.log(
+      if (import.meta.env.DEV) console.log(
         "VITE_ENABLE_GOOGLE_AUTH:",
         import.meta.env.VITE_ENABLE_GOOGLE_AUTH,
       );
@@ -69,7 +68,6 @@ import { SupportPage } from "./pages/SupportPage";
 import { ReviewsPage } from "./pages/ReviewsPage";
 import { DebugScreen } from "./pages/DebugScreen";
 import { AccountRecoveryPage } from "./features/user-profile/components/AccountRecoveryPage";
-import { AdminPage } from "./pages/Admin/AdminPage";
 
 const queryClient = new QueryClient();
 
@@ -112,11 +110,6 @@ const App = () => {
                     <Sonner />
                     <DebugComponent />
                     <TestModeIndicator />
-                    <BetaFeature>
-                      <div className="fixed bottom-4 right-28 bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full z-50">
-                        BETA TESTER
-                      </div>
-                    </BetaFeature>
                     <Routes>
                       {/* Public routes - with authentication check for root path */}
                       <Route
@@ -232,22 +225,6 @@ const App = () => {
 
                       {/* Protected routes that require authentication */}
                       <Route
-                        path="/admin"
-                        element={
-                          <Suspense
-                            fallback={
-                              <div className="flex items-center justify-center h-screen">
-                                Loading Admin Dashboard...
-                              </div>
-                            }
-                          >
-                            <ProtectedRoute>
-                              <AdminPage />
-                            </ProtectedRoute>
-                          </Suspense>
-                        }
-                      />
-                      <Route
                         path="/onboarding"
                         element={
                           <Suspense
@@ -273,7 +250,7 @@ const App = () => {
                               </div>
                             }
                           >
-                            <ProtectedRoute>
+                            <ProtectedRoute requireOnboarding={true}>
                               <TravelPreferencesPage />
                             </ProtectedRoute>
                           </Suspense>
@@ -289,7 +266,7 @@ const App = () => {
                               </div>
                             }
                           >
-                            <ProtectedRoute>
+                            <ProtectedRoute requireOnboarding={true}>
                               <Dashboard />
                             </ProtectedRoute>
                           </Suspense>
@@ -305,7 +282,7 @@ const App = () => {
                               </div>
                             }
                           >
-                            <ProtectedRoute>
+                            <ProtectedRoute requireOnboarding={true}>
                               <Chat />
                             </ProtectedRoute>
                           </Suspense>
@@ -321,7 +298,7 @@ const App = () => {
                               </div>
                             }
                           >
-                            <ProtectedRoute>
+                            <ProtectedRoute requireOnboarding={true}>
                               <Dashboard />
                             </ProtectedRoute>
                           </Suspense>
@@ -337,7 +314,7 @@ const App = () => {
                               </div>
                             }
                           >
-                            <ProtectedRoute>
+                            <ProtectedRoute requireOnboarding={true}>
                               <SavedTrips />
                             </ProtectedRoute>
                           </Suspense>
@@ -353,7 +330,7 @@ const App = () => {
                               </div>
                             }
                           >
-                            <ProtectedRoute>
+                            <ProtectedRoute requireOnboarding={true}>
                               <Billing />
                             </ProtectedRoute>
                           </Suspense>
@@ -369,7 +346,7 @@ const App = () => {
                               </div>
                             }
                           >
-                            <ProtectedRoute>
+                            <ProtectedRoute requireOnboarding={true}>
                               <Dashboard />
                             </ProtectedRoute>
                           </Suspense>
@@ -385,7 +362,7 @@ const App = () => {
                               </div>
                             }
                           >
-                            <ProtectedRoute>
+                            <ProtectedRoute requireOnboarding={true}>
                               <Notifications />
                             </ProtectedRoute>
                           </Suspense>
@@ -401,7 +378,7 @@ const App = () => {
                               </div>
                             }
                           >
-                            <ProtectedRoute>
+                            <ProtectedRoute requireOnboarding={true}>
                               <PrivacySecurity />
                             </ProtectedRoute>
                           </Suspense>

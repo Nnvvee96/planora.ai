@@ -1,7 +1,8 @@
 /**
  * Dev Tools API
  *
- * Public API for development tools functionality.
+ * Public API for development tools and debugging functionality.
+ * Exports services, types, and utilities for development.
  * Following Planora's architectural principles with feature-first organization.
  */
 
@@ -30,5 +31,3 @@ export const isInTestMode = (): boolean => {
 
 // Re-export types
 export type { TestModeIndicatorProps };
-
-export { BetaFeature } from "./components/BetaFeature";

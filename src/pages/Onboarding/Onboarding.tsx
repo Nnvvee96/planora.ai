@@ -10,63 +10,33 @@ import {
 } from "@/ui/atoms/Card";
 import {
   Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
 } from "@/components/ui/form";
-import { Slider } from "@/components/ui/slider";
-import { Input } from "@/ui/atoms/Input";
 import { Logo } from "@/ui/atoms/Logo";
 import { useForm } from "react-hook-form";
-import { GradientButton } from "@/ui/atoms/GradientButton";
-import {
-  Plane,
-  Hotel,
-  Building,
-  Tent,
-  Palmtree,
-  Clock,
-  Map,
-  Compass,
-  Check,
-  MapPin,
-} from "lucide-react";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Progress } from "@/components/ui/progress";
-import { Select } from "@/components/ui/select";
-import { toast } from "@/hooks/use-toast";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Check as _Check } from "lucide-react";
+import { RadioGroupItem as _RadioGroupItem } from "@/components/ui/radio-group";
+import { useToast } from "@/hooks/use-toast";
 import { X } from "lucide-react";
-import {
-  saveTravelPreferences,
-  updateOnboardingStatus,
-  TravelDurationType,
-  DateFlexibilityType,
-  PlanningIntent,
-  AccommodationType,
-  ComfortPreference,
-  LocationPreference,
-  FlightType,
-} from "@/features/travel-preferences/travelPreferencesApi";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useAuth } from "@/features/auth/authApi";
-// Import location data for country-city selection
-import {
-  countryOptions,
-  getCityOptions,
-  isCustomCityNeeded,
-  CityOption,
-} from "@/features/location-data/locationDataApi";
-// Import feature APIs following architectural principles
-import { userProfileService } from "@/features/user-profile/userProfileApi";
-import { travelPreferencesService } from "@/features/travel-preferences/travelPreferencesApi";
-// import { supabase } from '@/lib/supabase/client'; // Use services instead
+import { OnboardingFormData, onboardingSchema } from "./types/onboardingTypes";
 
 // Import step components
 import { BudgetRangeStep } from "./components/steps/BudgetRangeStep";
 import { BudgetToleranceStep } from "./components/steps/BudgetToleranceStep";
 import { TravelDurationStep } from "./components/steps/TravelDurationStep";
+import { PlanningIntentStep } from "./components/steps/PlanningIntentStep";
+import { AccommodationTypesStep } from "./components/steps/AccommodationTypesStep";
+import { AccommodationPreferencesStep } from "./components/steps/AccommodationPreferencesStep";
+import { LocationPreferencesStep } from "./components/steps/LocationPreferencesStep";
+import { FlightPreferencesStep } from "./components/steps/FlightPreferencesStep";
+
+// Import services
+import { useAuth } from "@/features/auth/authApi";
+import { userProfileService } from "@/features/user-profile/userProfileApi";
+import { travelPreferencesService, TravelDurationType } from "@/features/travel-preferences/travelPreferencesApi";
+
+// Import location data
+import { countryOptions, getCityOptions, isCustomCityNeeded, CityOption } from "@/features/location-data/locationDataApi";
 
 // Raw Supabase user interface for direct metadata access
 interface SupabaseRawUser {
@@ -81,55 +51,54 @@ interface SupabaseRawUser {
   };
 }
 
-interface OnboardingFormData {
-  departureCountry: string;
-  departureCity: string;
-  customDepartureCity?: string;
-  budgetRange: { min: number; max: number };
-  budgetTolerance: number;
-  travelDuration: string;
-  dateFlexibility: string | null;
-  customDateFlexibility?: string;
-  planningIntent: string;
-  accommodationTypes: string[];
-  accommodationComfort: string[];
-  locationPreference: string;
-  flightType: string;
-  preferCheaperWithStopover: boolean;
-}
-
 const Onboarding = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  // Use the auth hook directly instead of managing authService state
-  // Get auth data from the useAuth hook
-  // Note: The user from useAuth might be a raw Supabase user with user_metadata
+  const { toast } = useToast();
   const { user, loading: _authLoading, authService } = useAuth();
-
+  const [loading, setLoading] = useState(false);
+  
   const isModifyingPreferences = location.state?.fromDashboard === true;
-  const [step, setStep] = useState(0);
-  const [_loading, setLoading] = useState(false);
+  
+  // Initialize step from localStorage or default to 0
+  const [step, setStep] = useState(() => {
+    try {
+      const savedStep = localStorage.getItem('onboardingStep');
+      return savedStep ? parseInt(savedStep, 10) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  // Persist step to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('onboardingStep', step.toString());
+  }, [step]);
 
   // State for city selection
   const [cityOptions, setCityOptions] = useState<CityOption[]>([]);
   const [showCustomCityInput, setShowCustomCityInput] = useState(false);
 
   const form = useForm<OnboardingFormData>({
+    resolver: zodResolver(onboardingSchema),
     defaultValues: {
-      departureCountry: "", // Will be filled from user metadata if available
-      departureCity: "", // Will be filled from user metadata if available
+      departureCountry: "",
+      departureCity: "",
       customDepartureCity: "",
-      budgetRange: { min: 1000, max: 2000 },
-      budgetTolerance: 10,
-      travelDuration: "week", // Set a default value to avoid validation errors
+      budgetRange: { min: 500, max: 2000 },
+      budgetTolerance: 20,
+      travelDuration: "week",
       dateFlexibility: "flexible-few",
       customDateFlexibility: "",
-      planningIntent: "exploring", // Set a default value to avoid validation errors
-      accommodationTypes: ["hotel"], // Set a default value to avoid validation errors
-      accommodationComfort: ["private-room", "private-bathroom"], // Pre-select common comfort preferences
+      planningIntent: "exploring",
+      accommodationTypes: [],
+      accommodationComfort: [],
+      comfortLevel: "standard",
       locationPreference: "anywhere",
+      cityDistancePreference: "",
       flightType: "direct",
-      preferCheaperWithStopover: true,
+      priceConvenience: "convenience",
+      preferCheaperWithStopover: false,
     },
   });
 
@@ -171,7 +140,7 @@ const Onboarding = () => {
     }
   }, [selectedCity, form]);
 
-  const totalSteps = 7;
+  const totalSteps = 9; // Updated to 9 steps to include Location Preferences
 
   // Watch the travel duration and date flexibility to manage their relationship
   const [travelDuration, dateFlexibility] = form.watch([
@@ -181,15 +150,12 @@ const Onboarding = () => {
 
   // Effect to handle the relationship between travel duration and date flexibility
   useEffect(() => {
-    if (travelDuration === "longer") {
-      // Clear date flexibility when 'longer' is selected
-      form.setValue("dateFlexibility", null);
-      form.setValue("customDateFlexibility", "");
-    } else if (!dateFlexibility || dateFlexibility === "") {
-      // Set default date flexibility if not set
+    // Only set default date flexibility when travel duration is first selected AND no date flexibility is set yet
+    // This prevents interference with user selections
+    if (travelDuration && !dateFlexibility) {
       form.setValue("dateFlexibility", "flexible-few");
     }
-  }, [travelDuration, dateFlexibility, form]);
+  }, [travelDuration, dateFlexibility, form]); // Added missing dependencies
 
   // Load user data when component mounts
   useEffect(() => {
@@ -201,7 +167,7 @@ const Onboarding = () => {
           const userData = await authService.getCurrentUser();
 
           if (!userData) {
-            console.error("Error fetching user data");
+            if (import.meta.env.DEV) console.error("Error fetching user data");
             return;
           }
 
@@ -249,12 +215,56 @@ const Onboarding = () => {
           }
         }
       } catch (error) {
-        console.error("Error loading user data:", error);
+        if (import.meta.env.DEV) console.error("Error loading user data:", error);
       }
     };
 
     loadUserData();
   }, [form, user, authService]); // Updated dependency to include authService
+
+  // Load persisted form data on mount
+  useEffect(() => {
+    try {
+      const savedFormData = localStorage.getItem('onboardingFormData');
+      if (savedFormData) {
+        const parsedData = JSON.parse(savedFormData);
+        // Restore form values but skip null/empty values that would break selections
+        Object.keys(parsedData).forEach(key => {
+          const value = parsedData[key];
+          // Only restore non-null, non-empty values, and skip restoring null dateFlexibility or empty planningIntent
+          if (value !== undefined && value !== null && value !== "" && 
+              !(key === 'dateFlexibility' && value === null) &&
+              !(key === 'planningIntent' && value === "")) {
+            form.setValue(key as keyof OnboardingFormData, value);
+          }
+        });
+      }
+    } catch (error) {
+      console.warn('Could not restore form data:', error);
+    }
+  }, [form]);
+
+  // Persist form data to localStorage whenever form changes
+  useEffect(() => {
+    const subscription = form.watch((formData) => {
+      try {
+        localStorage.setItem('onboardingFormData', JSON.stringify(formData));
+      } catch (error) {
+        if (import.meta.env.DEV) console.warn('Could not save form data:', error);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  // Clear onboarding persistence when completed
+  const clearOnboardingProgress = () => {
+    try {
+      localStorage.removeItem('onboardingStep');
+      localStorage.removeItem('onboardingFormData');
+    } catch (error) {
+      console.warn('Could not clear onboarding progress:', error);
+    }
+  };
 
   const validateCurrentStep = () => {
     // Step 1: Budget range (no validation needed)
@@ -268,10 +278,22 @@ const Onboarding = () => {
     // Step 3: Travel duration and date flexibility
     else if (step === 2) {
       const travelDuration = form.getValues("travelDuration");
+      const dateFlexibility = form.getValues("dateFlexibility");
+      
       if (!travelDuration) {
         toast({
           title: "Validation Error",
           description: "Please select a travel duration",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      // Always validate date flexibility - it's now required for all travel durations
+      if (!dateFlexibility) {
+        toast({
+          title: "Validation Error", 
+          description: "Please select your date flexibility",
           variant: "destructive",
         });
         return false;
@@ -300,8 +322,54 @@ const Onboarding = () => {
         });
         return false;
       }
+    } else if (step === 5) {
+      // Accommodation comfort and preferences validation
+      const accommodationComfort = form.getValues("accommodationComfort");
+      if (!accommodationComfort.length) {
+        toast({
+          title: "Validation Error",
+          description: "Please select at least one accommodation comfort",
+          variant: "destructive",
+        });
+        return false;
+      }
     } else if (step === 6) {
-      // Last step (Departure Location)
+      // Location preferences validation
+      const locationPreference = form.getValues("locationPreference");
+      if (!locationPreference) {
+        toast({
+          title: "Validation Error",
+          description: "Please select a location preference",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      // If City Center is selected, validate distance preference
+      if (locationPreference === 'center') {
+        const cityDistancePreference = form.getValues("cityDistancePreference");
+        if (!cityDistancePreference) {
+          toast({
+            title: "Validation Error",
+            description: "Please select how far from city center you're willing to stay",
+            variant: "destructive",
+          });
+          return false;
+        }
+      }
+    } else if (step === 7) {
+      // Flight preferences validation
+      const flightType = form.getValues("flightType");
+      if (!flightType) {
+        toast({
+          title: "Validation Error",
+          description: "Please select a flight type",
+          variant: "destructive",
+        });
+        return false;
+      }
+    } else if (step === 8) {
+      // Departure location validation
       const departureCountry = form.getValues("departureCountry");
       const departureCity = form.getValues("departureCity");
       const customDepartureCity = form.getValues("customDepartureCity");
@@ -371,12 +439,14 @@ const Onboarding = () => {
 
       // Get form data and ensure correct types
       const formData = form.getValues();
-              if (import.meta.env.DEV) {
-          console.log("Raw form data:", formData);
-        }
+      if (import.meta.env.DEV) {
+        if (import.meta.env.DEV) console.log("Raw form data:", formData);
+        if (import.meta.env.DEV) console.log("Location preference:", formData.locationPreference);
+        if (import.meta.env.DEV) console.log("City distance preference:", formData.cityDistancePreference);
+      }
 
       // Check if budgetRange is properly formatted as an object
-      const budgetRangeData =
+      const _budgetRangeData =
         typeof formData.budgetRange === "object"
           ? {
               min: Number(formData.budgetRange.min || 500),
@@ -410,137 +480,111 @@ const Onboarding = () => {
           }
         }
       } catch (profileFetchError) {
-        console.warn(
+        if (import.meta.env.DEV) console.warn(
           "Could not fetch existing profile data:",
           profileFetchError,
         );
       }
 
-      // STEP 2: Save travel preferences to the database first
-              if (import.meta.env.DEV) {
-          console.log(
-            "🚀 DIRECT DB PATH: Saving travel preferences directly to database",
-          );
-          console.log("User ID:", currentUser.id);
-        }
+      // STEP 2: Save SmartTravel-Profile to the database first
+      console.log(
+        "🚀 DIRECT DB PATH: Saving SmartTravel-Profile directly to database",
+        formData
+      );
 
-      // Ensure we have the latest session before proceeding
-      await authService.refreshSession();
+      // Prepare SmartTravel-Profile data
+      const prefData = {
+        budget_min: formData.budgetRange?.min || 500,
+        budget_max: formData.budgetRange?.max || 1000,
+        budget_flexibility: formData.budgetTolerance || 20,
+        travel_duration: formData.travelDuration || 'week',
+        date_flexibility: formData.dateFlexibility || 'flexible-few',
+        planning_intent: formData.planningIntent || 'exploring',
+        accommodation_types: formData.accommodationTypes || ['hotel'],
+        accommodation_comfort: formData.accommodationComfort || ['private-room'],
+        comfort_level: formData.comfortLevel || 'standard',
+        location_preference: formData.locationPreference || 'anywhere',
+        city_distance_preference: formData.cityDistancePreference || null,
+        flight_type: formData.flightType || 'direct',
+        price_vs_convenience: formData.priceConvenience || 'convenience',
+        departure_country: formData.departureCountry || '',
+        departure_city: formData.departureCity || '',
+        custom_departure_city: formData.customDepartureCity || null,
+        user_id: user.id
+      };
 
-      // Prepare travel preferences data
-      // Format departure location with both country and city
-      let departureCity = formData.departureCity;
-      // If it's a custom city entry, use that instead
+      console.log("SmartTravel-Profile data for insertion:", prefData);
+
+      // First check if preferences already exist using SmartTravel-Profile service
+      const existingPrefs = await travelPreferencesService.getUserTravelPreferences(user.id);
+      
+      if (existingPrefs) {
+        if (import.meta.env.DEV) console.log("Existing preferences found, updating...");
+      }
+
+      // Format data for the SmartTravel-Profile service with proper type mapping
+      const serviceData = {
+        budgetRange: {
+          min: prefData.budget_min,
+          max: prefData.budget_max,
+        },
+        budgetFlexibility: prefData.budget_flexibility,
+        travelDuration: prefData.travel_duration as TravelDurationType,
+        dateFlexibility: prefData.date_flexibility,
+        customDateFlexibility: formData.customDateFlexibility || undefined,
+        planningIntent: prefData.planning_intent,
+        accommodationTypes: prefData.accommodation_types,
+        accommodationComfort: Array.isArray(prefData.accommodation_comfort) 
+          ? prefData.accommodation_comfort 
+          : [prefData.accommodation_comfort],
+        comfortLevel: prefData.comfort_level,
+        locationPreference: prefData.location_preference,
+        // Only include cityDistancePreference if locationPreference is 'center' and we have a value
+        cityDistancePreference: (prefData.location_preference === 'center' && prefData.city_distance_preference) 
+          ? prefData.city_distance_preference 
+          : undefined,
+        flightType: prefData.flight_type,
+        preferCheaperWithStopover: prefData.price_vs_convenience === 'price',
+        departureCountry: prefData.departure_country,
+        departureCity: prefData.departure_city,
+        customDepartureCity: prefData.custom_departure_city || undefined
+      };
+
+      // Save SmartTravel-Profile using the proper service API
+      const saveResult = await travelPreferencesService.saveTravelPreferences(user.id, serviceData);
+      
+      if (import.meta.env.DEV) {
+        if (import.meta.env.DEV) console.log("Service data being saved:", serviceData);
+        if (import.meta.env.DEV) console.log("cityDistancePreference in serviceData:", serviceData.cityDistancePreference);
+      }
+      
+      if (!saveResult) {
+        throw new Error("Failed to save SmartTravel-Profile");
+      }
+      
+      console.log("SmartTravel-Profile save result:", saveResult);
+
+      // STEP 3: Update profiles table to mark onboarding as completed
+      // IMPORTANT: Preserve existing first_name and last_name values!
+      
+      // CRITICAL FIX: Also save the departure location to profiles table
+      let finalDepartureCity = formData.departureCity;
       if (
         isCustomCityNeeded(formData.departureCity) &&
         formData.customDepartureCity
       ) {
-        departureCity = formData.customDepartureCity;
+        finalDepartureCity = formData.customDepartureCity;
       }
 
-      const prefData = {
-        user_id: currentUser.id,
-        budget_min: budgetRangeData.min,
-        budget_max: budgetRangeData.max,
-        budget_flexibility: Number(formData.budgetTolerance || 10),
-        travel_duration: formData.travelDuration || "week",
-        date_flexibility: formData.dateFlexibility || "flexible-few",
-        custom_date_flexibility: formData.customDateFlexibility || "",
-        planning_intent: formData.planningIntent || "exploring",
-        accommodation_types: formData.accommodationTypes || ["hotel"],
-        accommodation_comfort: formData.accommodationComfort || [
-          "private-room",
-        ],
-        location_preference: formData.locationPreference || "center",
-        flight_type: formData.flightType || "direct",
-        prefer_cheaper_with_stopover: Boolean(
-          formData.preferCheaperWithStopover,
-        ),
-        departure_country: formData.departureCountry || "",
-        departure_city: departureCity || "",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-              if (import.meta.env.DEV) {
-          console.log("Travel preferences data for insertion:", prefData);
-        }
-
-      // First check if preferences already exist using travel preferences service
-      const existingPrefs =
-        await travelPreferencesService.getUserTravelPreferences(currentUser.id);
-
-      if (import.meta.env.DEV) {
-        console.log(
-          "Existing preferences check:",
-          existingPrefs ? "Found" : "Not found",
-        );
-      }
-
-      // Format data for the travel preferences service
-      const travelPreferencesData = {
-        budgetRange: budgetRangeData,
-        budgetFlexibility: Number(formData.budgetTolerance || 10),
-        travelDuration: (formData.travelDuration ||
-          "week") as TravelDurationType,
-        dateFlexibility: (formData.dateFlexibility ||
-          "flexible-few") as DateFlexibilityType,
-        customDateFlexibility: formData.customDateFlexibility || "",
-        planningIntent: (formData.planningIntent ||
-          "exploring") as PlanningIntent,
-        accommodationTypes: (formData.accommodationTypes || [
-          "hotel",
-        ]) as AccommodationType[],
-        accommodationComfort: (formData.accommodationComfort || [
-          "private-room",
-        ]) as ComfortPreference[],
-        locationPreference: (formData.locationPreference ||
-          "center") as LocationPreference,
-        flightType: (formData.flightType || "direct") as FlightType,
-        preferCheaperWithStopover: Boolean(formData.preferCheaperWithStopover),
-        departureCity: departureCity || "",
-        departureCountry: formData.departureCountry || "",
-      };
-
-      // Save travel preferences using the proper service API
-      const saveResult = await saveTravelPreferences(
-        currentUser.id,
-        travelPreferencesData,
-      );
-
-      if (import.meta.env.DEV) {
-        if (import.meta.env.DEV) {
-          console.log("Travel preferences save result:", saveResult);
-        }
-      }
-
-      if (!saveResult) {
-        console.error("Error saving travel preferences");
-        // Continue with other approaches - don't throw yet
-      }
-
-      // STEP 3: Update profiles table to mark onboarding as completed
-      // IMPORTANT: Preserve existing first_name and last_name values!
       try {
         if (import.meta.env.DEV) {
-          if (import.meta.env.DEV) {
           console.log("Updating profiles table directly...");
-        }
         }
 
         // Prepare profile update data with preference for existing values
         // following Planora's API model conventions with camelCase fields
         const firstName = existingFirstName || currentUser.firstName || "";
         const lastName = existingLastName || currentUser.lastName || "";
-
-        // CRITICAL FIX: Also save the departure location to profiles table
-        let finalDepartureCity = formData.departureCity;
-        if (
-          isCustomCityNeeded(formData.departureCity) &&
-          formData.customDepartureCity
-        ) {
-          finalDepartureCity = formData.customDepartureCity;
-        }
 
         const profileUpdateData = {
           hasCompletedOnboarding: true,
@@ -551,9 +595,7 @@ const Onboarding = () => {
         };
 
         if (import.meta.env.DEV) {
-          if (import.meta.env.DEV) {
           console.log("Profile update data:", profileUpdateData);
-        }
         }
 
         const profileUpdate = await userProfileService.updateUserProfile(
@@ -569,16 +611,13 @@ const Onboarding = () => {
           console.error("Profile update failed");
         }
       } catch (profileError) {
-        console.error("Failed to update profile directly:", profileError);
+        if (import.meta.env.DEV) console.error("Failed to update profile directly:", profileError);
       }
 
-      // We already saved the travel preferences via the proper service API above
-      // This duplicate step is removed following architectural principles
-
-      // STEP 6: Update local storage BEFORE updating metadata (which triggers auth state change)
+      // STEP 4: Update local storage BEFORE updating metadata (which triggers auth state change)
       localStorage.setItem("hasCompletedOnboarding", "true");
       localStorage.setItem("departureCountry", formData.departureCountry || "");
-      localStorage.setItem("departureCity", departureCity || "");
+      localStorage.setItem("departureCity", finalDepartureCity || "");
       if (
         isCustomCityNeeded(formData.departureCity) &&
         formData.customDepartureCity
@@ -590,36 +629,35 @@ const Onboarding = () => {
       }
       localStorage.setItem(
         "userTravelPreferences",
-        JSON.stringify(travelPreferencesData),
+        JSON.stringify(prefData),
       );
 
-      // STEP 7: Call the official onboarding status update function
+      // STEP 5: Call the official onboarding status update function
       // This function already handles multiple sources (profile table, metadata, etc.)
       try {
         if (import.meta.env.DEV) {
           console.log("Updating onboarding status via official API...");
         }
-        await updateOnboardingStatus(currentUser.id, true);
+        await userProfileService.updateOnboardingStatus(currentUser.id, true);
       } catch (onboardingError) {
-        console.error(
+        if (import.meta.env.DEV) console.error(
           "Failed to update onboarding status via API:",
           onboardingError,
         );
       }
 
-      // STEP 8: Update user metadata in Supabase Auth
+      // STEP 6: Update user metadata in Supabase Auth
       try {
-        // STEP 4: Update user metadata to mark onboarding as complete
         // Include country and city in the metadata for profile display
         if (import.meta.env.DEV) {
           console.log("Updating user metadata with onboarding status");
         }
 
         // Format departure location with both country and city
-        let departureCity = formData.departureCity;
+        let departureCity = finalDepartureCity;
         // If it's a custom city entry, use that instead
         if (
-          isCustomCityNeeded(formData.departureCity) &&
+          isCustomCityNeeded(finalDepartureCity) &&
           formData.customDepartureCity
         ) {
           departureCity = formData.customDepartureCity;
@@ -629,7 +667,7 @@ const Onboarding = () => {
           has_completed_onboarding: true,
           country: formData.departureCountry || "",
           city: departureCity || "",
-          customCity: isCustomCityNeeded(formData.departureCity)
+          customCity: isCustomCityNeeded(finalDepartureCity)
             ? formData.customDepartureCity
             : "",
           planning_intent: formData.planningIntent || "exploring",
@@ -639,22 +677,24 @@ const Onboarding = () => {
             formData.preferCheaperWithStopover,
           ),
           departure_country: formData.departureCountry || "",
-          departure_city: isCustomCityNeeded(formData.departureCity)
+          departure_city: isCustomCityNeeded(finalDepartureCity)
             ? formData.customDepartureCity
-            : formData.departureCity || "",
+            : finalDepartureCity || "",
         });
       } catch (metadataError) {
-        console.error("Failed to update user metadata:", metadataError);
+        if (import.meta.env.DEV) console.error("Failed to update user metadata:", metadataError);
       }
 
-      // STEP 9: Show success message and navigate to dashboard
+      // STEP 7: Clear onboarding persistence and show success message
+      clearOnboardingProgress();
+      
       toast({
-        title: "Preferences Saved",
-        description: "Your travel preferences have been saved successfully",
+        title: "Welcome to Planora! 🎉",
+        description: "Your SmartTravel-Profile has been saved successfully",
+        variant: "default",
       });
 
-      // IMPORTANT: Before navigating, force refresh the session one final time
-      // This ensures the session is fully updated with all metadata changes
+      // STEP 8: Navigate to dashboard
       try {
         await authService.refreshSession();
         if (import.meta.env.DEV) {
@@ -664,7 +704,7 @@ const Onboarding = () => {
         // Navigate to dashboard with session intact
         navigate("/dashboard", { replace: true });
       } catch (navigationError) {
-        console.error("Error during final navigation:", navigationError);
+        if (import.meta.env.DEV) console.error("Error during final navigation:", navigationError);
         // Fallback navigation
         navigate("/dashboard");
       }
@@ -724,7 +764,7 @@ const Onboarding = () => {
           {label}
         </span>
         {isSelected && (
-          <Check className="h-4 w-4 text-planora-accent-purple mt-2" />
+          <_Check className="h-4 w-4 text-planora-accent-purple mt-2" />
         )}
       </div>
     );
@@ -743,536 +783,231 @@ const Onboarding = () => {
   const formatBudgetTolerance = (value: number) => `±${value}%`;
 
   return (
-    <div className="min-h-screen bg-planora-purple-dark flex flex-col items-center justify-center p-4 relative">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Modern layered background with sophisticated gradients */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-purple-600/15 via-transparent to-transparent"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-emerald-600/15 via-transparent to-transparent"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-slate-900/80 to-transparent"></div>
+      
+      {/* Subtle animated background elements */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-br from-purple-500/5 to-pink-500/5 rounded-full blur-3xl animate-pulse-light"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 rounded-full blur-3xl animate-pulse-light" style={{ animationDelay: '2s' }}></div>
+      
+      {/* Geometric pattern overlay */}
+      <div className="absolute inset-0 opacity-[0.02]" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Ccircle cx='30' cy='30' r='1.5'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+      }}></div>
+
       {/* Close button when modifying preferences */}
       {isModifyingPreferences && (
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-4 right-4 text-white hover:bg-white/10"
+          className="absolute top-6 right-6 text-white/80 hover:text-white hover:bg-white/10 backdrop-blur-sm border border-white/10 rounded-xl z-20 transition-all duration-200"
           onClick={() => navigate("/dashboard")}
         >
-          <X className="h-6 w-6" />
+          <X className="h-5 w-5" />
           <span className="sr-only">Close</span>
         </Button>
       )}
-      {/* Background elements */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-planora-accent-blue/10 via-background to-background"></div>
 
       {/* Logo */}
-      <div className="mb-6 z-10">
+      <div className="mb-8 z-10">
         <Logo />
       </div>
 
-      <Card className="w-full max-w-2xl z-10 bg-card/50 backdrop-blur-lg border-white/10">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            Complete Your Travel Profile
-          </CardTitle>
-          <CardDescription className="text-center text-white/60">
-            Help us personalize your experience
-          </CardDescription>
+      <Card className="w-full max-w-4xl z-10 bg-gradient-to-br from-slate-800/90 via-slate-800/70 to-slate-900/90 backdrop-blur-2xl border border-white/15 shadow-2xl shadow-black/50 rounded-2xl overflow-hidden">
+        {/* Enhanced glass morphism effect */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-transparent rounded-2xl"></div>
+        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-purple-500/[0.03] to-emerald-500/[0.03] rounded-2xl"></div>
+        
+        <CardHeader className="space-y-6 pb-8 relative">
+          <div className="text-center space-y-3">
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-white via-purple-100 to-emerald-100 bg-clip-text text-transparent">
+              Complete Your SmartTravel-Profile
+            </CardTitle>
+            <CardDescription className="text-lg text-white/70 max-w-2xl mx-auto">
+              Help us personalize your travel experience with these quick preferences
+            </CardDescription>
+          </div>
 
-          {/* Progress bar */}
-          <div className="mt-4 flex justify-between items-center">
-            <Progress
-              value={((step + 1) / totalSteps) * 100}
-              className="h-2 w-full bg-white/10"
-            />
-            <span className="ml-4 text-sm text-white/60">
-              {step + 1}/{totalSteps}
-            </span>
+          {/* Modern progress section */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-white/60 font-medium">Progress</span>
+              <span className="text-white/80 font-semibold">
+                Step {step + 1} of {totalSteps}
+              </span>
+            </div>
+            <div className="relative">
+              {/* Progress track */}
+              <div className="h-3 bg-gradient-to-r from-slate-700/60 to-slate-700/40 rounded-full overflow-hidden backdrop-blur-sm border border-white/10 shadow-inner">
+                <div 
+                  className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-emerald-500 rounded-full transition-all duration-700 ease-out shadow-lg shadow-purple-500/30 relative"
+                  style={{ width: `${((step + 1) / totalSteps) * 100}%` }}
+                >
+                  {/* Progress shine effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent rounded-full"></div>
+                </div>
+              </div>
+              {/* Progress overlay for extra depth */}
+              <div className="absolute inset-0 h-3 bg-gradient-to-r from-white/5 via-transparent to-white/5 rounded-full pointer-events-none"></div>
+            </div>
           </div>
         </CardHeader>
 
-        <CardContent className="py-6">
+        <CardContent className="pb-8 relative">
           <Form {...form}>
-            <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-              {/* Step 1: Budget Range Selection */}
-              {step === 0 && (
-                <BudgetRangeStep 
-                  control={form.control} 
-                  formatBudgetRange={formatBudgetRange} 
-                />
-              )}
-
-              {/* Step 2: Budget Tolerance */}
-              {step === 1 && (
-                <BudgetToleranceStep 
-                  control={form.control} 
-                  formatBudgetTolerance={formatBudgetTolerance} 
-                />
-              )}
-
-              {/* Step 3: Travel Duration & Date Flexibility */}
-              {step === 2 && (
-                <TravelDurationStep 
-                  control={form.control}
-                  setValue={form.setValue}
-                  travelDuration={travelDuration}
-                  dateFlexibility={dateFlexibility}
-                  Label={Label}
-                />
-              )}
-
-              {/* Step 4: Planning Intent */}
-              {step === 3 && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">
-                    Are you dreaming or planning?
-                  </h3>
-                  <p className="text-sm text-white/60">
-                    This helps us tailor our recommendations to your needs.
-                  </p>
-
-                  <FormField
-                    control={form.control}
-                    name="planningIntent"
-                    render={({ field }) => (
-                      <FormItem className="pt-4">
-                        <FormControl>
-                          <RadioGroup
-                            value={field.value}
-                            onValueChange={field.onChange}
-                            className="grid grid-cols-1 gap-4"
-                          >
-                            <div
-                              className={`p-4 border rounded-lg flex items-start space-x-4 ${
-                                field.value === "exploring"
-                                  ? "border-planora-accent-purple bg-planora-accent-purple/20"
-                                  : "border-white/10 bg-white/5"
-                              }`}
-                            >
-                              <RadioGroupItem
-                                value="exploring"
-                                id="exploring"
-                                className="mt-1"
-                              />
-                              <div>
-                                <label
-                                  htmlFor="exploring"
-                                  className="font-medium cursor-pointer"
-                                >
-                                  Just exploring ideas
-                                </label>
-                                <p className="text-sm text-white/70 mt-1">
-                                  I'm gathering inspiration for future travel
-                                  possibilities
-                                </p>
-                              </div>
-                            </div>
-                            <div
-                              className={`p-4 border rounded-lg flex items-start space-x-4 ${
-                                field.value === "planning"
-                                  ? "border-planora-accent-purple bg-planora-accent-purple/20"
-                                  : "border-white/10 bg-white/5"
-                              }`}
-                            >
-                              <RadioGroupItem
-                                value="planning"
-                                id="planning"
-                                className="mt-1"
-                              />
-                              <div>
-                                <label
-                                  htmlFor="planning"
-                                  className="font-medium cursor-pointer"
-                                >
-                                  Ready to plan a trip
-                                </label>
-                                <p className="text-sm text-white/70 mt-1">
-                                  I have specific dates and destinations in mind
-                                </p>
-                              </div>
-                            </div>
-                          </RadioGroup>
-                        </FormControl>
-                      </FormItem>
-                    )}
+            <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
+              {/* Step content with enhanced styling */}
+              <div className="min-h-[450px] relative">
+                {/* Content background with subtle gradient */}
+                <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent rounded-xl"></div>
+                
+                {/* Step 1: Budget Range Selection */}
+                {step === 0 && (
+                  <BudgetRangeStep 
+                    control={form.control} 
+                    formatBudgetRange={formatBudgetRange} 
                   />
-                </div>
-              )}
+                )}
 
-              {/* Step 5: Accommodation Types (Multi-select) */}
-              {step === 4 && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">
-                    Where do you prefer to stay?
-                  </h3>
-                  <p className="text-sm text-white/60">
-                    Select all that apply. We'll prioritize these in our
-                    recommendations.
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <FormField
-                      control={form.control}
-                      name="accommodationTypes"
-                      render={({ field }) => (
-                        <>
-                          <OptionItem
-                            icon={Hotel}
-                            label="Hotel"
-                            value="hotel"
-                            field={field.value}
-                            onChange={(value) =>
-                              field.onChange(
-                                toggleSelection(field.value, value),
-                              )
-                            }
-                          />
-                          <OptionItem
-                            icon={Building}
-                            label="Apartment"
-                            value="apartment"
-                            field={field.value}
-                            onChange={(value) =>
-                              field.onChange(
-                                toggleSelection(field.value, value),
-                              )
-                            }
-                          />
-                          <OptionItem
-                            icon={Tent}
-                            label="Hostel"
-                            value="hostel"
-                            field={field.value}
-                            onChange={(value) =>
-                              field.onChange(
-                                toggleSelection(field.value, value),
-                              )
-                            }
-                          />
-                          <OptionItem
-                            icon={Palmtree}
-                            label="Resort"
-                            value="resort"
-                            field={field.value}
-                            onChange={(value) =>
-                              field.onChange(
-                                toggleSelection(field.value, value),
-                              )
-                            }
-                          />
-                        </>
-                      )}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Step 6: Accommodation Comfort & Preferences */}
-              {step === 5 && (
-                <div className="space-y-5">
-                  <div>
-                    <h3 className="text-lg font-medium">
-                      What are your accommodation preferences?
-                    </h3>
-                    <p className="text-sm text-white/60 mb-4">
-                      Select all that apply.
-                    </p>
-
-                    <FormField
-                      control={form.control}
-                      name="accommodationComfort"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormControl>
-                            <div className="grid grid-cols-2 gap-2">
-                              <CheckboxCard
-                                label="Private Room"
-                                value="private-room"
-                                field={field.value}
-                                onChange={(value) =>
-                                  field.onChange(
-                                    toggleSelection(field.value, value),
-                                  )
-                                }
-                              />
-                              <CheckboxCard
-                                label="Shared Room OK"
-                                value="shared-room"
-                                field={field.value}
-                                onChange={(value) =>
-                                  field.onChange(
-                                    toggleSelection(field.value, value),
-                                  )
-                                }
-                              />
-                              <CheckboxCard
-                                label="Private Bathroom"
-                                value="private-bathroom"
-                                field={field.value}
-                                onChange={(value) =>
-                                  field.onChange(
-                                    toggleSelection(field.value, value),
-                                  )
-                                }
-                              />
-                              <CheckboxCard
-                                label="Shared Bathroom OK"
-                                value="shared-bathroom"
-                                field={field.value}
-                                onChange={(value) =>
-                                  field.onChange(
-                                    toggleSelection(field.value, value),
-                                  )
-                                }
-                              />
-                              <CheckboxCard
-                                label="Luxury preferred"
-                                value="luxury"
-                                field={field.value}
-                                onChange={(value) =>
-                                  field.onChange(
-                                    toggleSelection(field.value, value),
-                                  )
-                                }
-                              />
-                            </div>
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="pt-4">
-                    <h3 className="text-lg font-medium">
-                      Preferred distance from city center?
-                    </h3>
-                    <p className="text-sm text-white/60 mb-4">
-                      Choose your location preference.
-                    </p>
-
-                    <FormField
-                      control={form.control}
-                      name="locationPreference"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormControl>
-                            <RadioGroup
-                              value={field.value}
-                              onValueChange={field.onChange}
-                              className="grid grid-cols-2 gap-2"
-                            >
-                              <Label value="center" field={field}>
-                                City Center
-                              </Label>
-                              <Label value="near" field={field}>
-                                Near Center (1-3km)
-                              </Label>
-                              <Label value="outskirts" field={field}>
-                                Outskirts (3-10km)
-                              </Label>
-                              <Label value="anywhere" field={field}>
-                                Location Not Important
-                              </Label>
-                            </RadioGroup>
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Step 7: Flight Preferences */}
-              {step === 6 && (
-                <div className="space-y-5">
-                  <div>
-                    <h3 className="text-lg font-medium">
-                      What are your flight preferences?
-                    </h3>
-                    <p className="text-sm text-white/60 mb-4">
-                      Help us find the best flight options for you.
-                    </p>
-
-                    <div className="grid grid-cols-1 gap-6">
-                      <FormField
-                        control={form.control}
-                        name="flightType"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center mb-2">
-                              <Plane className="mr-2 h-4 w-4 text-planora-accent-purple" />
-                              Flight Type
-                            </FormLabel>
-                            <FormControl>
-                              <RadioGroup
-                                value={field.value}
-                                onValueChange={field.onChange}
-                                className="grid grid-cols-2 gap-2"
-                              >
-                                <Label value="direct" field={field}>
-                                  Direct Only
-                                </Label>
-                                <Label value="any" field={field}>
-                                  Stopovers OK
-                                </Label>
-                              </RadioGroup>
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="preferCheaperWithStopover"
-                        render={({ field }) => (
-                          <FormItem>
-                            <div className="flex items-start space-x-3 p-3 border rounded-md bg-white/5 border-white/10">
-                              <input
-                                type="checkbox"
-                                id="cheaperStopover"
-                                checked={field.value}
-                                onChange={(e) =>
-                                  field.onChange(e.target.checked)
-                                }
-                                className="mt-1"
-                              />
-                              <div>
-                                <label
-                                  htmlFor="cheaperStopover"
-                                  className="font-medium cursor-pointer"
-                                >
-                                  Show significantly cheaper stopovers
-                                </label>
-                                <p className="text-sm text-white/70 mt-1">
-                                  We'll show you flights with stopovers if
-                                  they're more than 25% cheaper
-                                </p>
-                              </div>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-8 p-4 bg-white/5 border border-white/10 rounded-lg">
-                    <h4 className="font-medium mb-2 flex items-center">
-                      <Compass className="mr-2 h-4 w-4 text-planora-accent-purple" />
-                      Almost done!
-                    </h4>
-                    <p className="text-sm text-white/70">
-                      Just one more step - let us know your departure location.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Final Step (was Step 1): Departure Location (Moved to end) */}
-              {step === totalSteps - 1 && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">
-                    Your Departure Location
-                  </h3>
-                  <p className="text-sm text-white/60">
-                    This helps us find suitable routes for your trips.
-                  </p>
-
-                  {/* Country Selection */}
-                  <FormField
-                    control={form.control}
-                    name="departureCountry"
-                    render={({ field }) => (
-                      <FormItem className="pt-4">
-                        <div className="flex items-center mb-1">
-                          <MapPin className="mr-2 h-4 w-4 text-planora-accent-purple" />
-                          <FormLabel>Country</FormLabel>
-                        </div>
-                        <FormControl>
-                          <Select
-                            value={field.value}
-                            onValueChange={field.onChange}
-                            options={countryOptions}
-                            className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 w-full"
-                            placeholder="Select your country"
-                          />
-                        </FormControl>
-                        <FormMessage className="text-planora-accent-pink" />
-                      </FormItem>
-                    )}
+                {/* Step 2: Budget Tolerance */}
+                {step === 1 && (
+                  <BudgetToleranceStep 
+                    control={form.control} 
+                    formatBudgetTolerance={formatBudgetTolerance} 
                   />
+                )}
 
-                  {/* City Selection */}
-                  <FormField
+                {/* Step 3: Travel Duration & Date Flexibility */}
+                {step === 2 && (
+                  <TravelDurationStep 
                     control={form.control}
-                    name="departureCity"
-                    render={({ field }) => (
-                      <FormItem className="pt-2">
-                        <div className="flex items-center mb-1">
-                          <Plane className="mr-2 h-4 w-4 text-planora-accent-purple" />
-                          <FormLabel>City</FormLabel>
-                        </div>
-                        <FormControl>
-                          {selectedCountry ? (
-                            <Select
-                              value={field.value}
-                              onValueChange={field.onChange}
-                              options={cityOptions}
-                              className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 w-full"
-                              placeholder="Select your city"
-                            />
-                          ) : (
-                            <div className="h-10 flex items-center px-3 bg-white/5 border border-white/10 text-white/50 rounded-md cursor-not-allowed">
-                              Select your city
-                            </div>
-                          )}
-                        </FormControl>
-                        {!selectedCountry && (
-                          <p className="text-xs text-white/50 mt-1">
-                            Please select a country first
-                          </p>
-                        )}
-                        <FormMessage className="text-planora-accent-pink" />
-                      </FormItem>
-                    )}
+                    _setValue={form.setValue}
+                    travelDuration={travelDuration}
+                    _dateFlexibility={dateFlexibility}
+                    Label={Label}
                   />
+                )}
 
-                  {/* Custom City Input (shown only when needed) */}
-                  {showCustomCityInput && (
-                    <FormField
-                      control={form.control}
-                      name="customDepartureCity"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-white/80">
-                            Custom City Name
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="Enter your city"
-                              className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 w-full"
-                            />
-                          </FormControl>
-                          <FormMessage className="text-planora-accent-pink" />
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                </div>
-              )}
+                {/* Step 4: Planning Intent */}
+                {step === 3 && (
+                  <PlanningIntentStep control={form.control} />
+                )}
 
-              <div className="flex justify-between pt-6">
+                {/* Step 5: Accommodation Types (Multi-select) */}
+                {step === 4 && (
+                  <AccommodationTypesStep 
+                    control={form.control}
+                    OptionItem={OptionItem}
+                    toggleSelection={toggleSelection}
+                  />
+                )}
+
+                {/* Step 6: Accommodation Comfort & Preferences */}
+                {step === 5 && (
+                  <AccommodationPreferencesStep 
+                    control={form.control}
+                    CheckboxCard={CheckboxCard}
+                    Label={Label}
+                    toggleSelection={toggleSelection}
+                  />
+                )}
+
+                {/* Step 7: Location Preferences */}
+                {step === 6 && (
+                  <LocationPreferencesStep 
+                    control={form.control}
+                  />
+                )}
+
+                {/* Step 8: Flight Preferences */}
+                {step === 7 && (
+                  <FlightPreferencesStep 
+                    control={form.control}
+                    step={6}
+                    totalSteps={totalSteps}
+                    Label={Label}
+                    countryOptions={countryOptions}
+                    _cityOptions={cityOptions}
+                    getCityOptions={getCityOptions}
+                    selectedCountry={selectedCountry}
+                    showCustomCityInput={showCustomCityInput}
+                  />
+                )}
+
+                {/* Step 9: Departure Location */}
+                {step === 8 && (
+                  <FlightPreferencesStep 
+                    control={form.control}
+                    step={7}
+                    totalSteps={totalSteps}
+                    Label={Label}
+                    countryOptions={countryOptions}
+                    _cityOptions={cityOptions}
+                    getCityOptions={getCityOptions}
+                    selectedCountry={selectedCountry}
+                    showCustomCityInput={showCustomCityInput}
+                  />
+                )}
+              </div>
+
+              {/* Enhanced navigation section */}
+              <div className="flex justify-between items-center pt-8 border-t border-white/10 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent rounded-xl">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={goToPreviousStep}
                   disabled={step === 0}
-                  className="border-white/10 bg-white/5 text-white disabled:opacity-50"
+                  className="px-8 py-3 border-white/25 bg-white/5 text-white hover:bg-white/10 hover:border-white/40 disabled:opacity-40 disabled:cursor-not-allowed backdrop-blur-sm transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl"
                 >
+                  <span className="mr-2">←</span>
                   Back
                 </Button>
-                <GradientButton onClick={goToNextStep} type="button">
-                  {step === totalSteps - 1 ? "Complete" : "Next"}
-                </GradientButton>
+                
+                {/* Enhanced step indicators */}
+                <div className="flex items-center space-x-3 px-4 py-2 bg-black/20 rounded-full border border-white/10 backdrop-blur-sm">
+                  {Array.from({ length: totalSteps }, (_, i) => (
+                    <div
+                      key={i}
+                      className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                        i <= step 
+                          ? 'bg-gradient-to-r from-purple-400 to-emerald-400 shadow-sm shadow-purple-400/50 scale-110' 
+                          : 'bg-white/25 hover:bg-white/40'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                <Button
+                  type="button"
+                  onClick={goToNextStep}
+                  disabled={loading}
+                  className="px-8 py-3 bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 text-white border border-white/20 shadow-lg hover:shadow-xl hover:border-white/30 transition-all duration-300 disabled:opacity-50 rounded-xl font-medium backdrop-blur-sm"
+                >
+                  {step === totalSteps - 1 ? (
+                    <>
+                      <span className="mr-2">🎉</span>
+                      Complete Profile
+                    </>
+                  ) : (
+                    <>
+                      Next
+                      <span className="ml-2">→</span>
+                    </>
+                  )}
+                </Button>
               </div>
             </form>
           </Form>
         </CardContent>
       </Card>
+
+      {/* Modernized decorative elements */}
+      <div className="absolute top-20 left-10 w-40 h-40 bg-gradient-to-br from-purple-500/8 to-pink-500/8 rounded-full blur-2xl animate-drift"></div>
+      <div className="absolute bottom-20 right-10 w-48 h-48 bg-gradient-to-br from-emerald-500/8 to-cyan-500/8 rounded-full blur-2xl animate-drift" style={{ animationDelay: '8s' }}></div>
+      <div className="absolute top-1/2 left-0 w-32 h-32 bg-gradient-to-br from-blue-500/6 to-indigo-500/6 rounded-full blur-xl animate-pulse-light" style={{ animationDelay: '4s' }}></div>
     </div>
   );
 };
@@ -1294,7 +1029,7 @@ const Label = ({
         : "border-white/10 bg-white/5 text-white/70"
     }`}
   >
-    <RadioGroupItem value={value} id={value} className="hidden" />
+    <_RadioGroupItem value={value} id={value} className="hidden" />
     <label htmlFor={value} className="cursor-pointer block w-full h-full">
       {children}
     </label>
@@ -1325,7 +1060,7 @@ const CheckboxCard = ({
     >
       {label}
       {isSelected && (
-        <Check className="h-3 w-3 inline-block ml-1 text-planora-accent-purple" />
+        <_Check className="h-3 w-3 inline-block ml-1 text-planora-accent-purple" />
       )}
     </div>
   );

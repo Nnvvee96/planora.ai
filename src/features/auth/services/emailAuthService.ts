@@ -9,9 +9,6 @@ import { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import {
   RegisterData,
-  InitiateSignupResponse,
-  CompleteSignupPayload,
-  CompleteSignupResponse,
   VerificationCodeResponse,
   VerificationCodeStatus,
   AuthProviderType,
@@ -24,123 +21,6 @@ import { authProviderService } from "./authProviderService";
  * Handles email/password flows, verification codes, and registration
  */
 export const emailAuthService = {
-  /**
-   * Initiates the first step of the two-phase signup process.
-   * Sends user's email and password to the backend to generate and dispatch a verification code.
-   * @param {string} email - The user's email address.
-   * @param {string} password - The user's chosen raw password.
-   * @returns {Promise<InitiateSignupResponse>} The response from the backend.
-   */
-  initiateSignup: async (
-    email: string,
-    password_raw: string,
-  ): Promise<InitiateSignupResponse> => {
-    try {
-      if (!email || !password_raw) {
-        throw new Error("Email and password are required to initiate signup.");
-      }
-
-      const { data, error } = await supabase.functions.invoke(
-        "verification-code-handler",
-        {
-          body: {
-            action: "initiate-signup",
-            payload: {
-              email,
-              password: password_raw, // Send the raw password to the backend
-            },
-          },
-        },
-      );
-
-      if (error) {
-        // Log the detailed error from the function invocation
-        console.error("Error invoking initiate-signup function:", error);
-        // Attempt to parse a more specific error message from the function's response
-        const functionError =
-          error.context?.function_error || "An unknown error occurred.";
-        return {
-          success: false,
-          message: null,
-          error: "Failed to initiate signup.",
-          details: functionError,
-        };
-      }
-
-      // The backend function returns a success message
-      return {
-        success: true,
-        message: data.message || "Verification code sent.",
-        error: null,
-        details: null,
-      };
-    } catch (err: unknown) {
-      console.error("Unexpected error in initiateSignup service:", err);
-      return {
-        success: false,
-        message: null,
-        error: "An unexpected error occurred during signup initiation.",
-        details: err instanceof Error ? err.message : String(err),
-      };
-    }
-  },
-
-  /**
-   * Completes the second step of the two-phase signup process.
-   * Sends the verification code and full user details to create the account.
-   * @param {CompleteSignupPayload} payload - The user details including email, code, names, etc.
-   * @returns {Promise<CompleteSignupResponse>} The final response from the backend.
-   */
-  completeSignup: async (
-    payload: CompleteSignupPayload,
-  ): Promise<CompleteSignupResponse> => {
-    try {
-      if (!payload.email || !payload.code) {
-        throw new Error(
-          "Email and verification code are required to complete signup.",
-        );
-      }
-
-      const { data, error } = await supabase.functions.invoke(
-        "verification-code-handler",
-        {
-          body: {
-            action: "complete-signup",
-            payload: payload, // Forward the entire payload
-          },
-        },
-      );
-
-      if (error) {
-        console.error("Error invoking complete-signup function:", error);
-        const functionError =
-          error.context?.function_error || "An unknown error occurred.";
-        return {
-          success: false,
-          userId: null,
-          error: "Failed to complete signup.",
-          details: functionError,
-        };
-      }
-
-      // Backend returns userId on success
-      return {
-        success: true,
-        userId: data.userId,
-        error: null,
-        details: null,
-      };
-    } catch (err: unknown) {
-      console.error("Unexpected error in completeSignup service:", err);
-      return {
-        success: false,
-        userId: null,
-        error: "An unexpected error occurred during signup completion.",
-        details: err instanceof Error ? err.message : String(err),
-      };
-    }
-  },
-
   /**
    * Sign in with email and password
    * @param credentials Email and password credentials

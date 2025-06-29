@@ -7,8 +7,7 @@
  */
 
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Button } from "@/ui/atoms/Button";
 import { Settings, MessageCircle } from "lucide-react";
 
 interface ChatHeaderProps {
@@ -25,38 +24,37 @@ export const ChatHeader = ({
   isMobile,
 }: ChatHeaderProps) => {
   return (
-    <header className="bg-background/80 backdrop-blur-md border-b border-white/10 p-4 flex items-center justify-between">
-      <div className="flex items-center gap-3">
+    <header className="relative bg-black/40 backdrop-blur-xl border-b border-white/20 p-4 flex items-center justify-between">
+      {/* Subtle background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-transparent to-pink-500/5 pointer-events-none"></div>
+      
+      <div className="flex items-center gap-3 relative z-10">
         {isMobile && (
-          <Button variant="ghost" size="icon" onClick={onToggleSidebar}>
-            <MessageCircle className="h-5 w-5" />
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onToggleSidebar}
+            className="text-white/70 hover:text-white hover:bg-white/10 transition-all duration-300 rounded-xl"
+          >
+            <MessageCircle className="h-6 w-6" />
             <span className="sr-only">Toggle chat history</span>
           </Button>
         )}
 
-        <h1 className="text-xl font-medium truncate">{title}</h1>
+        <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-purple-100 to-pink-100 bg-clip-text text-transparent truncate">
+          {title}
+        </h1>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3 relative z-10">
         <Button
-          variant="outline"
           size="sm"
-          className="border-white/10 bg-white/5 flex items-center gap-1.5"
+          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 px-4 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2"
           onClick={onEditTravelPersona}
         >
-          <Settings className="h-3.5 w-3.5 text-planora-accent-purple" />
+          <Settings className="h-4 w-4" />
           <span>SmartTravel-Profile</span>
         </Button>
-
-        <Link to="/dashboard">
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-white/10 bg-white/5"
-          >
-            Dashboard
-          </Button>
-        </Link>
       </div>
     </header>
   );

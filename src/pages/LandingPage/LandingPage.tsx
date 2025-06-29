@@ -4,13 +4,12 @@ import { Navigation } from "@/ui/organisms/Navigation";
 import { getTravelCardsComponent } from "@/features/travel-planning/travelPlanningApi";
 import { Footer } from "@/ui/organisms/Footer";
 import {
-  MessageCircle,
   ChevronRight,
-  Sparkles,
+  MessageCircle,
   Star,
   Send,
-  Plane,
   Shield,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/ui/atoms/Button";
 

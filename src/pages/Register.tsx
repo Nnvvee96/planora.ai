@@ -1,120 +1,58 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/ui/atoms/Button";
-import { GradientButton } from "@/ui/atoms/GradientButton";
-import { Input } from "@/ui/atoms/Input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/ui/atoms/Card";
-import { Label } from "@/ui/atoms/Label";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Select } from "@/components/ui/select";
-import { Logo } from "@/ui/atoms/Logo";
+import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Button } from "@/ui/atoms/Button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/atoms/Card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select } from "@/components/ui/select";
+import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/features/auth/authApi";
+import { Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { GradientButton } from "@/ui/atoms/GradientButton";
+import { getCityOptions, isCustomCityNeeded, type CityOption } from "@/features/location-data/locationDataApi";
 
-import {
-  Eye,
-  EyeOff,
-  Loader2,
-  Mail,
-  User,
-  Lock,
-  MapPin,
-  Calendar,
-  Apple,
-  CheckCircle,
-  Shield,
-  ShieldCheck,
-  // Plus, // Unused import
-} from "lucide-react";
-import { DatePickerInput } from "@/components/ui/DatePickerInput";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth, type CompleteSignupPayload } from "@/features/auth/authApi";
-import {
-  countryOptions,
-  getCityOptions,
-  isCustomCityNeeded,
-  type CityOption,
-} from "@/features/location-data/locationDataApi";
-import { Footer } from "@/ui/organisms/Footer";
-
-const today = new Date();
-const sixteenYearsAgo = new Date(
-  today.getFullYear() - 16,
-  today.getMonth(),
-  today.getDate(),
-);
-
-const formSchema = z
-  .object({
-    firstName: z
-      .string()
-      .min(2, { message: "First name must be at least 2 characters" }),
-    lastName: z
-      .string()
-      .min(2, { message: "Last name must be at least 2 characters" }),
-    email: z.string().email({ message: "Please enter a valid email address" }),
-    password: z
-      .string()
-      .min(8, { message: "Password must be at least 8 characters" }),
-    confirmPassword: z.string(),
-    country: z.string().min(1, { message: "Please select your country" }),
-    city: z.string().min(1, { message: "Please select your city" }),
-    customCity: z.string().optional(),
-    birthdate: z.date({
-      required_error: "Please select your birthdate.",
-    }),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  })
-  .refine(
-    (data) => {
-      return data.birthdate <= sixteenYearsAgo;
-    },
-    {
-      message: "You must be at least 16 years old to use Planora",
-      path: ["birthdate"],
-    },
-  );
+// Form validation schema
+const formSchema = z.object({
+  firstName: z.string().min(2, "First name must be at least 2 characters"),
+  lastName: z.string().min(2, "Last name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string(),
+  country: z.string().min(1, "Please select your country"),
+  city: z.string().min(1, "Please select your city"),
+  customCity: z.string().optional(),
+  birthdate: z.date({
+    required_error: "Please select your birth date",
+  }),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
 
 type FormValues = z.infer<typeof formSchema>;
 
+const sixteenYearsAgo = new Date();
+sixteenYearsAgo.setFullYear(sixteenYearsAgo.getFullYear() - 16);
+
+const countryOptions = [
+  { value: "us", label: "United States" },
+  { value: "ca", label: "Canada" },
+  { value: "uk", label: "United Kingdom" },
+  { value: "de", label: "Germany" },
+  { value: "fr", label: "France" },
+  { value: "au", label: "Australia" },
+  { value: "other", label: "Other" },
+];
+
 export const Register = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  
   const { authService, signInWithGoogle } = useAuth();
   const [formStep, setFormStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [_error, setError] = useState<string | null>(null);
-  const [signupPhase, setSignupPhase] = useState<"details" | "verify">(
-    "details",
-  );
-  const [pendingRegistrationData, setPendingRegistrationData] =
-    useState<FormValues | null>(null);
-  const [verificationCode, setVerificationCode] = useState("");
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationErrorText, setVerificationErrorText] = useState<
-    string | null
-  >(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isResendingCode, setIsResendingCode] = useState(false);
   const [cityOptions, setCityOptions] = useState<CityOption[]>([]);
   const [showCustomCityInput, setShowCustomCityInput] = useState(false);
 
@@ -154,63 +92,68 @@ export const Register = () => {
   }, [selectedCity, form]);
 
   const onSubmit = async (data: FormValues) => {
-    if (formStep < 1) {
+    if (formStep === 0) {
       setFormStep(1);
       return;
     }
 
-    // Process registration for final step
     try {
       setIsSubmitting(true);
-      setError(null);
 
-      // Validate age again on submit
+      // Validate age
       if (data.birthdate > sixteenYearsAgo) {
         throw new Error("You must be at least 16 years old to use Planora");
       }
 
-      const initiateResponse = await authService.initiateSignup(
-        data.email,
-        data.password,
-      );
+      // Prepare user metadata
+      const metadata = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        country: data.country,
+        city: isCustomCityNeeded(data.city) && data.customCity ? data.customCity : data.city,
+        birthdate: data.birthdate.toISOString(),
+      };
 
-      if (initiateResponse.success) {
-        setPendingRegistrationData(data);
-        setSignupPhase("verify");
-        setError(null);
+      // Register user with simplified auth service
+      const { user, emailConfirmationRequired } = await authService.register({
+        email: data.email,
+        password: data.password,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        metadata,
+      });
+
+      if (!user) {
+        throw new Error("Registration failed. Please try again.");
+      }
+
+      if (emailConfirmationRequired) {
         toast({
-          title: "Verification Code Sent",
-          description:
-            initiateResponse.message ||
-            "A code has been sent to your email. Please check your inbox.",
+          title: "Registration Successful!",
+          description: "Please check your email to verify your account before signing in.",
+          variant: "default",
+        });
+
+        // Redirect to login page with success message
+        navigate("/login", { 
+          state: { 
+            message: "Registration successful! Please check your email to verify your account before signing in." 
+          } 
         });
       } else {
-        const errorMessage =
-          initiateResponse.error ||
-          initiateResponse.details ||
-          "Failed to initiate signup. Please try again.";
-        console.error(
-          "Initiate signup failed:",
-          errorMessage,
-          "Full response:",
-          initiateResponse,
-        );
-        setError(errorMessage);
+        // User is already verified (shouldn't happen with email confirmation enabled)
         toast({
-          title: "Signup Initiation Failed",
-          description: errorMessage,
-          variant: "destructive",
+          title: "Registration Successful!",
+          description: "Welcome to Planora! Redirecting to onboarding...",
+          variant: "default",
         });
+        navigate("/onboarding");
       }
-    } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Registration failed. Please try again.";
-      setError(errorMessage);
+
+    } catch {
       toast({
         title: "Registration failed",
-        description: errorMessage,
+        description: "Registration failed. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -218,752 +161,363 @@ export const Register = () => {
     }
   };
 
-  const handleVerificationSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pendingRegistrationData) {
-      setVerificationErrorText(
-        "Error: No pending registration data found. Please start over.",
-      );
-      toast({
-        title: "Verification Error",
-        description: "Missing registration data. Please try registering again.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsVerifying(true);
-    setVerificationErrorText(null);
-
-    const payload: CompleteSignupPayload = {
-      email: pendingRegistrationData.email,
-      code: verificationCode,
-      password_raw: pendingRegistrationData.password,
-      firstName: pendingRegistrationData.firstName,
-      lastName: pendingRegistrationData.lastName,
-      metadata: {
-        country: pendingRegistrationData.country,
-        city:
-          isCustomCityNeeded(pendingRegistrationData.city) &&
-          pendingRegistrationData.customCity
-            ? pendingRegistrationData.customCity
-            : pendingRegistrationData.city,
-        birthdate: pendingRegistrationData.birthdate.toISOString(),
-      },
-    };
-
+  const handleGoogleSignUp = async () => {
     try {
-      const completeResponse = await authService.completeSignup(payload);
-
-      if (completeResponse.success) {
-        toast({
-          title: "Signup Almost Complete!",
-          description: "Finalizing your account and logging you in...",
-        });
-
-        const signInResponse = await authService.signInWithPassword({
-          email: pendingRegistrationData.email,
-          password: pendingRegistrationData.password,
-        });
-
-        if (signInResponse.error) {
-          console.error(
-            "Auto sign-in failed after signup:",
-            signInResponse.error,
-          );
-          setVerificationErrorText(
-            `Account created, but auto-login failed: ${signInResponse.error.message}. Please try logging in manually.`,
-          );
-          toast({
-            title: "Login Required",
-            description: `Account created, but auto-login failed. Please log in.`,
-            variant: "destructive",
-          });
-          navigate("/login");
-        } else {
-          toast({
-            title: "Signup Successful!",
-            description: "Welcome to Planora! Taking you to onboarding...",
-          });
-          navigate("/onboarding");
-        }
-      } else {
-        const errorMsg =
-          completeResponse.error ||
-          completeResponse.details ||
-          "Invalid or expired verification code.";
-        setVerificationErrorText(errorMsg);
-        toast({
-          title: "Verification Failed",
-          description: errorMsg,
-          variant: "destructive",
-        });
-      }
-    } catch (err: unknown) {
-      console.error("Verification submission error:", err);
-      const errorMsg =
-        err instanceof Error
-          ? err.message
-          : "An unexpected error occurred during verification.";
-      setVerificationErrorText(errorMsg);
+      await signInWithGoogle();
+    } catch {
       toast({
-        title: "Verification Error",
-        description: errorMsg,
+        title: "Google Sign Up Failed",
+        description: "Please try again or use email registration.",
         variant: "destructive",
       });
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
-  const handleResendCode = async () => {
-    if (!pendingRegistrationData) {
-      toast({
-        title: "Error",
-        description:
-          "Cannot resend code, previous registration data not found.",
-        variant: "destructive",
-      });
-      return;
-    }
-    try {
-      setIsResendingCode(true);
-      setError(null);
-      const initiateResponse = await authService.initiateSignup(
-        pendingRegistrationData.email,
-        pendingRegistrationData.password,
-      );
-      if (initiateResponse.success) {
-        toast({
-          title: "Verification Code Resent",
-          description:
-            initiateResponse.message ||
-            "A new code has been sent to your email.",
-        });
-      } else {
-        const errorMsg =
-          initiateResponse.error ||
-          initiateResponse.details ||
-          "Failed to resend code.";
-        setError(errorMsg);
-        toast({
-          title: "Resend Failed",
-          description: errorMsg,
-          variant: "destructive",
-        });
-      }
-    } catch (err: unknown) {
-      const errorMsg =
-        err instanceof Error
-          ? err.message
-          : "An unexpected error occurred while resending code.";
-      setError(errorMsg);
-      toast({
-        title: "Resend Error",
-        description: errorMsg,
-        variant: "destructive",
-      });
-    } finally {
-      setIsResendingCode(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-planora-purple-dark flex flex-col">
-      <div className="absolute inset-0 overflow-hidden z-0">
-        <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-gradient-to-br from-planora-accent-purple/30 to-transparent rounded-full blur-3xl animate-pulse-slow"></div>
-        <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-gradient-to-tl from-planora-accent-blue/30 to-transparent rounded-full blur-3xl animate-pulse-slow animation-delay-2000"></div>
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCA2MCBNIDYwIDMwIEwgMzAgNjAgTSAzMCAwIEwgMCAzMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDMiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-20"></div>
-      </div>
-
-      <header className="py-6 px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="flex items-center justify-start">
-          <Logo href="/" className="h-14 w-auto" />
-        </div>
-      </header>
-
-      <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
-        <Card className="w-full max-w-lg z-10 bg-card/60 backdrop-blur-xl border border-white/10 shadow-2xl transition-all duration-300 hover:border-white/20 hover:shadow-planora-accent-purple/20">
-          <CardHeader className="space-y-3 pb-6">
-            {signupPhase === "details" ? (
-              <>
-                <CardTitle className="text-2xl md:text-3xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-white to-white/80">
-                  Create Your Planora Account
-                </CardTitle>
-                <CardDescription className="text-center text-muted-foreground">
-                  {formStep === 0
-                    ? "Start by telling us a bit about yourself."
-                    : "Almost there! Just a few more details."}
-                </CardDescription>
-                <div className="flex justify-center space-x-3 pt-2">
-                  <div
-                    className={`h-1.5 w-20 rounded-full transition-all duration-300 ${formStep === 0 ? "bg-gradient-to-r from-planora-accent-purple to-planora-accent-blue" : "bg-white/20"}`}
-                  ></div>
-                  <div
-                    className={`h-1.5 w-20 rounded-full transition-all duration-300 ${formStep === 1 ? "bg-gradient-to-r from-planora-accent-purple to-planora-accent-blue" : "bg-white/20"}`}
-                  ></div>
-                </div>
-              </>
-            ) : (
-              <>
-                <CardTitle className="text-2xl md:text-3xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-white to-white/80">
-                  Verify Your Email
-                </CardTitle>
-                <CardDescription className="text-center text-muted-foreground">
-                  Enter the 6-digit code sent to{" "}
-                  {pendingRegistrationData?.email || "your email"}.
-                </CardDescription>
-              </>
-            )}
+    <div className="min-h-screen bg-gradient-to-br from-planora-background via-planora-background to-planora-dark flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <Card className="bg-black/30 backdrop-blur-xl border border-white/20 shadow-2xl">
+          <CardHeader className="text-center pb-6">
+            <CardTitle className="text-2xl md:text-3xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-white to-white/80">
+              {formStep === 0 ? "Create Your Account" : "Review & Complete"}
+            </CardTitle>
+            <CardDescription className="text-center text-muted-foreground">
+              {formStep === 0 
+                ? "Join Planora and start planning amazing trips"
+                : "Review your information and create your account"
+              }
+            </CardDescription>
           </CardHeader>
 
           <CardContent className="grid gap-6">
-            {signupPhase === "details" ? (
-              <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-4"
-                >
-                  {formStep === 0 ? (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="lastName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-white/80 flex items-center gap-1">
-                                <User className="h-3.5 w-3.5 text-planora-accent-purple/80" />
-                                Last Name
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="Doe"
-                                  {...field}
-                                  className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"
-                                />
-                              </FormControl>
-                              <FormMessage className="text-planora-accent-pink" />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="firstName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-white/80 flex items-center gap-1">
-                                <User className="h-3.5 w-3.5 text-planora-accent-purple/80" />
-                                First Name
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="John"
-                                  {...field}
-                                  className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"
-                                />
-                              </FormControl>
-                              <FormMessage className="text-planora-accent-pink" />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                {formStep === 0 ? (
+                  // Step 1: Personal Information
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
-                        name="email"
+                        name="firstName"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-white/80 flex items-center gap-1">
-                              <Mail className="h-3.5 w-3.5 text-planora-accent-purple/80" />
-                              Email
-                            </FormLabel>
+                            <FormLabel className="text-muted-foreground">First Name</FormLabel>
                             <FormControl>
                               <Input
-                                placeholder="your@email.com"
                                 {...field}
-                                className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"
-                                autoComplete="email"
+                                className="bg-input/30 border-white/20 focus:border-planora-accent-purple focus:ring-planora-accent-purple"
+                                placeholder="John"
                               />
                             </FormControl>
-                            <FormMessage className="text-planora-accent-pink" />
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
-                      <div className="space-y-4 pt-2">
-                        <div className="text-sm text-white/70 font-medium flex items-center gap-1">
-                          <Lock className="h-3.5 w-3.5 text-planora-accent-purple/80" />
-                          Security Information
-                        </div>
-                        <div className="space-y-4">
-                          <FormField
-                            control={form.control}
-                            name="password"
-                            render={({ field }) => (
-                              <FormItem className="relative">
-                                <FormLabel className="text-white/80">
-                                  Password
-                                </FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="••••••••"
-                                    {...field}
-                                    className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300 pr-10"
-                                    autoComplete="new-password"
-                                  />
-                                </FormControl>
-                                <button
-                                  type="button"
-                                  onClick={() => setShowPassword(!showPassword)}
-                                  className="absolute right-3 top-9 text-white/50 hover:text-white/70"
-                                >
-                                  <span className="sr-only">
-                                    {showPassword
-                                      ? "Hide password"
-                                      : "Show password"}
-                                  </span>
-                                  {showPassword ? (
-                                    <EyeOff size={18} />
-                                  ) : (
-                                    <Eye size={18} />
-                                  )}
-                                </button>
-                                <FormMessage className="text-planora-accent-pink" />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="confirmPassword"
-                            render={({ field }) => (
-                              <FormItem className="relative">
-                                <FormLabel className="text-white/80">
-                                  Confirm Password
-                                </FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type={
-                                      showConfirmPassword ? "text" : "password"
-                                    }
-                                    placeholder="••••••••"
-                                    {...field}
-                                    className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300 pr-10"
-                                    autoComplete="new-password"
-                                  />
-                                </FormControl>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setShowConfirmPassword(!showConfirmPassword)
-                                  }
-                                  className="absolute right-3 top-9 text-white/50 hover:text-white/70"
-                                >
-                                  <span className="sr-only">
-                                    {showConfirmPassword
-                                      ? "Hide password"
-                                      : "Show password"}
-                                  </span>
-                                  {showConfirmPassword ? (
-                                    <EyeOff size={18} />
-                                  ) : (
-                                    <Eye size={18} />
-                                  )}
-                                </button>
-                                <FormMessage className="text-planora-accent-pink" />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-4 pt-2">
-                        <div className="text-sm text-white/70 font-medium flex items-center gap-1">
-                          <MapPin className="h-3.5 w-3.5 text-planora-accent-purple/80" />
-                          Location Information
-                        </div>
-                        <div className="grid grid-cols-1 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="country"
-                            render={({ field }) => (
-                              <FormItem className="w-full">
-                                <FormLabel className="text-white/80">
-                                  Country
-                                </FormLabel>
-                                <Select
-                                  value={field.value}
-                                  onValueChange={field.onChange}
-                                  options={countryOptions}
-                                  className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 w-full"
-                                  placeholder="Select your country"
-                                />
-                                <FormMessage className="text-planora-accent-pink" />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="city"
-                            render={({ field }) => (
-                              <FormItem className="w-full">
-                                <FormLabel className="text-white/80">
-                                  City
-                                </FormLabel>
-                                {selectedCountry ? (
-                                  <>
-                                    <Select
-                                      value={field.value}
-                                      onValueChange={field.onChange}
-                                      options={cityOptions}
-                                      className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 w-full"
-                                      placeholder="Select your city"
-                                    />
-                                    <FormMessage className="text-planora-accent-pink" />
-                                  </>
-                                ) : (
-                                  <>
-                                    <div className="h-10 flex items-center px-3 bg-white/5 border border-white/10 text-white/50 rounded-md cursor-not-allowed">
-                                      Select your city
-                                    </div>
-                                    <p className="text-xs text-white/50 mt-1">
-                                      Please select a country first
-                                    </p>
-                                  </>
-                                )}
-                              </FormItem>
-                            )}
-                          />
-                          {showCustomCityInput && (
-                            <FormField
-                              control={form.control}
-                              name="customCity"
-                              render={({ field }) => (
-                                <FormItem className="w-full">
-                                  <FormLabel className="text-white/80">
-                                    Specify City
-                                  </FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      placeholder="Enter your city name"
-                                      {...field}
-                                      className="bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300 w-full"
-                                    />
-                                  </FormControl>
-                                  <FormMessage className="text-planora-accent-pink" />
-                                </FormItem>
-                              )}
+                      <FormField
+                        control={form.control}
+                        name="lastName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-muted-foreground">Last Name</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                className="bg-input/30 border-white/20 focus:border-planora-accent-purple focus:ring-planora-accent-purple"
+                                placeholder="Doe"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-muted-foreground">Email</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="email"
+                              className="bg-input/30 border-white/20 focus:border-planora-accent-purple focus:ring-planora-accent-purple"
+                              placeholder="john@example.com"
                             />
-                          )}
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-muted-foreground">Password</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Input
+                                {...field}
+                                type={showPassword ? "text" : "password"}
+                                className="bg-input/30 border-white/20 focus:border-planora-accent-purple focus:ring-planora-accent-purple pr-10"
+                                placeholder="••••••••"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                onClick={() => setShowPassword(!showPassword)}
+                              >
+                                {showPassword ? (
+                                  <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <Eye className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </Button>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="confirmPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-muted-foreground">Confirm Password</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Input
+                                {...field}
+                                type={showConfirmPassword ? "text" : "password"}
+                                className="bg-input/30 border-white/20 focus:border-planora-accent-purple focus:ring-planora-accent-purple pr-10"
+                                placeholder="••••••••"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                              >
+                                {showConfirmPassword ? (
+                                  <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <Eye className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </Button>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="country"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-muted-foreground">Country</FormLabel>
+                            <FormControl>
+                              <Select
+                                options={countryOptions}
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                className="bg-input/30 border-white/20 focus:border-planora-accent-purple focus:ring-planora-accent-purple"
+                                placeholder="Select country"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="city"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-muted-foreground">City</FormLabel>
+                            <FormControl>
+                              <Select
+                                options={cityOptions}
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                className="bg-input/30 border-white/20 focus:border-planora-accent-purple focus:ring-planora-accent-purple"
+                                placeholder={selectedCountry ? "Select city" : "Select country first"}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    {showCustomCityInput && (
+                      <FormField
+                        control={form.control}
+                        name="customCity"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-muted-foreground">Custom City</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                className="bg-input/30 border-white/20 focus:border-planora-accent-purple focus:ring-planora-accent-purple"
+                                placeholder="Enter your city"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    <FormField
+                      control={form.control}
+                      name="birthdate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-muted-foreground">Birth Date</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              className="bg-input/30 border-white/20 focus:border-planora-accent-purple focus:ring-planora-accent-purple"
+                              max={sixteenYearsAgo.toISOString().split('T')[0]}
+                              onChange={(e) => field.onChange(new Date(e.target.value))}
+                              value={field.value ? field.value.toISOString().split('T')[0] : ''}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <GradientButton className="w-full" type="submit">
+                      Continue to Review
+                    </GradientButton>
+                  </>
+                ) : (
+                  // Step 2: Review and Submit
+                  <>
+                    <div className="space-y-4 p-4 bg-white/5 rounded-lg border border-white/10">
+                      <h3 className="text-lg font-semibold text-white">Review Your Information</h3>
+                      <div className="grid gap-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Name:</span>
+                          <span className="text-white">{form.getValues("firstName")} {form.getValues("lastName")}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Email:</span>
+                          <span className="text-white">{form.getValues("email")}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Location:</span>
+                          <span className="text-white">
+                            {isCustomCityNeeded(form.getValues("city")) && form.getValues("customCity") 
+                              ? form.getValues("customCity") 
+                              : form.getValues("city")}, {form.getValues("country")}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Birth Date:</span>
+                          <span className="text-white">{form.getValues("birthdate")?.toLocaleDateString()}</span>
                         </div>
                       </div>
-                      <div className="space-y-4 pt-2">
-                        <div className="text-sm text-white/70 font-medium flex items-center gap-1">
-                          <Calendar className="h-3.5 w-3.5 text-planora-accent-purple/80" />
-                          Date of Birth
-                        </div>
-                        <FormField
-                          control={form.control}
-                          name="birthdate"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-white/80">
-                                Date of Birth
-                              </FormLabel>
-                              <FormControl>
-                                <DatePickerInput
-                                  value={field.value}
-                                  onChange={field.onChange}
-                                  placeholder="MM / DD / YYYY"
-                                  className="w-full bg-white/5 border-white/10 text-white focus:border-planora-accent-purple/50 focus:ring-planora-accent-purple/20 transition-all duration-300"
-                                />
-                              </FormControl>
-                              <FormMessage className="text-planora-accent-pink" />
-                              <div className="text-xs text-white/50 mt-1">
-                                You must be at least 16 years old to use Planora
-                              </div>
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="bg-planora-accent-purple/10 border border-planora-accent-purple/20 rounded-xl p-4 text-white/80 mt-4">
-                        <h3 className="text-base font-medium mb-2 flex items-center gap-2">
-                          <ShieldCheck className="w-4 h-4 text-planora-accent-purple" />
-                          Review Your Information
-                        </h3>
-                        <p className="text-sm mb-3">
-                          Please confirm your account details before creating
-                          your account.
-                        </p>
-                        <div className="mb-4 p-3 bg-white/5 rounded-md">
-                          <div className="grid grid-cols-2 gap-2 text-xs text-white/80">
-                            <div>
-                              <div className="text-white/50 mb-1">Name</div>
-                              <div>
-                                {form.getValues().firstName}{" "}
-                                {form.getValues().lastName}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-white/50 mb-1">Email</div>
-                              <div>{form.getValues().email}</div>
-                            </div>
-                            <div>
-                              <div className="text-white/50 mb-1">Location</div>
-                              <div>
-                                {form.getValues().customCity ||
-                                  form.getValues().city}
-                                , {form.getValues().country}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-white/50 mb-1">
-                                Date of Birth
-                              </div>
-                              <div>
-                                {form.getValues().birthdate
-                                  ? form
-                                      .getValues()
-                                      .birthdate.toLocaleDateString()
-                                  : "Not provided"}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-sm text-white/70">
-                          <p>
-                            By signing up, you agree to our{" "}
-                            <Link
-                              to="/terms"
-                              className="text-planora-accent-purple hover:underline transition-colors"
-                            >
-                              Terms of Service
-                            </Link>{" "}
-                            and{" "}
-                            <Link
-                              to="/privacy"
-                              className="text-planora-accent-purple hover:underline transition-colors"
-                            >
-                              Privacy Policy
-                            </Link>
-                            .
-                          </p>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                  <div className="pt-4">
-                    {formStep === 0 ? (
+                    </div>
+
+                    <div className="flex space-x-2">
                       <Button
-                        className="w-full bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90 py-5 font-medium"
                         type="button"
-                        onClick={async () => {
-                          const isValid = await form.trigger([
-                            "firstName",
-                            "lastName",
-                            "email",
-                            "password",
-                            "confirmPassword",
-                            "country",
-                            "city",
-                            "customCity",
-                            "birthdate",
-                          ]);
-                          if (isValid) {
-                            setFormStep(1);
-                          }
-                        }}
+                        variant="outline"
+                        className="flex-1 border-white/10 bg-white/5 text-white hover:bg-white/10 transition-colors"
+                        onClick={() => setFormStep(0)}
                         disabled={isSubmitting}
                       >
-                        Continue to Review
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        Back to Edit
                       </Button>
-                    ) : (
-                      <div className="flex space-x-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="flex-1 border-white/10 bg-white/5 text-white hover:bg-white/10 transition-colors"
-                          onClick={() => setFormStep(0)}
-                          disabled={isSubmitting}
-                        >
-                          Back to Edit
-                        </Button>
-                        <GradientButton
-                          className="flex-1"
-                          type="submit"
-                          disabled={isSubmitting}
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                              Processing...
-                            </>
-                          ) : (
-                            "Create Account & Verify Email"
-                          )}
-                        </GradientButton>
-                      </div>
-                    )}
-                  </div>
-                </form>
-              </Form>
-            ) : (
-              <form onSubmit={handleVerificationSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="verificationCode"
-                    className="text-muted-foreground"
-                  >
-                    Verification Code
-                  </Label>
-                  <Input
-                    id="verificationCode"
-                    type="text"
-                    value={verificationCode}
-                    onChange={(e) =>
-                      setVerificationCode(
-                        e.target.value.replace(/[^0-9]/g, "").slice(0, 6),
-                      )
-                    }
-                    placeholder="Enter 6-digit code"
-                    maxLength={6}
-                    required
-                    className="bg-input/30 border-white/20 focus:border-planora-accent-purple focus:ring-planora-accent-purple text-center tracking-[0.3em] text-lg"
-                  />
-                </div>
-                {verificationErrorText && (
-                  <p className="text-sm text-red-500 flex items-center">
-                    <Shield size={16} className="mr-2 flex-shrink-0" />
-                    {verificationErrorText}
-                  </p>
+                      <GradientButton
+                        className="flex-1"
+                        type="submit"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                            Creating Account...
+                          </>
+                        ) : (
+                          "Create Account"
+                        )}
+                      </GradientButton>
+                    </div>
+                  </>
                 )}
-                <GradientButton
-                  type="submit"
-                  className="w-full"
-                  disabled={isVerifying || verificationCode.length !== 6}
-                >
-                  {isVerifying ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle size={18} className="mr-2" />
-                  )}
-                  Verify & Complete Signup
-                </GradientButton>
-                <Button
-                  variant="link"
-                  type="button"
-                  onClick={handleResendCode}
-                  className="w-full text-planora-blue-light hover:text-planora-blue-light/80"
-                  disabled={isResendingCode || isVerifying}
-                >
-                  {isResendingCode && !verificationErrorText ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : null}
-                  Resend Code
-                </Button>
+              </form>
+            </Form>
+
+            {formStep === 0 && (
+              <>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-white/20" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-black/30 px-2 text-muted-foreground">Or continue with</span>
+                  </div>
+                </div>
+
                 <Button
                   variant="outline"
-                  type="button"
-                  onClick={() => {
-                    setSignupPhase("details");
-                    setError(null);
-                    setVerificationErrorText(null);
-                    setVerificationCode("");
-                  }}
-                  className="w-full border-white/20 hover:bg-white/10"
-                  disabled={isVerifying}
+                  className="w-full border-white/20 bg-white/5 hover:bg-white/10 transition-colors"
+                  onClick={handleGoogleSignUp}
                 >
-                  Back to Details
+                  <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                    <path
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      fill="#4285F4"
+                    />
+                    <path
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      fill="#34A853"
+                    />
+                    <path
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                      fill="#FBBC05"
+                    />
+                    <path
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                      fill="#EA4335"
+                    />
+                  </svg>
+                  Continue with Google
                 </Button>
-              </form>
+
+                <div className="text-center">
+                  <span className="text-sm text-muted-foreground">
+                    Already have an account?{" "}
+                    <button
+                      type="button"
+                      className="text-planora-accent-purple hover:text-planora-accent-pink transition-colors"
+                      onClick={() => navigate("/login")}
+                    >
+                      Sign in
+                    </button>
+                  </span>
+                </div>
+              </>
             )}
           </CardContent>
-
-          <CardFooter className="flex flex-col gap-4 pt-2 pb-6">
-            <div className="flex items-center w-full">
-              <div className="h-px bg-white/10 flex-grow"></div>
-              <span className="text-xs text-white/40 px-4">
-                or continue with
-              </span>
-              <div className="h-px bg-white/10 flex-grow"></div>
-            </div>
-            <div className="grid grid-cols-2 gap-3 w-full">
-              <Button
-                variant="outline"
-                className="border-white/10 bg-white/5 hover:bg-white/10 text-white flex items-center gap-2 justify-center transition-colors"
-                disabled={isSubmitting || isVerifying}
-                onClick={async () => {
-                  try {
-                    setIsSubmitting(true);
-                    await signInWithGoogle();
-                  } catch (err) {
-                    console.error("Google sign-in error:", err);
-                    const errorMessage =
-                      err instanceof Error ? err.message : "Please try again.";
-                    toast({
-                      title: "Google sign-in failed",
-                      description: errorMessage,
-                      variant: "destructive",
-                    });
-                  } finally {
-                    setIsSubmitting(false);
-                  }
-                }}
-              >
-                <svg
-                  className="h-4 w-4"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path d="M20.283 10.356h-8.327v3.451h4.792c-.446 2.193-2.313 3.453-4.792 3.453a5.27 5.27 0 0 1-5.279-5.28 5.27 5.27 0 0 1 5.279-5.279c1.259 0 2.397.447 3.29 1.178l2.6-2.599c-1.584-1.381-3.615-2.233-5.89-2.233a8.908 8.908 0 0 0-8.934 8.934 8.907 8.907 0 0 0 8.934 8.934c4.467 0 8.529-3.249 8.529-8.934 0-.528-.081-1.097-.202-1.625z" />
-                </svg>
-                <span>Google</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="border-white/10 bg-white/5 hover:bg-white/10 text-white flex items-center gap-2 justify-center transition-colors"
-                disabled={
-                  isSubmitting ||
-                  isVerifying ||
-                  import.meta.env.VITE_ENABLE_APPLE_AUTH !== "true"
-                }
-                onClick={() => {
-                  if (import.meta.env.VITE_ENABLE_APPLE_AUTH === "true") {
-                    toast({
-                      title: "Apple Sign-In",
-                      description:
-                        "Apple Sign-In is configured but not yet fully implemented in this component.",
-                    });
-                  } else {
-                    toast({
-                      title: "Coming Soon",
-                      description: "Apple sign-in will be available soon.",
-                    });
-                  }
-                }}
-              >
-                <Apple className="h-4 w-4" />
-                <span>Apple</span>
-              </Button>
-            </div>
-            <div className="text-center text-sm text-white/60 mt-2">
-              Already have an account?{" "}
-              <Link
-                to="/login"
-                className="text-planora-accent-purple hover:underline transition-colors"
-              >
-                Sign in
-              </Link>
-            </div>
-          </CardFooter>
         </Card>
-      </div>
-
-      {/* Footer */}
-      <div className="mt-auto relative z-10">
-        <Footer />
       </div>
     </div>
   );

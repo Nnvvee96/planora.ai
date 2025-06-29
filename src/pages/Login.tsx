@@ -54,7 +54,10 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         );
         _setGoogleLoginButton(() => GoogleButton);
       } catch (error) {
-        console.error("Error loading Google button component:", error);
+        if (import.meta.env.DEV) {
+          if (import.meta.env.DEV) console.error("Error loading Google button component:", error);
+        }
+        setGoogleButtonError(true);
       }
     };
 
@@ -170,7 +173,9 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         description: "Welcome back to Planora!",
       });
     } catch (err) {
-      console.error("Login error:", err);
+      if (import.meta.env.DEV) {
+        if (import.meta.env.DEV) console.error("Login error:", err);
+      }
       const errorMessage =
         err instanceof Error ? err.message : "Login failed. Please try again.";
       setError(errorMessage);
@@ -412,7 +417,7 @@ export function Login() {
         );
       }
     } catch (err) {
-      console.error("Error resending verification email:", err);
+      if (import.meta.env.DEV) console.error("Error resending verification email:", err);
       toast({
         title: "Error",
         description:

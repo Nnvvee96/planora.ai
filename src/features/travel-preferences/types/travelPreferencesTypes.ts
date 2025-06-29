@@ -75,11 +75,10 @@ export enum PlanningIntent {
   PLANNING = "planning",
 }
 
-// Location preference from Onboarding - "Preferred distance from city center?"
+// Location preference from Onboarding - "Preferred location type?"
 export enum LocationPreference {
   CENTER = "center",
-  NEAR = "near",
-  OUTSKIRTS = "outskirts",
+  BEACH = "beach",
   ANYWHERE = "anywhere",
 }
 
@@ -109,12 +108,17 @@ export interface TravelPreferencesFormValues {
   accommodationTypes: AccommodationType[];
   // 7. Accommodation Comfort
   accommodationComfort: ComfortPreference[];
-  // 8. Location Preference
+  // 8. Comfort Level
+  comfortLevel: 'budget' | 'standard' | 'premium' | 'luxury';
+  // 9. Location Preference
   locationPreference: LocationPreference;
-  // 9. Flight Preferences
+  // 10. City Distance Preference (conditional)
+  cityDistancePreference?: 'very-close' | 'up-to-5km' | 'up-to-10km' | 'more-than-10km';
+  // 11. Flight Preferences
   flightType: FlightType;
   preferCheaperWithStopover: boolean;
-  // 10. Departure Location
+  priceVsConvenience: 'price' | 'balanced' | 'convenience';
+  // 12. Departure Location
   departureCity: string;
   departureCountry: string;
 }
@@ -145,15 +149,20 @@ export interface TravelPreferences {
   accommodationTypes: AccommodationType[];
   // 6. Accommodation Comfort
   accommodationComfort: ComfortPreference[];
+  // 7. Comfort Level
+  comfortLevel: 'budget' | 'standard' | 'premium' | 'luxury';
 
-  // 7. Location preference
+  // 8. Location preference
   locationPreference: LocationPreference;
+  // 9. City Distance Preference (conditional)
+  cityDistancePreference?: 'very-close' | 'up-to-5km' | 'up-to-10km' | 'more-than-10km';
 
-  // 8. Flight preferences
+  // 10. Flight preferences
   flightType: FlightType;
   preferCheaperWithStopover: boolean;
+  priceVsConvenience: 'price' | 'balanced' | 'convenience';
 
-  // 9. Departure location
+  // 11. Departure location
   departureCity: string;
   departureCountry: string;
 

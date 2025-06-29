@@ -14,7 +14,7 @@ const handleGlobalError = (
   error: Error,
   errorInfo?: { componentStack?: string },
 ) => {
-  console.error("Global Error:", error, errorInfo);
+  if (import.meta.env.DEV) console.error("Global Error:", error, errorInfo);
 
   // In production, you might want to send this to an error reporting service
   if (import.meta.env.PROD) {
@@ -25,7 +25,7 @@ const handleGlobalError = (
 
 // Global error handler for unhandled promise rejections
 window.addEventListener("unhandledrejection", (event) => {
-  console.error("Unhandled Promise Rejection:", event.reason);
+  if (import.meta.env.DEV) console.error("Unhandled Promise Rejection:", event.reason);
   handleGlobalError(new Error(`Unhandled Promise Rejection: ${event.reason}`));
 
   // Prevent the default browser behavior of logging to console
@@ -34,7 +34,7 @@ window.addEventListener("unhandledrejection", (event) => {
 
 // Global error handler for uncaught exceptions
 window.addEventListener("error", (event) => {
-  console.error("Uncaught Error:", event.error);
+  if (import.meta.env.DEV) console.error("Uncaught Error:", event.error);
   handleGlobalError(event.error);
 });
 
@@ -58,7 +58,7 @@ try {
     </React.StrictMode>
   );
 } catch (error) {
-  console.error("Failed to render application:", error);
+  if (import.meta.env.DEV) console.error("Failed to render application:", error);
   handleGlobalError(error as Error);
 
   // Fallback UI

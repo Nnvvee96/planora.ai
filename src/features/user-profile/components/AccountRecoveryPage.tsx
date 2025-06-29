@@ -8,7 +8,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/ui/atoms/Card";
 import { userProfileService } from "../services/userProfileService";
 
 /**
@@ -51,7 +51,7 @@ const AccountRecoveryPage = () => {
           );
         }
       } catch (error) {
-        console.error("Error processing recovery token:", error);
+        if (import.meta.env.DEV) console.error("Error processing recovery token:", error);
         setError(
           "An unexpected error occurred. Please try again or contact support.",
         );

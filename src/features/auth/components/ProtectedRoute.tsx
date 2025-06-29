@@ -26,7 +26,7 @@ interface ProtectedRouteProps {
 /**
  * Safe access to localStorage that works in both server and client environments
  */
-const safeGetLocalStorage = (key: string): string | null => {
+const _safeGetLocalStorage = (key: string): string | null => {
   if (typeof window !== "undefined") {
     return localStorage.getItem(key);
   }
@@ -60,18 +60,21 @@ export const ProtectedRoute = ({
     return () => setIsMounted(false);
   }, []);
 
-  // Check if onboarding is completed based on user data and localStorage
+  // Check if onboarding is completed based on user data
   const hasCompletedOnboarding = React.useMemo(() => {
-    if (!isMounted) return false;
+    if (!isMounted || !user) return false;
 
-    // Use multiple sources to determine onboarding status
-    return (
-      // From user object in auth context
-      user?.hasCompletedOnboarding === true ||
-      // From localStorage (client-side only)
-      safeGetLocalStorage("has_completed_onboarding") === "true" ||
-      safeGetLocalStorage("hasCompletedInitialFlow") === "true"
-    );
+    // User must complete onboarding to access protected routes
+    return user?.hasCompletedOnboarding === true;
+  }, [user, isMounted]);
+
+  // Check if user's email is verified (for new flow)
+  const isEmailVerified = React.useMemo(() => {
+    if (!isMounted || !user) return false;
+    
+    // For now, we'll assume all authenticated users have verified emails
+    // This will be updated when we implement the new auth flow
+    return true;
   }, [user, isMounted]);
 
   // Don't render anything during server-side rendering or while auth is loading
@@ -99,15 +102,23 @@ export const ProtectedRoute = ({
     return <AuthLoader />;
   }
 
+  // For authenticated users, check email verification status
+  if (isAuthenticated && !isEmailVerified) {
+    if (import.meta.env.DEV) {
+      console.log("📧 Email verification required, redirecting to verification");
+    }
+    return <Navigate to="/login?message=verify-email" replace />;
+  }
+
   // If onboarding is required and not completed (only for authenticated users)
-  if (requireOnboarding && isAuthenticated && !hasCompletedOnboarding) {
+  if (requireOnboarding && isAuthenticated && isEmailVerified && !hasCompletedOnboarding) {
     if (import.meta.env.DEV) {
       console.log("📝 Onboarding required, redirecting to onboarding");
     }
     return <Navigate to="/onboarding" state={{ from: location }} replace />;
   }
 
-  // User is authenticated and meets all requirements
+  // User is authenticated, email verified, and meets all requirements
   if (import.meta.env.DEV) {
     console.log("✅ Access granted to protected route");
   }

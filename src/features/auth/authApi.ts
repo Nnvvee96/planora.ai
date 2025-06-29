@@ -224,14 +224,6 @@ export const getResetPasswordComponent = () => {
   );
 };
 
-export const getVerificationDialogComponent = () => {
-  return lazy(() =>
-    import("./components/VerificationDialog").then((module) => ({
-      default: module.VerificationDialog,
-    })),
-  );
-};
-
 // Export auth context hook with a factory function
 // This returns the hook directly, not as a promise
 // Note: Removed getAuthContextHook due to architectural complexity with React hooks

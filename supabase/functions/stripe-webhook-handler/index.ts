@@ -24,9 +24,10 @@ serve(async (req) => {
       throw new Error('Webhook secret or signature is missing.');
     }
     event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
-  } catch (err: any) {
-    console.error(`Webhook signature verification failed: ${err.message}`);
-    return new Response(err.message, { status: 400 });
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err instanceof Error ? err.message : "Unknown error" : 'Unknown error';
+    console.error(`Webhook signature verification failed: ${errorMessage}`);
+    return new Response(errorMessage, { status: 400 });
   }
 
   // Handle the event
@@ -85,6 +86,57 @@ async function upsertSubscription(subscription: Stripe.Subscription) {
   if (error) {
     console.error(`Error upserting subscription ${subscription.id}:`, error);
     throw error;
+  }
+
+  // Update user subscription tier based on subscription status and product
+  if (subscription.metadata.user_id) {
+    try {
+      // Get product name from price ID
+      const { data: priceData, error: priceError } = await supabaseAdmin
+        .from('prices')
+        .select('products(name)')
+        .eq('id', subscription.items.data[0].price.id)
+        .single();
+
+      let productName = '';
+      if (!priceError && priceData) {
+        const products = priceData.products as { name: string } | { name: string }[] | null;
+        if (Array.isArray(products)) {
+          productName = products[0]?.name || '';
+        } else {
+          productName = products?.name || '';
+        }
+      }
+
+      // Determine subscription tier based on status and product
+      let newTier = 'free';
+      if (['active', 'trialing'].includes(subscription.status) && productName) {
+        const tierMapping: Record<string, string> = {
+          'planora-explorer': 'explorer',
+          'planora-basic': 'explorer', // Legacy mapping
+          'planora-wanderer-pro': 'wanderer_pro',
+          'planora-premium': 'wanderer_pro', // Legacy mapping
+          'planora-global-elite': 'global_elite',
+          'planora-pro': 'global_elite', // Legacy mapping
+        };
+        newTier = tierMapping[productName] || 'explorer';
+      }
+
+      // Update user subscription tier using database function
+      const { error: tierError } = await supabaseAdmin.rpc('update_user_subscription_tier', {
+        user_id: subscription.metadata.user_id,
+        new_tier: newTier
+      });
+
+      if (tierError) {
+        console.error(`Error updating subscription tier for user ${subscription.metadata.user_id}:`, tierError);
+      } else {
+        console.log(`Updated user ${subscription.metadata.user_id} subscription tier to ${newTier}`);
+      }
+    } catch (tierUpdateError) {
+      console.error('Failed to update subscription tier:', tierUpdateError);
+      // Don't throw error to avoid breaking the main subscription upsert flow
+    }
   }
 
   console.log(`Successfully upserted subscription ${subscription.id} for user ${subscription.metadata.user_id}`);

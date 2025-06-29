@@ -6,7 +6,7 @@
  */
 
 import React from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/ui/atoms/Button";
 import { useAuthContext } from "../context/authContext";
 import { FaGoogle } from "react-icons/fa";
 

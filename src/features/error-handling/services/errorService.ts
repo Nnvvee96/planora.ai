@@ -80,15 +80,15 @@ export const errorService = {
         console.info(`${timestamp} ${logPrefix} ${error.message}`);
         break;
       case ErrorSeverity.WARNING:
-        console.warn(`${timestamp} ${logPrefix} ${error.message}`);
+        if (import.meta.env.DEV) console.warn(`${timestamp} ${logPrefix} ${error.message}`);
         break;
       case ErrorSeverity.ERROR:
       case ErrorSeverity.CRITICAL:
-        console.error(`${timestamp} ${logPrefix} ${error.message}`);
+        if (import.meta.env.DEV) console.error(`${timestamp} ${logPrefix} ${error.message}`);
 
         // Log original error details if available
         if (error.originalError) {
-          console.error("Original error:", error.originalError);
+          if (import.meta.env.DEV) console.error("Original error:", error.originalError);
         }
         break;
     }

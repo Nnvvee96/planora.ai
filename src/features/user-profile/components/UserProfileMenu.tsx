@@ -1,6 +1,6 @@
 import React, { useState, Suspense } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/ui/atoms/Button";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -94,7 +94,7 @@ const UserProfileMenu = ({
       // This is important for proper navigation flow
       navigate("/");
     } catch (error) {
-      console.error("Error during logout:", error);
+      if (import.meta.env.DEV) console.error("Error during logout:", error);
     }
   };
 
@@ -105,7 +105,7 @@ const UserProfileMenu = ({
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full bg-white/10 hover:bg-white/20"
+            className="rounded-full bg-white/10 hover:bg-white/20 relative z-50"
           >
             <span className="sr-only">Open user menu</span>
             <Avatar className={mini ? "h-8 w-8" : "h-10 w-10"}>
@@ -116,72 +116,92 @@ const UserProfileMenu = ({
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56" align="end">
-          <DropdownMenuLabel>
-            <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">{userName}</p>
-              <p className="text-xs leading-none text-muted-foreground">
+        <DropdownMenuContent className="w-64 bg-black/90 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-2 z-[100] relative isolation-isolate" align="end">
+          <DropdownMenuLabel className="p-4 border-b border-white/10 mb-2">
+            <div className="flex flex-col space-y-2">
+              <p className="text-base font-bold text-white leading-none">{userName}</p>
+              <p className="text-sm text-white/60 leading-none">
                 {userEmail || `${userName.toLowerCase()}@example.com`}
               </p>
             </div>
           </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuItem onClick={() => setProfileDialogOpen(true)}>
-              <User className="mr-2 h-4 w-4" />
-              <span className="w-full">Profile</span>
+          
+          <DropdownMenuGroup className="space-y-1">
+            <DropdownMenuItem 
+              onClick={() => setProfileDialogOpen(true)}
+              className="p-3 rounded-xl hover:bg-white/10 transition-all duration-300 cursor-pointer group relative overflow-hidden"
+            >
+              <User className="mr-3 h-5 w-5 text-purple-400 group-hover:text-purple-300 transition-colors duration-300" />
+              <span className="text-white font-medium group-hover:text-white/90">Profile</span>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <BookMarked className="mr-2 h-4 w-4" />
-              <Link to="/saved-trips" className="w-full">
+            
+            <DropdownMenuItem className="p-3 rounded-xl hover:bg-white/10 transition-all duration-300 cursor-pointer group relative overflow-hidden">
+              <BookMarked className="mr-3 h-5 w-5 text-blue-400 group-hover:text-blue-300 transition-colors duration-300" />
+              <Link to="/saved-trips" className="text-white font-medium group-hover:text-white/90 w-full">
                 Saved Trips
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              <Link to="/preferences" className="w-full">
-                Travel Preferences
+            
+            <DropdownMenuItem className="p-3 rounded-xl hover:bg-white/10 transition-all duration-300 cursor-pointer group relative overflow-hidden">
+              <Settings className="mr-3 h-5 w-5 text-emerald-400 group-hover:text-emerald-300 transition-colors duration-300" />
+              <Link to="/preferences" className="text-white font-medium group-hover:text-white/90 w-full">
+                SmartTravel-Profile
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <CreditCard className="mr-2 h-4 w-4" />
-              <Link to="/billing" className="w-full">
+            
+            <DropdownMenuItem className="p-3 rounded-xl hover:bg-white/10 transition-all duration-300 cursor-pointer group relative overflow-hidden">
+              <CreditCard className="mr-3 h-5 w-5 text-orange-400 group-hover:text-orange-300 transition-colors duration-300" />
+              <Link to="/billing" className="text-white font-medium group-hover:text-white/90 w-full">
                 Billing
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSettingsDialogOpen(true)}>
-              <Settings className="mr-2 h-4 w-4" />
-              <span className="w-full">Settings</span>
-            </DropdownMenuItem>
           </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuItem>
-              <Bell className="mr-2 h-4 w-4" />
-              <Link to="/settings/notifications" className="w-full">
+          
+          <DropdownMenuSeparator className="my-3 bg-white/10" />
+          
+          <DropdownMenuGroup className="space-y-1">
+            <DropdownMenuItem 
+              onClick={() => setSettingsDialogOpen(true)}
+              className="p-3 rounded-xl hover:bg-white/10 transition-all duration-300 cursor-pointer group relative overflow-hidden"
+            >
+              <Settings className="mr-3 h-5 w-5 text-slate-400 group-hover:text-slate-300 transition-colors duration-300" />
+              <span className="text-white font-medium group-hover:text-white/90">Settings</span>
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem className="p-3 rounded-xl hover:bg-white/10 transition-all duration-300 cursor-pointer group relative overflow-hidden">
+              <Bell className="mr-3 h-5 w-5 text-yellow-400 group-hover:text-yellow-300 transition-colors duration-300" />
+              <Link to="/settings/notifications" className="text-white font-medium group-hover:text-white/90 w-full">
                 Notifications
               </Link>
             </DropdownMenuItem>
           </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuItem>
-              <Shield className="mr-2 h-4 w-4" />
-              <Link to="/settings/privacy" className="w-full">
+          
+          <DropdownMenuSeparator className="my-3 bg-white/10" />
+          
+          <DropdownMenuGroup className="space-y-1">
+            <DropdownMenuItem className="p-3 rounded-xl hover:bg-white/10 transition-all duration-300 cursor-pointer group relative overflow-hidden">
+              <Shield className="mr-3 h-5 w-5 text-cyan-400 group-hover:text-cyan-300 transition-colors duration-300" />
+              <Link to="/settings/privacy" className="text-white font-medium group-hover:text-white/90 w-full">
                 Privacy & Security
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <HelpCircle className="mr-2 h-4 w-4" />
-              <Link to="/support" className="w-full">
+            
+            <DropdownMenuItem className="p-3 rounded-xl hover:bg-white/10 transition-all duration-300 cursor-pointer group relative overflow-hidden">
+              <HelpCircle className="mr-3 h-5 w-5 text-green-400 group-hover:text-green-300 transition-colors duration-300" />
+              <Link to="/support" className="text-white font-medium group-hover:text-white/90 w-full">
                 Help & Support
               </Link>
             </DropdownMenuItem>
           </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            <span className="w-full">Log out</span>
+          
+          <DropdownMenuSeparator className="my-3 bg-white/10" />
+          
+          <DropdownMenuItem 
+            onClick={handleLogout}
+            className="p-3 rounded-xl hover:bg-red-500/20 transition-all duration-300 cursor-pointer group relative overflow-hidden"
+          >
+            <LogOut className="mr-3 h-5 w-5 text-red-400 group-hover:text-red-300 transition-colors duration-300" />
+            <span className="text-white font-medium group-hover:text-red-300">Log out</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

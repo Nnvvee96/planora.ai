@@ -1,97 +1,282 @@
-# Supabase Email Verification Setup
+# Email Verification Setup - Simplified Authentication System
 
-This guide will walk you through setting up email verification in Supabase for Planora.ai. It primarily covers Supabase dashboard configurations for standard email flows (like initial signup confirmation and password resets).
+This guide covers the email verification setup for Planora.ai's simplified authentication system using standard Supabase email confirmation.
 
-It's important to note that the Planora application also implements custom logic for managing verification codes for various purposes (e.g., email changes, potentially two-factor authentication). This involves a dedicated `verification_codes` table in the database and helper functions (like `public.generate_verification_code`) defined in the main schema script (`src/database/schema/consolidated-email-verification.sql`). For details on these application-level components, please refer to `docs/database/DATABASE.md`.
+## Overview
 
-## 1. Access Your Supabase Project
+Planora.ai uses **standard Supabase email confirmation** for secure, reliable email verification:
 
-Navigate to your project dashboard at: https://app.supabase.com and select your project.
+- ✅ **Simplified Flow**: No custom verification codes
+- ✅ **Built-in Security**: Supabase handles all email verification logic
+- ✅ **Reliable Delivery**: Uses Supabase's email infrastructure
+- ✅ **Mobile-Friendly**: Standard email confirmation links work on all devices
 
-## 2. Configure Email Templates
+## Authentication Flow
 
-1. In the sidebar, navigate to **Authentication** → **Email Templates**
-2. You'll find templates for:
-   - Confirmation (for email verification)
-   - Invitation
-   - Magic Link
-   - Reset Password
-
-### Customizing the Confirmation Template
-
-1. Click on the **Confirmation** template
-2. Update the following fields:
-
-**Subject Line:**
+### Email Registration
 ```
-Verify your email for Planora.ai
+1. User fills registration form
+2. Supabase sends email confirmation link
+3. User clicks link to verify email
+4. Login is enabled
+5. Onboarding is required before dashboard access
 ```
 
-**Email Body:**
+### Google OAuth
+```
+1. User signs in with Google
+2. Email is automatically verified
+3. User proceeds to onboarding
+4. Dashboard access after onboarding completion
+```
+
+## Supabase Configuration
+
+### Email Templates
+
+Configure email templates in Supabase Dashboard → Authentication → Email Templates:
+
+#### Confirm Signup Template
 ```html
-<h2>Welcome to Planora.ai!</h2>
-
-<p>Please verify your email to start planning your trips with AI.</p>
-
-<p>
-  <a href="{{ .ConfirmationURL }}" style="display: inline-block; background: linear-gradient(to right, #8a2be2, #ff69b4); color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-weight: bold;">
-    Verify My Email
-  </a>
-</p>
-
-<p>Or copy and paste this URL into your browser:</p>
-<p>{{ .ConfirmationURL }}</p>
-
-<p>
-  Thanks,<br>
-  The Planora.ai Team
-</p>
+<h2>Welcome to Planora!</h2>
+<p>Thanks for signing up. Please click the link below to verify your email address:</p>
+<p><a href="{{ .ConfirmationURL }}">Verify Email Address</a></p>
+<p>If you didn't create an account with us, please ignore this email.</p>
 ```
 
-## 3. Configure Authentication Settings
+#### Magic Link Template
+```html
+<h2>Sign in to Planora</h2>
+<p>Click the link below to sign in:</p>
+<p><a href="{{ .ConfirmationURL }}">Sign In</a></p>
+<p>If you didn't request this, please ignore this email.</p>
+```
 
-1. Go to **Authentication** → **Settings**
-2. Under **Email Auth**:
-   - Ensure "**Enable Email Signup**" is ON
-   - Make sure "**Enable Email Confirmations**" is ON
-   - Set "**Secure Email Change**" based on your preference
+### URL Configuration
 
-## 4. Set Your Site URL and Redirects
+Set the following URLs in Supabase Dashboard → Authentication → URL Configuration:
 
-1. Under **URL Configuration**:
-   - Set "Site URL" to your production URL (or `http://localhost:5173` for testing)
-   - Add the following Redirect URLs:
-     - `http://localhost:5173/auth/callback`
-     - Your production URL + `/auth/callback`
+```
+Site URL: https://yourdomain.com
+Redirect URLs: 
+  - https://yourdomain.com/auth/callback
+  - https://yourdomain.com/auth/email-confirmation
+  - http://localhost:5173/auth/callback (for development)
+  - http://localhost:5173/auth/email-confirmation (for development)
+```
 
-## 5. Email Provider Configuration (Optional for Production)
+## Frontend Implementation
 
-For production use, you might want to configure a custom SMTP server:
+### Registration Component
+```typescript
+// Standard Supabase registration
+const handleRegistration = async (formData: RegisterFormData) => {
+  const { user, error } = await supabase.auth.signUp({
+    email: formData.email,
+    password: formData.password,
+    options: {
+      data: {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        country: formData.country,
+        city: formData.city,
+        birthdate: formData.birthdate.toISOString(),
+      },
+      emailRedirectTo: `${window.location.origin}/auth/email-confirmation`,
+    },
+  });
 
-1. Go to **Authentication** → **Email Settings**
-2. Click "Use custom SMTP server"
-3. Add your SMTP credentials from providers like SendGrid, Mailgun, etc.
-4. Test the configuration to ensure it works
+  if (error) throw error;
+  
+  // Show success message
+  toast({
+    title: "Registration Successful!",
+    description: "Please check your email to verify your account.",
+  });
+};
+```
 
-## 6. Testing the Email Verification Flow
+### Email Confirmation Handler
+```typescript
+// Handle email confirmation callback
+export const EmailConfirmation = () => {
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    const handleEmailConfirmation = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        toast({
+          title: "Verification Failed",
+          description: "Invalid or expired verification link.",
+          variant: "destructive",
+        });
+        navigate("/login");
+        return;
+      }
 
-To test the complete email verification flow:
+      if (data.session?.user) {
+        toast({
+          title: "Email Verified!",
+          description: "Your email has been verified successfully.",
+        });
+        navigate("/onboarding");
+      }
+    };
 
-1. Register a new user through your application
-2. You should receive a verification email
-   - In development, check Supabase's **Authentication** → **Users** section to see the email in the "Last Sign In" column
-   - In production, the email will be sent to the user's inbox
-3. Click the verification link
-4. You should be redirected to your application and logged in automatically
+    handleEmailConfirmation();
+  }, [navigate]);
 
-## 7. Troubleshooting
+  return <div>Verifying your email...</div>;
+};
+```
 
-If email verification is not working:
+### Protected Route Implementation
+```typescript
+export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
 
-1. Check the **Auth Logs** in Supabase dashboard
-2. Verify your site URL and redirect URL settings
-3. Ensure your auth callback route (`/auth/callback`) is properly set up in your application
-4. Check that your SMTP settings are correct (if using a custom provider).
-5. Review the application's `verification_codes` table and any related Edge Functions or services (e.g., `verification-code-handler` if used) for issues in custom verification flows. Consult `docs/database/DATABASE.md` for schema details.
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/login");
+      return;
+    }
 
-For development purposes, you can also manually confirm user emails in the Supabase dashboard under **Authentication** → **Users** → select user → **Actions** → **Confirm user email**.
+    // Check email verification
+    if (user && !user.email_confirmed_at) {
+      toast({
+        title: "Email Verification Required",
+        description: "Please verify your email before continuing.",
+        variant: "destructive",
+      });
+      navigate("/login");
+      return;
+    }
+
+    // Check onboarding completion
+    if (user && !user.user_metadata?.has_completed_onboarding) {
+      navigate("/onboarding");
+      return;
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) return <div>Loading...</div>;
+  if (!user || !user.email_confirmed_at) return null;
+
+  return <>{children}</>;
+};
+```
+
+## Environment Variables
+
+```env
+# Supabase Configuration
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Application URL
+VITE_APP_URL=https://yourdomain.com
+```
+
+## Security Features
+
+### Email Verification Security
+- ✅ **Secure Tokens**: Supabase generates cryptographically secure verification tokens
+- ✅ **Time-Limited Links**: Verification links expire automatically
+- ✅ **Single Use**: Verification links can only be used once
+- ✅ **Domain Validation**: Links only work for configured domains
+
+### Route Protection
+- ✅ **Email Verification Required**: Login blocked until email is verified
+- ✅ **Onboarding Persistence**: Dashboard blocked until onboarding is complete
+- ✅ **Session Management**: Proper token handling and expiration
+- ✅ **Redirect Security**: Safe redirects to prevent open redirect attacks
+
+## Troubleshooting
+
+### Common Issues
+
+#### Email Not Received
+1. Check spam/junk folder
+2. Verify email address is correct
+3. Check Supabase email settings
+4. Ensure SMTP configuration is correct
+
+#### Verification Link Not Working
+1. Check if link has expired
+2. Verify redirect URLs are configured correctly
+3. Ensure the link hasn't been used already
+4. Check browser console for errors
+
+#### Development Issues
+1. Ensure localhost URLs are added to redirect URLs
+2. Check environment variables are loaded correctly
+3. Verify Supabase project settings match local config
+
+### Debug Commands
+```bash
+# Check environment variables
+echo $VITE_SUPABASE_URL
+echo $VITE_SUPABASE_ANON_KEY
+
+# Test Supabase connection
+npm run dev
+# Check browser console for connection errors
+```
+
+## Migration from Custom Verification
+
+If migrating from a custom verification code system:
+
+### Database Cleanup
+```sql
+-- Remove old verification code tables
+DROP TABLE IF EXISTS verification_codes CASCADE;
+DROP FUNCTION IF EXISTS create_verification_code CASCADE;
+DROP FUNCTION IF EXISTS verify_code CASCADE;
+
+-- Update profiles table
+ALTER TABLE profiles 
+DROP COLUMN IF EXISTS verification_code,
+DROP COLUMN IF EXISTS verification_code_expires_at;
+```
+
+### Frontend Updates
+1. Remove custom verification components
+2. Update registration flow to use Supabase signup
+3. Add email confirmation handler
+4. Update protected routes for email verification
+
+### Benefits of Standard Supabase Email Verification
+- ✅ **Reduced Complexity**: No custom verification code logic
+- ✅ **Better Security**: Battle-tested Supabase security
+- ✅ **Improved UX**: Standard email confirmation flow
+- ✅ **Mobile Friendly**: Works seamlessly on all devices
+- ✅ **Reliability**: Supabase handles email delivery and retries
+
+## Testing
+
+### Manual Testing
+1. Register with a new email address
+2. Check email for verification link
+3. Click verification link
+4. Verify redirect to onboarding
+5. Complete onboarding
+6. Verify dashboard access
+
+### Automated Testing
+```typescript
+// Test email verification flow
+describe('Email Verification', () => {
+  it('should require email verification before login', async () => {
+    // Test registration
+    // Test email verification requirement
+    // Test successful verification
+    // Test onboarding redirect
+  });
+});
+```
+
+This simplified email verification system provides a secure, reliable, and user-friendly authentication experience while reducing complexity and maintenance overhead.

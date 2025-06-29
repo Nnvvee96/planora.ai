@@ -161,14 +161,26 @@ const Chat = () => {
   // Loading state
   if (authLoading || !userId) {
     return (
-      <div className="flex items-center justify-center h-screen bg-planora-purple-dark">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-planora-accent-purple"></div>
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-purple-600/10 via-transparent to-transparent"></div>
+        <div className="relative">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+          <p className="text-white/70 text-center mt-4">Loading Chat...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-planora-purple-dark">
+    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative">
+      {/* Modern layered background with sophisticated gradients */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-purple-600/15 via-transparent to-transparent"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-pink-600/15 via-transparent to-transparent"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-slate-900/80 to-transparent"></div>
+      
+      {/* Subtle animated background elements */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-br from-purple-500/5 to-pink-500/5 rounded-full blur-3xl animate-pulse-light"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 rounded-full blur-3xl animate-pulse-light" style={{ animationDelay: '2s' }}></div>
       {/* Travel Persona Edit Panel - Only shown when open */}
       {isTravelPersonaEditOpen && (
         <Suspense fallback={<LoadingFallback />}>
@@ -180,7 +192,7 @@ const Chat = () => {
       )}
 
       {/* Main layout container - adjusts based on sidebar state */}
-      <div className="flex w-full h-full">
+      <div className="flex w-full h-full relative z-10">
         {/* Conversation Sidebar - only takes up space when visible on desktop */}
         <Suspense fallback={<LoadingFallback />}>
           <ConversationSidebar
@@ -212,21 +224,25 @@ const Chat = () => {
           </Suspense>
 
           {/* Messages area */}
-          <div className="flex-1 overflow-y-auto p-4 bg-planora-purple-dark/60">
+          <div className="flex-1 overflow-y-auto p-6 bg-black/20 backdrop-blur-sm">
             <div className="max-w-4xl mx-auto">
               {!activeConversation ||
               activeConversation.messages?.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
-                    <div className="bg-planora-accent-purple/20 p-4 rounded-full inline-flex items-center justify-center mb-4">
-                      <MessageCircle className="h-8 w-8 text-planora-accent-purple" />
+                    <div className="relative mb-6">
+                      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/8 to-pink-500/8 rounded-full blur-2xl"></div>
+                      <div className="relative bg-gradient-to-br from-purple-500 to-pink-500 p-6 rounded-full inline-flex items-center justify-center">
+                        <MessageCircle className="h-10 w-10 text-white" />
+                      </div>
                     </div>
-                    <h2 className="text-2xl font-bold mb-2">
+                    <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-white via-purple-100 to-pink-100 bg-clip-text text-transparent">
                       How can I help plan your trip?
                     </h2>
-                    <p className="text-white/60 max-w-md">
+                    <p className="text-white/70 max-w-lg text-lg leading-relaxed">
                       Start a conversation about any destination, travel dates,
-                      or activities you're interested in.
+                      or activities you're interested in. I'll use your SmartTravel-Profile 
+                      to give you personalized recommendations.
                     </p>
                   </div>
                 </div>

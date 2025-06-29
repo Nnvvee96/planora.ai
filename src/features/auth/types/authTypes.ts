@@ -19,10 +19,8 @@ export interface AppUser {
   lastName: string;
   hasCompletedOnboarding: boolean; // Required to match authApi.ts interface
   avatarUrl?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  user_metadata?: Record<string, any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  app_metadata?: Record<string, any>;
+  user_metadata?: Record<string, unknown>;
+  app_metadata?: Record<string, unknown>;
 }
 
 /**

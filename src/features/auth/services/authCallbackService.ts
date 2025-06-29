@@ -56,7 +56,7 @@ export const authCallbackService = {
         console.log("User authenticated successfully:", user.id);
       }
 
-      // Determine registration status
+      // Determine registration status using comprehensive logic
       const registrationDetails = {
         status: UserRegistrationStatus.NEW_USER, // Default to new user
         isNewUser: true,
@@ -76,11 +76,35 @@ export const authCallbackService = {
           .eq("user_id", user.id)
           .single();
 
-        // If user has profile with completed onboarding or travel preferences,
-        // they are considered a returning user
-        if ((profile && profile.has_completed_onboarding) || prefs) {
+        const hasProfile = !!profile;
+        const hasCompletedOnboarding = profile?.has_completed_onboarding === true;
+        const hasTravelPreferences = !!prefs;
+
+        if (import.meta.env.DEV) {
+          console.log("Registration status check:", {
+            hasProfile,
+            hasCompletedOnboarding,
+            hasTravelPreferences
+          });
+        }
+
+        // Determine status based on comprehensive logic
+        if (hasCompletedOnboarding || hasTravelPreferences) {
+          // User has completed onboarding or has travel preferences -> returning user
           registrationDetails.status = UserRegistrationStatus.RETURNING_USER;
           registrationDetails.isNewUser = false;
+        } else if (hasProfile && !hasCompletedOnboarding) {
+          // Profile exists but onboarding not completed -> incomplete onboarding
+          registrationDetails.status = UserRegistrationStatus.INCOMPLETE_ONBOARDING;
+          registrationDetails.isNewUser = false;
+        } else {
+          // No profile exists -> new user
+          registrationDetails.status = UserRegistrationStatus.NEW_USER;
+          registrationDetails.isNewUser = true;
+        }
+
+        if (import.meta.env.DEV) {
+          console.log("Final registration status:", registrationDetails.status);
         }
       } catch (err) {
         console.warn("Error checking user registration status:", err);
@@ -402,7 +426,11 @@ export const authCallbackService = {
 
       if (hasCompletedOnboarding || hasTravelPreferences) {
         registrationStatus = UserRegistrationStatus.RETURNING_USER;
+      } else if (hasProfile && !hasCompletedOnboarding) {
+        // Profile exists but onboarding not completed -> incomplete onboarding
+        registrationStatus = UserRegistrationStatus.INCOMPLETE_ONBOARDING;
       }
+      // else: No profile exists -> keep NEW_USER status
 
       return {
         isNewUser: !hasProfile,

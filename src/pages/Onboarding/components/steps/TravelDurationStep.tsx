@@ -1,16 +1,21 @@
+/**
+ * Travel Duration Step Component (BRAND NEW IMPLEMENTATION)
+ * 
+ * Using native HTML radio inputs for guaranteed functionality
+ */
+
 import React from 'react';
-import { FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { RadioGroup } from '@/components/ui/radio-group';
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/ui/atoms/Input';
-import { Clock, Map } from 'lucide-react';
+import { Clock, Calendar } from 'lucide-react';
 import { Control, UseFormSetValue } from 'react-hook-form';
+import { OnboardingFormData } from '../../types/onboardingTypes';
 
 interface TravelDurationStepProps {
-  control: Control<any>;
-  setValue: UseFormSetValue<any>;
+  control: Control<OnboardingFormData>;
+  _setValue: UseFormSetValue<OnboardingFormData>;
   travelDuration: string;
-  dateFlexibility: string | null;
+  _dateFlexibility: string | null;
   Label: React.ComponentType<{
     value: string;
     field: { value: string };
@@ -18,188 +23,172 @@ interface TravelDurationStepProps {
   }>;
 }
 
-const TravelDurationStep = ({ 
-  control, 
-  setValue, 
-  travelDuration, 
-  dateFlexibility,
-  Label 
-}: TravelDurationStepProps) => {
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium">
-        How long and flexible are your trips?
-      </h3>
-      <p className="text-sm text-white/60">
-        This helps us optimize your travel recommendations.
-      </p>
+// Duration options for the 2x2 grid
+const durationOptions = [
+  { id: 'weekend', label: 'Weekend', duration: '2-3 days', icon: '🏃‍♂️', description: 'Quick getaway' },
+  { id: 'week', label: 'One Week', duration: '7-10 days', icon: '✈️', description: 'Perfect balance' },
+  { id: 'two-weeks', label: 'Two Weeks', duration: '14-21 days', icon: '🌍', description: 'Deep exploration' },
+  { id: 'longer', label: 'Extended', duration: '1+ months', icon: '🎒', description: 'Immersive travel' }
+];
 
-      <div className="space-y-6 pt-4">
+// Flexibility options
+const flexibilityOptions = [
+  { id: 'flexible-few', label: 'Flexible', description: 'I can adjust my dates by ±3 days', icon: '📅' },
+  { id: 'flexible-week', label: 'Very Flexible', description: 'I can shift my trip by ±1 week', icon: '🗓️' },
+  { id: 'very-flexible', label: 'Extremely Flexible', description: 'I can travel anytime within a season', icon: '🌟' },
+  { id: 'fixed', label: 'Fixed Dates', description: 'My dates are set and can\'t change', icon: '📌' }
+];
+
+export const TravelDurationStep: React.FC<TravelDurationStepProps> = ({
+  control,
+  _setValue,
+  travelDuration,
+  _dateFlexibility
+}) => {
+  
+  return (
+    <div className="space-y-6">
+      {/* Modern header with icon */}
+      <div className="flex items-center space-x-3 mb-6">
+        <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
+          <Clock className="h-5 w-5 text-white" />
+        </div>
+        <div>
+          <h3 className="text-xl font-bold text-white">Travel Duration & Flexibility</h3>
+          <p className="text-white/60 text-sm">How long do you typically travel and how flexible are your dates?</p>
+        </div>
+      </div>
+
+      {/* Travel Duration - 2x2 Grid */}
+      <FormField
+        control={control}
+        name="travelDuration"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel className="text-base font-semibold text-white mb-4 block">
+              How long are your trips usually?
+            </FormLabel>
+            <FormControl>
+              <div className="grid grid-cols-2 gap-4">
+                {durationOptions.map((option) => {
+                  const isSelected = field.value === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => field.onChange(option.id)}
+                      className={`
+                        relative p-4 rounded-xl border-2 transition-all duration-300 text-left
+                        ${isSelected 
+                          ? 'border-purple-400 bg-gradient-to-br from-purple-500/20 to-pink-500/20 shadow-lg shadow-purple-500/25' 
+                          : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
+                        }
+                      `}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xl">{option.icon}</span>
+                        {isSelected && (
+                          <div className="w-3 h-3 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full"></div>
+                        )}
+                      </div>
+                      <h4 className="text-base font-bold text-white mb-1">{option.label}</h4>
+                      <p className="text-xs text-white/60 mb-1">{option.description}</p>
+                      <p className="text-xs font-semibold text-purple-300">{option.duration}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {/* Custom Date Range for extended trips */}
+      {travelDuration === 'longer' && (
         <FormField
           control={control}
-          name="travelDuration"
+          name="customDateFlexibility"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="flex items-center mb-2">
-                <Clock className="mr-2 h-4 w-4 text-planora-accent-purple" />
-                Typical Trip Duration
+              <FormLabel className="text-base font-semibold text-white mb-3 block">
+                Custom Date Range (Optional)
               </FormLabel>
               <FormControl>
-                <ToggleGroup
-                  type="single"
-                  value={field.value}
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    // Clear custom date flexibility when changing duration
-                    setValue("customDateFlexibility", "");
-                  }}
-                  className="grid grid-cols-2 md:grid-cols-4 gap-2"
-                >
-                  <ToggleGroupItem
-                    value="weekend"
-                    className="bg-white/5 border border-white/10 data-[state=on]:bg-planora-accent-purple/20 data-[state=on]:border-planora-accent-purple"
-                  >
-                    <div className="flex flex-col items-center">
-                      <span>Weekend</span>
-                      <span className="text-xs text-white/60">
-                        2-3 days
-                      </span>
-                    </div>
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="week"
-                    className="bg-white/5 border border-white/10 data-[state=on]:bg-planora-accent-purple/20 data-[state=on]:border-planora-accent-purple"
-                  >
-                    <div className="flex flex-col items-center">
-                      <span>1 Week</span>
-                      <span className="text-xs text-white/60">
-                        7-9 days
-                      </span>
-                    </div>
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="two-weeks"
-                    className="bg-white/5 border border-white/10 data-[state=on]:bg-planora-accent-purple/20 data-[state=on]:border-planora-accent-purple"
-                  >
-                    <div className="flex flex-col items-center">
-                      <span>2 Weeks</span>
-                      <span className="text-xs text-white/60">
-                        12-16 days
-                      </span>
-                    </div>
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="longer"
-                    className="bg-white/5 border border-white/10 data-[state=on]:bg-planora-accent-purple/20 data-[state=on]:border-planora-accent-purple"
-                  >
-                    <div className="flex flex-col items-center">
-                      <span>Longer</span>
-                      <span className="text-xs text-white/60">
-                        Custom duration
-                      </span>
-                    </div>
-                  </ToggleGroupItem>
-                </ToggleGroup>
+                <div className="bg-gradient-to-r from-slate-800/50 to-slate-700/50 rounded-xl p-4 border border-white/10 backdrop-blur-sm">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <Calendar className="h-4 w-4 text-blue-400" />
+                    <span className="text-white/80 text-sm">Specify your preferred time period</span>
+                  </div>
+                  <Input
+                    type="text"
+                    placeholder="e.g. 30-60 days, Summer 2024, 3-6 months"
+                    {...field}
+                    className="bg-white/5 border-white/20 text-white placeholder:text-white/40 focus:border-blue-400"
+                  />
+                  <p className="text-xs text-white/60 mt-2">
+                    Enter your preferred travel duration or time period for extended trips
+                  </p>
+                </div>
               </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />
+      )}
 
-        {travelDuration === "longer" ? (
-          <FormField
-            control={control}
-            name="customDateFlexibility"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center mb-2">
-                  <Map className="mr-2 h-4 w-4 text-planora-accent-purple" />
-                  Custom Date Range
-                </FormLabel>
-                <FormControl>
-                  <div className="space-y-2">
-                    <Input
-                      type="text"
-                      placeholder="e.g. 30-60 days"
-                      {...field}
-                      className="bg-white/5 border-white/10 text-white"
-                      onChange={(e) => {
-                        field.onChange(e);
-                        // Set dateFlexibility to custom when typing in the custom field
-                        setValue("dateFlexibility", "custom");
-                      }}
-                    />
-                    <p className="text-xs text-white/60">
-                      Enter your preferred travel duration range
-                      (e.g., 14-21 days)
-                    </p>
-                  </div>
-                </FormControl>
-              </FormItem>
-            )}
-          />
-        ) : (
-          <FormField
-            control={control}
-            name="dateFlexibility"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center mb-2">
-                  <Map className="mr-2 h-4 w-4 text-planora-accent-purple" />
-                  Date Flexibility
-                </FormLabel>
-                <FormControl>
-                  <RadioGroup
-                    value={field.value || ""}
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      // Clear custom date flexibility when selecting a standard option
-                      if (value !== "custom") {
-                        setValue("customDateFlexibility", "");
-                      }
-                    }}
-                    className="grid grid-cols-2 gap-2"
-                  >
-                    <Label value="fixed" field={field}>
-                      <div className="flex flex-col">
-                        <span>Fixed Dates</span>
-                        <span className="text-xs text-white/60">
-                          No flexibility
-                        </span>
+      {/* Date Flexibility - EXACT COPY OF WORKING TRAVEL DURATION IMPLEMENTATION */}
+      <FormField
+        control={control}
+        name="dateFlexibility"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel className="text-base font-semibold text-white mb-4 block">
+              How flexible are your travel dates?
+            </FormLabel>
+            <FormControl>
+              <div className="grid grid-cols-2 gap-4">
+                {flexibilityOptions.map((option) => {
+                  const isSelected = field.value === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => field.onChange(option.id)}
+                      className={`
+                        relative p-4 rounded-xl border-2 transition-all duration-300 text-left
+                        ${isSelected 
+                          ? 'border-blue-400 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 shadow-lg shadow-blue-500/25' 
+                          : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
+                        }
+                      `}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xl">{option.icon}</span>
+                        {isSelected && (
+                          <div className="w-3 h-3 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full"></div>
+                        )}
                       </div>
-                    </Label>
-                    <Label value="flexible-few" field={field}>
-                      <div className="flex flex-col">
-                        <span>±3 Days</span>
-                        <span className="text-xs text-white/60">
-                          Slightly flexible
-                        </span>
-                      </div>
-                    </Label>
-                    <Label value="flexible-week" field={field}>
-                      <div className="flex flex-col">
-                        <span>±1 Week</span>
-                        <span className="text-xs text-white/60">
-                          Flexible
-                        </span>
-                      </div>
-                    </Label>
-                    <Label value="very-flexible" field={field}>
-                      <div className="flex flex-col">
-                        <span>Very Flexible</span>
-                        <span className="text-xs text-white/60">
-                          Open dates
-                        </span>
-                      </div>
-                    </Label>
-                  </RadioGroup>
-                </FormControl>
-              </FormItem>
-            )}
-          />
+                      <h4 className="text-base font-bold text-white mb-1">{option.label}</h4>
+                      <p className="text-xs text-white/60 mb-1">{option.description}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
         )}
+      />
+
+      {/* Helpful tip */}
+      <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-xl p-4 border border-green-300/20">
+        <p className="text-sm text-white/80">
+          💡 <strong>Tip:</strong> {travelDuration === 'longer' 
+            ? 'Extended trips offer the best opportunities for deep cultural immersion and meaningful experiences.' 
+            : 'Flexible dates often mean better deals and more options for accommodations and flights.'}
+        </p>
       </div>
     </div>
   );
-};
-
-export { TravelDurationStep }; 
+}; 

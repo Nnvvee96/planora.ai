@@ -1,58 +1,33 @@
-// Re-export from shadcn with custom variants
+// Enhanced Button component using unified button variants
 import {
   Button as ShadcnButton,
   type ButtonProps as ShadcnButtonProps,
 } from "@/components/ui/button";
+import { 
+  buttonVariants, 
+  type AllVariants 
+} from "@/components/ui/variants/buttonVariants";
 import { cn } from "@/lib/utils";
 import React from "react";
-import { buttonVariants, type CustomVariant } from "./buttonVariants";
 
-// Extended ButtonProps type to include our custom variants
+// Enhanced ButtonProps type that includes all variants (standard + custom)
 export interface ButtonProps extends Omit<ShadcnButtonProps, "variant"> {
   children: React.ReactNode;
-  variant?: CustomVariant | NonNullable<ShadcnButtonProps["variant"]>;
+  variant?: AllVariants;
 }
 
-// Enhanced Button component that supports our custom variants
+// Simplified Button component using unified variant system
 export const Button = ({
   className,
-  variant,
+  variant = "default",
+  size,
   children,
   ...props
 }: ButtonProps) => {
-  // Define styles for our custom variants
-  const customVariants = [
-    "gradient",
-    "glass",
-    "glow",
-    "outline",
-    "secondary",
-  ] as const;
-
-  // Check if this is one of our custom variants
-  const isCustomVariant =
-    variant && customVariants.includes(variant as CustomVariant);
-
-  // For our custom variants, use our buttonVariants
-  if (isCustomVariant) {
-    return (
-      <ShadcnButton
-        className={cn(
-          buttonVariants({ variant: variant as string, className }),
-        )}
-        variant="default" // Pass a valid shadcn variant
-        {...props}
-      >
-        {children}
-      </ShadcnButton>
-    );
-  }
-
-  // For default shadcn variants, use the ShadcnButton directly
   return (
     <ShadcnButton
-      className={cn("gap-2", className)}
-      variant={variant as NonNullable<ShadcnButtonProps["variant"]>}
+      className={cn(buttonVariants({ variant, size }), className)}
+      variant="default" // Always use default for ShadCN base, our variants handle styling
       {...props}
     >
       {children}

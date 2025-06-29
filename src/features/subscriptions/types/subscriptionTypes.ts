@@ -4,6 +4,62 @@
  * Type definitions for the subscriptions feature.
  */
 
+// Subscription tier types matching database schema
+export type SubscriptionTier = 'free' | 'explorer' | 'wanderer_pro' | 'global_elite';
+
+// Human-readable tier names
+export const SUBSCRIPTION_TIER_NAMES: Record<SubscriptionTier, string> = {
+  free: 'Free',
+  explorer: 'Explorer',
+  wanderer_pro: 'Wanderer Pro',
+  global_elite: 'Global Elite'
+};
+
+// Tier feature access levels
+export interface TierFeatures {
+  maxTripsPerMonth: number;
+  maxDestinationsPerTrip: number;
+  advancedFilters: boolean;
+  prioritySupport: boolean;
+  customItineraries: boolean;
+  offlineAccess: boolean;
+}
+
+export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
+  free: {
+    maxTripsPerMonth: 3,
+    maxDestinationsPerTrip: 3,
+    advancedFilters: false,
+    prioritySupport: false,
+    customItineraries: false,
+    offlineAccess: false
+  },
+  explorer: {
+    maxTripsPerMonth: 10,
+    maxDestinationsPerTrip: 5,
+    advancedFilters: true,
+    prioritySupport: false,
+    customItineraries: true,
+    offlineAccess: false
+  },
+  wanderer_pro: {
+    maxTripsPerMonth: 25,
+    maxDestinationsPerTrip: 10,
+    advancedFilters: true,
+    prioritySupport: true,
+    customItineraries: true,
+    offlineAccess: true
+  },
+  global_elite: {
+    maxTripsPerMonth: -1, // Unlimited
+    maxDestinationsPerTrip: -1, // Unlimited
+    advancedFilters: true,
+    prioritySupport: true,
+    customItineraries: true,
+    offlineAccess: true
+  }
+};
+
 // Mirrors the public.products table
 export interface Product {
   id: string;

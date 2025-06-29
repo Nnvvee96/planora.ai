@@ -1,12 +1,12 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/ui/atoms/Button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card";
+} from "@/ui/atoms/Card";
 import { useToast } from "@/hooks/use-toast";
 
 export const QuickActionsWidget = () => {

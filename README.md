@@ -6,13 +6,15 @@ Planora is an intelligent travel planning platform that helps users discover, pl
 
 ## 🏆 **Production-Ready Architecture**
 
-Planora.ai features a **gold standard** enterprise-grade codebase with:
+Planora.ai features a **gold standard** enterprise-grade codebase achieved through comprehensive cleanup phases:
 - **✅ Zero linting errors and warnings**
 - **✅ Perfect TypeScript strict mode compliance**
+- **✅ Simplified authentication system with standard Supabase patterns**
+- **✅ Standardized component imports and organization**
+- **✅ Clean backend with no orphaned resources**
+- **✅ Comprehensive security configuration**
 - **✅ Enterprise service layer with retry logic and monitoring**
-- **✅ Comprehensive error handling patterns**
-- **✅ Optimal development experience (Fast Refresh compatible)**
-- **✅ Zero technical debt**
+- **✅ Subscription-based tier management (Explorer, Wanderer Pro, Global Elite)**
 
 ## Key Features
 
@@ -21,6 +23,8 @@ Planora.ai features a **gold standard** enterprise-grade codebase with:
 - **User Profile Management**: Comprehensive user profile and preference management
 - **Location Intelligence**: Advanced country-city selection with customizable options
 - **Preference Synchronization**: Seamless synchronization between profile location and travel preferences
+- **Simplified Authentication**: Standard email confirmation flow with onboarding persistence
+- **Subscription Tiers**: Flexible subscription model (Free, Explorer, Wanderer Pro, Global Elite)
 - **Supabase Integration**: Secure authentication and data storage with Supabase
 - **User Reviews and Feedback**: View community reviews and submit your own experiences through an intuitive modal interface
 - **Enterprise Service Layer**: Robust service patterns with automatic retry logic and performance monitoring
@@ -30,11 +34,28 @@ Planora.ai features a **gold standard** enterprise-grade codebase with:
 - **Frontend**: React, TypeScript, Vite
 - **UI Components**: ShadCN UI, Tailwind CSS
 - **State Management**: Redux Toolkit
-- **Authentication**: Supabase Auth
+- **Authentication**: Supabase Auth with email confirmation
 - **Database**: Supabase PostgreSQL
+- **Subscriptions**: Stripe integration with automatic tier assignment
 - **Deployment**: Cloudflare Pages
 - **Architecture**: Feature-first organization with atomic design
 - **Service Layer**: Enterprise patterns with retry logic and monitoring
+
+## Authentication & User Flow
+
+Planora.ai implements a simplified, secure authentication system:
+
+### **User Registration Flow**
+1. **Email Registration**: User fills form → Email confirmation link → Login enabled
+2. **Google OAuth**: Direct login with Google account → Email auto-verified
+3. **Onboarding Required**: Dashboard access blocked until onboarding completion
+4. **Subscription Management**: Automatic tier assignment based on Stripe purchases
+
+### **Subscription Tiers**
+- **Free**: Basic travel planning features
+- **Explorer**: Enhanced features with advanced filters
+- **Wanderer Pro**: Premium features with priority support
+- **Global Elite**: Unlimited access with all premium features
 
 ## Getting Started
 
@@ -42,6 +63,7 @@ Planora.ai features a **gold standard** enterprise-grade codebase with:
 
 - Node.js 16+ and npm
 - Supabase account for backend services
+- Stripe account for subscription management (optional)
 
 ### Installation
 
@@ -55,10 +77,26 @@ npm install
 
 # Set up environment variables
 cp .env.example .env.local
-# Edit .env.local with your Supabase credentials
+# Edit .env.local with your Supabase and Stripe credentials
 
 # Start the development server
 npm run dev
+```
+
+### Environment Variables
+
+Create a `.env.local` file with the following variables:
+
+```env
+# Supabase Configuration
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Stripe Configuration (Optional)
+VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+
+# Application Configuration
+VITE_APP_URL=http://localhost:5173
 ```
 
 ## Development Tools
@@ -102,6 +140,9 @@ npm run lint
 
 # Validate all architectural principles
 npm run arch:validate
+
+# Build for production
+npm run build
 ```
 
 ## Project Structure
@@ -149,7 +190,11 @@ planora.ai/
 ├── docs/                   # Project documentation
 │   ├── ARCHITECTURE.md     # Comprehensive architecture guide
 │   ├── setup/             # Setup and configuration guides
-│   └── developer/         # Development guidelines
+│   ├── developer/         # Development guidelines
+│   └── database/          # Database documentation
+├── supabase/              # Supabase configuration
+│   ├── migrations/        # Database migrations
+│   └── functions/         # Edge functions
 └── public/                # Static assets
 ```
 
@@ -172,10 +217,10 @@ Planora.ai follows strict architectural principles for maintainability and scala
 - No `any` types - all code properly typed
 - Clear separation between database and application types
 
-### 4. Fast Refresh Optimization
-- Perfect development experience with instant updates
-- Components and utilities properly separated
-- Zero Fast Refresh warnings
+### 4. Simplified Authentication
+- Standard Supabase email confirmation flow
+- Onboarding persistence until completion
+- Subscription-based access control
 
 ### 5. Zero Technical Debt
 - Comprehensive linting with custom architectural rules
@@ -214,12 +259,24 @@ The technical foundation is **complete and production-ready**. Current focus are
 - **Service Layer**: Enterprise patterns with retry logic and monitoring
 - **Type Safety**: Perfect TypeScript strict mode compliance
 - **Development Experience**: Optimal Fast Refresh compatibility
+- **Authentication System**: Simplified email confirmation flow
+- **Subscription Management**: Automatic tier assignment with Stripe integration
+- **Database Schema**: Clean subscription-based access control
 
 ### 🎯 **Active Development**
-- **Email Registration Flow**: Enhanced UI and security features
-- **Account Management**: Secure deletion and email change workflows
-- **Onboarding Logic**: Conditional location handling based on registration method
-- **Subscription Model**: Stripe integration and tier-based features
+- **Enhanced UI/UX**: Modern chat interface and travel planning features
+- **Advanced Features**: Tier-based feature access and premium functionality
+- **Performance Optimization**: Caching and optimization strategies
+- **Testing Coverage**: Comprehensive test suite implementation
+
+## Edge Functions
+
+Planora.ai uses Supabase Edge Functions for server-side operations:
+
+- **account-management**: Handles account deletion and OAuth unlinking
+- **scheduled-account-deleter**: Automated cleanup of expired deletion requests
+- **create-checkout-session**: Stripe checkout session creation
+- **stripe-webhook-handler**: Automatic subscription tier assignment
 
 ## License
 

@@ -338,68 +338,84 @@ const ProfileDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Edit Profile</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="sm:max-w-[500px] bg-black/90 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl">
+        <DialogHeader className="pb-6">
+          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-white via-purple-100 to-pink-100 bg-clip-text text-transparent">
+            Edit Profile
+          </DialogTitle>
+          <DialogDescription className="text-white/70 text-base">
             Update your profile information below
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex justify-center mb-4">
-          <Avatar className="h-24 w-24">
-            <AvatarFallback className="bg-planora-accent-purple text-white text-xl">
-              {nameInitial}
-            </AvatarFallback>
-          </Avatar>
+        <div className="flex justify-center mb-6">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full blur"></div>
+            <Avatar className="h-24 w-24 relative border-2 border-white/20">
+              <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xl font-bold">
+                {nameInitial}
+              </AvatarFallback>
+            </Avatar>
+          </div>
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-planora-accent-purple"></div>
-            <span className="ml-2 text-sm text-gray-600">
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
+            <span className="ml-3 text-white/80">
               Loading profile data...
             </span>
           </div>
         ) : (
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white/90 font-semibold">First Name</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          className="bg-black/40 border-white/20 focus:border-purple-400/50 focus:ring-purple-400/20 text-white placeholder:text-white/50 rounded-xl"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white/90 font-semibold">Last Name</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          className="bg-black/40 border-white/20 focus:border-purple-400/50 focus:ring-purple-400/20 text-white placeholder:text-white/50 rounded-xl"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <FormField
                 control={form.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel className="text-white/90 font-semibold">Email</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input 
+                        {...field} 
+                        className="bg-black/40 border-white/20 focus:border-purple-400/50 focus:ring-purple-400/20 text-white placeholder:text-white/50 rounded-xl"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -411,7 +427,7 @@ const ProfileDialog = ({
                 name="birthdate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Birthdate</FormLabel>
+                    <FormLabel className="text-white/90 font-semibold">Birthdate</FormLabel>
                     <FormControl>
                       <div className="flex items-center">
                         <DatePickerInput
@@ -424,6 +440,7 @@ const ProfileDialog = ({
                             );
                           }}
                           placeholder="MM / DD / YYYY"
+                          className="bg-black/40 border-white/20 focus:border-purple-400/50 focus:ring-purple-400/20 text-white placeholder:text-white/50 rounded-xl"
                         />
                       </div>
                     </FormControl>
@@ -432,58 +449,62 @@ const ProfileDialog = ({
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="country"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Country</FormLabel>
-                    <FormControl>
-                      <Select
-                        options={countryOptions}
-                        value={field.value}
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          // Reset city when country changes
-                          form.setValue("city", "");
-                          form.setValue("customCity", "");
-                          setShowCustomCityInput(false);
-                          // Update city options
-                          setCityOptions(getCityOptions(value));
-                        }}
-                        placeholder="Select your country"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="city"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>City</FormLabel>
-                    <FormControl>
-                      <Select
-                        options={cityOptions}
-                        value={field.value}
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          // Show custom city input if 'Other' is selected
-                          setShowCustomCityInput(value === "Other");
-                          if (value !== "Other") {
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white/90 font-semibold">Country</FormLabel>
+                      <FormControl>
+                        <Select
+                          options={countryOptions}
+                          value={field.value}
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            // Reset city when country changes
+                            form.setValue("city", "");
                             form.setValue("customCity", "");
-                          }
-                        }}
-                        placeholder="Select your city"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                            setShowCustomCityInput(false);
+                            // Update city options
+                            setCityOptions(getCityOptions(value));
+                          }}
+                          placeholder="Select your country"
+                          className="bg-black/40 border-white/20 focus:border-purple-400/50 focus:ring-purple-400/20 text-white rounded-xl"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white/90 font-semibold">City</FormLabel>
+                      <FormControl>
+                        <Select
+                          options={cityOptions}
+                          value={field.value}
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            // Show custom city input if 'Other' is selected
+                            setShowCustomCityInput(value === "Other");
+                            if (value !== "Other") {
+                              form.setValue("customCity", "");
+                            }
+                          }}
+                          placeholder="Select your city"
+                          className="bg-black/40 border-white/20 focus:border-purple-400/50 focus:ring-purple-400/20 text-white rounded-xl"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               {showCustomCityInput && (
                 <FormField
@@ -491,9 +512,13 @@ const ProfileDialog = ({
                   name="customCity"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Specify City</FormLabel>
+                      <FormLabel className="text-white/90 font-semibold">Specify City</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Enter your city" />
+                        <Input 
+                          {...field} 
+                          placeholder="Enter your city" 
+                          className="bg-black/40 border-white/20 focus:border-purple-400/50 focus:ring-purple-400/20 text-white placeholder:text-white/50 rounded-xl"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -501,16 +526,21 @@ const ProfileDialog = ({
                 />
               )}
 
-              <DialogFooter className="pt-4">
+              <DialogFooter className="pt-6 flex gap-3">
                 <Button
                   variant="outline"
                   type="button"
                   onClick={() => onOpenChange(false)}
                   disabled={isSaving}
+                  className="border-white/30 bg-white/10 hover:bg-white/20 text-white transition-all duration-300 rounded-xl"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSaving}>
+                <Button 
+                  type="submit" 
+                  disabled={isSaving}
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 rounded-xl font-semibold transition-all duration-300"
+                >
                   {isSaving ? "Saving..." : "Save Changes"}
                 </Button>
               </DialogFooter>

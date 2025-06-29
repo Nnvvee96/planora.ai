@@ -1,298 +1,551 @@
 # Planora.ai Architecture Guide
 
-This document outlines the architectural principles, patterns, and tools used in the Planora.ai codebase. All contributors should follow these guidelines to maintain consistency and code quality.
+This document outlines the architectural principles, patterns, and comprehensive project structure of Planora.ai. This serves as both a development guide and a complete reference for understanding what exists in the codebase and why.
 
 ## 🏆 **Current Status: Production-Ready Architecture**
 
-The Planora.ai codebase has achieved **gold standard** architectural compliance with:
+The Planora.ai codebase has achieved **gold standard** architectural compliance through comprehensive cleanup phases:
 - **✅ Zero linting errors and warnings**
 - **✅ Perfect TypeScript strict mode compliance**
-- **✅ Enterprise-grade service layer with retry logic and monitoring**
-- **✅ Comprehensive error handling patterns**
-- **✅ Optimal development experience (Fast Refresh compatible)**
-- **✅ Zero technical debt**
+- **✅ Simplified authentication system with standard Supabase patterns**
+- **✅ Standardized component imports and organization**
+- **✅ Clean backend with no orphaned resources**
+- **✅ Subscription-based tier management (Explorer, Wanderer Pro, Global Elite)**
+- **✅ Comprehensive security configuration**
+- **✅ Enterprise-grade service layer with monitoring**
 
 ## Table of Contents
 
-1. [Core Architectural Principles](#core-architectural-principles)
-2. [Service Layer Architecture](#service-layer-architecture)
-3. [Code Organization](#code-organization)
-4. [Type Safety](#type-safety)
-5. [Export and Import Patterns](#export-and-import-patterns)
-6. [UI Component Architecture](#ui-component-architecture)
-7. [Error Handling Patterns](#error-handling-patterns)
-8. [Architecture Maintenance Tools](#architecture-maintenance-tools)
-9. [Configuration Files](#configuration-files)
-10. [Refactoring Guidelines](#refactoring-guidelines)
+1. [Complete Project Visualization](#complete-project-visualization)
+2. [Core Architectural Principles](#core-architectural-principles)
+3. [Feature Architecture](#feature-architecture)
+4. [UI Component System](#ui-component-system)
+5. [Service Layer Architecture](#service-layer-architecture)
+6. [Database & Backend](#database--backend)
+7. [Development Tools & Configuration](#development-tools--configuration)
+8. [Quality Assurance](#quality-assurance)
+
+## Complete Project Visualization
+
+### 🗂️ **Root Directory Structure**
+
+```
+planora.ai/
+├── 📁 src/                          # Main application source code
+├── 📁 public/                       # Static assets and PWA configuration
+├── 📁 docs/                         # Comprehensive documentation
+├── 📁 config/                       # Development and build configuration
+├── 📁 supabase/                     # Database schema and edge functions
+├── 📁 scripts/                      # Build and validation scripts
+├── 📄 package.json                  # Dependencies and scripts
+├── 📄 README.md                     # Project overview and setup
+├── 📄 tailwind.config.ts           # Tailwind CSS configuration
+├── 📄 vite.config.ts               # Vite build configuration
+├── 📄 tsconfig.json                # TypeScript configuration
+├── 📄 .lintstagedrc.json          # Lint-staged configuration for pre-commit hooks
+├── 📄 SUPABASE_AUTH_SECURITY_GUIDE.md # Security guide for authentication setup
+├── 📄 NEXTJS_MIGRATION_GUIDE.md   # Migration guide from Next.js to Vite
+├── 📁 functions/                  # Edge function middleware
+│   └── 📄 _middleware.ts          # CORS and routing middleware for edge functions└── 📄 .env.example                 # Environment variables template
+```
+
+### 🎯 **Source Code Architecture (`src/`)**
+
+```
+src/
+├── 📄 App.tsx                      # Main application component with routing
+├── 📄 main.tsx                     # Application entry point with providers
+├── 📄 index.css                    # Global styles and Tailwind imports
+├── 📄 App.css                      # Application-specific styles
+├── 📄 vite-env.d.ts               # Vite environment type definitions
+│
+├── 📁 features/                    # Feature-first architecture
+│   ├── 📁 auth/                   # Authentication & authorization
+│   │   ├── 📄 authApi.ts          # Public API boundary
+│   │   ├── 📁 components/         # Auth UI components
+│   │   │   ├── 📄 AuthProvider.tsx           # Auth context provider
+│   │   │   ├── 📄 AuthCallback.tsx           # OAuth callback handler
+│   │   │   ├── 📄 ProtectedRoute.tsx         # Route protection
+│   │   │   ├── 📄 GoogleLoginButton.tsx      # Google OAuth button
+│   │   │   ├── 📄 EmailConfirmation.tsx      # Email verification
+│   │   │   ├── 📄 EmailChangeVerification.tsx # Email change flow
+│   │   │   ├── 📄 ForgotPassword.tsx         # Password reset request
+│   │   │   └── 📄 ResetPassword.tsx          # Password reset form
+│   │   ├── 📁 services/           # Auth business logic
+│   │   │   ├── 📄 supabaseAuthService.ts     # Main auth orchestrator
+│   │   │   ├── 📄 emailAuthService.ts        # Email/password auth
+│   │   │   ├── 📄 googleAuthService.ts       # Google OAuth integration
+│   │   │   ├── 📄 sessionService.ts          # Session management
+│   │   │   ├── 📄 authProviderService.ts     # Provider detection
+│   │   │   ├── 📄 authProfileService.ts      # Profile integration
+│   │   │   ├── 📄 authCallbackService.ts     # Callback handling
+│   │   │   ├── �� authSessionManager.ts      # Session lifecycle
+│   │   │   └── 📄 emailVerificationService.ts # Email verification
+│   │   ├── 📁 hooks/              # Auth React hooks
+│   │   │   ├── 📄 useAuth.ts                 # Main auth hook
+│   │   │   ├── 📄 useAuthContext.ts          # Context consumer
+│   │   │   ├── 📄 useAuthIntegration.ts      # Cross-feature integration
+│   │   │   └── 📄 useAuthProfileIntegration.ts # Profile integration
+│   │   ├── 📁 context/            # Auth context definitions
+│   │   │   └── 📄 authContext.ts             # Auth context setup
+│   │   ├── 📁 types/              # Auth type definitions
+│   │   │   └── 📄 authTypes.ts               # All auth-related types
+│   │   ├── 📁 helpers/            # Auth utility functions
+│   │   │   └── 📄 googleAuthHelper.ts        # Google auth utilities
+│   │   └── 📁 routes/             # Auth routing configuration
+│   │       └── 📄 authRoutes.tsx             # Auth route definitions
+│   │
+│   ├── 📁 user-profile/           # User profile management
+│   │   ├── 📄 userProfileApi.ts   # Public API boundary
+│   │   ├── 📁 components/         # Profile UI components
+│   │   │   ├── 📄 UserProfileProvider.tsx    # Profile context provider
+│   │   │   ├── 📄 UserProfileMenu.tsx        # Profile dropdown menu
+│   │   │   ├── 📄 AccountRecoveryPage.tsx    # Account recovery
+│   │   │   └── 📁 dialogs/                   # Profile dialog components
+│   │   │       ├── 📄 ProfileDialog.tsx      # Profile editing dialog
+│   │   │       ├── 📄 SettingsDialog.tsx     # Settings dialog
+│   │   │       └── 📄 DeleteAccountDialog.tsx # Account deletion
+│   │   ├── 📁 services/           # Profile business logic
+│   │   │   ├── 📄 userProfileService.ts      # Main profile service
+│   │   │   ├── 📁 mappers/                   # Data transformation
+│   │   │   │   └── 📄 profileMappingService.ts # Profile mapping
+│   │   │   └── 📁 providers/                 # External integrations
+│   │   │       └── 📄 googleProfileService.ts # Google profile data
+│   │   ├── 📁 hooks/              # Profile React hooks
+│   │   │   ├── 📄 useUserProfile.ts          # Main profile hook
+│   │   │   └── 📄 useUserProfileAuthIntegration.ts # Auth integration
+│   │   ├── 📁 context/            # Profile context
+│   │   │   └── 📄 userProfileContext.ts      # Profile context setup
+│   │   ├── 📁 types/              # Profile type definitions
+│   │   │   └── 📄 profileTypes.ts            # All profile-related types
+│   │   └── 📁 utils/              # Profile utilities
+│   │       └── 📄 userProfileMappers.ts      # Data mapping utilities
+│   │
+│   ├── 📁 chat/                   # AI chat functionality
+│   │   ├── 📄 chatApi.ts          # Public API boundary
+│   │   ├── 📁 components/         # Chat UI components
+│   │   │   ├── 📄 ChatHeader.tsx             # Chat interface header
+│   │   │   ├── 📄 ChatInput.tsx              # Message input component
+│   │   │   ├── 📄 ChatMessage.tsx            # Message display component
+│   │   │   ├── 📄 ConversationSidebar.tsx    # Chat history sidebar
+│   │   │   ├── 📄 TravelPersonaEditPanel.tsx # Travel preferences editor
+│   │   │   └── 📁 shared/                    # Shared chat components
+│   │   ├── 📁 services/           # Chat business logic
+│   │   │   └── 📄 chatService.ts             # Chat API integration
+│   │   ├── 📁 hooks/              # Chat React hooks
+│   │   │   └── 📄 useChatState.ts            # Chat state management
+│   │   └── 📁 types/              # Chat type definitions
+│   │       └── 📄 chatTypes.ts               # All chat-related types
+│   │
+│   ├── 📁 travel-preferences/     # Travel preference management
+│   │   ├── 📄 travelPreferencesApi.ts # Public API boundary
+│   │   ├── 📁 components/         # Preference UI components
+│   │   │   ├── 📄 TravelPreferencesPanel.tsx # Main preferences panel
+│   │   │   └── 📁 TravelPreferencesPanel/    # Panel subcomponents
+│   │   │       ├── 📁 components/sections/   # Preference sections
+│   │   │       │   ├── 📄 BudgetSection.tsx           # Budget preferences
+│   │   │       │   ├── 📄 AccommodationSection.tsx    # Accommodation prefs
+│   │   │       │   ├── 📄 TravelDurationSection.tsx   # Duration settings
+│   │   │       │   ├── 📄 PlanningIntentSection.tsx   # Planning goals
+│   │   │       │   ├── 📄 LocationSection.tsx         # Location preferences
+│   │   │       │   ├── 📄 FlightSection.tsx           # Flight preferences
+│   │   │       │   └── 📄 DepartureSection.tsx        # Departure settings
+│   │   │       ├── 📁 components/shared/     # Shared preference components
+│   │   │       │   └── 📄 SimpleCheckboxCard.tsx     # Simple checkbox
+│   │   │       ├── 📁 services/              # Preference form services
+│   │   │       │   └── 📄 travelPreferencesFormService.ts # Form logic
+│   │   │       └── 📁 types/                 # Form-specific types
+│   │   │           └── 📄 travelPreferencesFormTypes.ts # Form types
+│   │   ├── 📁 services/           # Preference business logic
+│   │   │   └── 📄 travelPreferencesService.ts # Main preference service
+│   │   ├── 📁 hooks/              # Preference React hooks
+│   │   │   └── 📄 useTravelPreferences.ts    # Preference state hook
+│   │   └── 📁 types/              # Preference type definitions
+│   │       └── 📄 travelPreferencesTypes.ts  # All preference types
+│   │
+│   ├── 📁 travel-planning/        # Trip planning functionality
+│   │   ├── 📄 travelPlanningApi.ts # Public API boundary
+│   │   ├── 📁 components/         # Planning UI components
+│   │   │   └── 📄 TravelCards.tsx            # Travel card components
+│   │   └── 📁 types/              # Planning type definitions
+│   │       └── 📄 travelPlanningTypes.ts     # All planning types
+│   │
+│   ├── 📁 subscriptions/          # Subscription management
+│   │   ├── 📄 subscriptionsApi.ts # Public API boundary
+│   │   ├── 📁 services/           # Subscription business logic
+│   │   │   └── 📄 subscriptionService.ts     # Stripe integration
+│   │   └── 📁 types/              # Subscription type definitions
+│   │       └── 📄 subscriptionTypes.ts       # All subscription types
+│   │
+│   ├── 📁 location-data/          # Location data management
+│   │   ├── 📄 locationDataApi.ts  # Public API boundary
+│   │   └── 📁 data/               # Static location data
+│   │       └── 📄 countryCityData.ts         # Country/city datasets
+│   │
+│   ├── 📁 dashboard/              # Dashboard functionality
+│   │   ├── 📄 dashboardApi.ts     # Public API boundary
+│   │   └── 📁 components/         # Dashboard UI components
+│   │       └── 📄 QuickActionsWidget.tsx     # Quick action buttons
+│   │
+│   ├── 📁 error-handling/         # Global error management
+│   │   ├── 📄 errorHandlingApi.ts # Public API boundary
+│   │   └── 📁 services/           # Error handling services
+│   │       └── 📄 errorService.ts            # Error logging/reporting
+│   │
+│   └── 📁 dev-tools/              # Development utilities
+│       ├── 📄 devToolsApi.ts      # Public API boundary
+│       └── 📁 components/         # Dev tool components
+│           └── 📄 TestModeIndicator.tsx      # Test mode indicator
+│
+├── 📁 pages/                      # Page-level components
+│   ├── 📄 Dashboard.tsx           # Main dashboard page
+│   ├── 📄 Login.tsx               # Login page
+│   ├── 📄 Register.tsx            # Registration page
+│   ├── 📄 Chat.tsx                # Chat interface page
+│   ├── 📄 Billing.tsx             # Billing and subscription page
+│   ├── 📄 SavedTrips.tsx          # Saved trips page
+│   ├── 📄 TravelPreferencesPage.tsx # Travel preferences page
+│   ├── 📄 ReviewsPage.tsx         # Reviews and testimonials
+│   ├── 📄 SupportPage.tsx         # Customer support page
+│   ├── 📄 DebugScreen.tsx         # Development debug interface
+│   ├── 📄 NotFound.tsx            # 404 error page
+│   ├── 📁 LandingPage/            # Landing page components
+│   │   ├── 📄 LandingPage.tsx     # Main landing page
+│   │   ├── 📁 components/         # Landing page sections
+│   │   │   ├── 📄 HeroSection.tsx            # Hero/banner section
+│   │   │   ├── 📄 FeaturesSection.tsx        # Features showcase
+│   │   │   ├── 📄 HowItWorksSection.tsx      # How it works explanation
+│   │   │   ├── 📄 PricingSection.tsx         # Pricing tiers
+│   │   │   ├── 📄 TechnologySection.tsx      # Technology stack
+│   │   │   ├── 📄 FAQSection.tsx             # Frequently asked questions
+│   │   │   ├── 📄 UserStoriesSection.tsx     # User testimonials
+│   │   │   └── 📄 CTASection.tsx             # Call-to-action
+│   │   └── 📁 data/               # Landing page data
+│   │       ├── 📄 faqItems.ts                # FAQ data
+│   │       ├── 📄 mockReviews.ts             # Review data
+│   │       └── 📄 pricingTiers.ts            # Pricing information
+│   ├── 📁 Onboarding/             # User onboarding flow
+│   │   ├── 📄 Onboarding.tsx      # Main onboarding component
+│   │   ├── 📁 components/         # Onboarding components
+│   │   │   ├── 📁 steps/                     # Onboarding step components
+│   │   │   │   ├── 📄 BudgetRangeStep.tsx           # Budget selection
+│   │   │   │   ├── 📄 BudgetToleranceStep.tsx       # Budget flexibility
+│   │   │   │   ├── 📄 TravelDurationStep.tsx        # Trip duration prefs
+│   │   │   │   ├── 📄 PlanningIntentStep.tsx        # Planning goals
+│   │   │   │   ├── 📄 AccommodationTypesStep.tsx    # Accommodation types
+│   │   │   │   ├── 📄 AccommodationPreferencesStep.tsx # Accommodation prefs
+│   │   │   │   ├── 📄 FlightPreferencesStep.tsx     # Flight preferences
+│   │   │   │   └── 📄 LocationPreferencesStep.tsx   # Location preferences
+│   │   │   └── 📁 shared/                   # Shared onboarding components
+│   │   │       └── 📄 OptionItem.tsx                # Option item component
+│   │   ├── 📁 services/           # Onboarding business logic
+│   │   │   └── 📄 onboardingService.ts       # Onboarding flow logic
+│   │   └── 📁 types/              # Onboarding type definitions
+│   │       └── 📄 onboardingTypes.ts         # All onboarding types
+│   └── 📁 Settings/               # Settings pages
+│       ├── 📄 Notifications.tsx   # Notification preferences
+│       └── 📄 PrivacySecurity.tsx # Privacy and security settings
+│
+├── 📁 ui/                         # Custom UI component system (Atomic Design)
+│   ├── 📁 atoms/                  # Fundamental building blocks
+│   │   ├── 📄 Button.tsx          # Enhanced button with custom variants
+│   │   ├── 📄 Badge.tsx           # Badge component with variants
+│   │   ├── 📄 Input.tsx           # Enhanced input with focus styling
+│   │   ├── 📄 Textarea.tsx        # Enhanced textarea component
+│   │   ├── 📄 Label.tsx           # Enhanced label component
+│   │   ├── 📄 Card.tsx            # Enhanced card with custom styling
+│   │   ├── 📄 Logo.tsx            # Planora logo component
+│   │   ├── 📄 TravelAvatar.tsx    # Travel-themed avatar component
+│   │   └── 📄 GradientButton.tsx  # Gradient button variant
+│   ├── 📁 molecules/              # Combinations of atoms
+│   │   ├── 📄 FeatureCard.tsx     # Feature showcase card
+│   │   ├── 📄 CheckboxCard.tsx    # Unified checkbox card component with boolean and multi-select variants│   │   └── 📄 TripCard.tsx        # Trip display card component
+│   ├── 📁 organisms/              # Complex UI sections
+│   │   ├── 📄 Navigation.tsx      # Main navigation component
+│   │   ├── 📄 Footer.tsx          # Site footer component
+│   │   ├── 📄 ErrorBoundary.tsx   # Error boundary wrapper
+│   │   ├── 📄 FaqAccordion.tsx    # FAQ accordion component
+│   │   ├── 📄 ReviewCard.tsx      # Review/testimonial card
+│   │   ├── 📄 EarthScene.tsx      # 3D Earth visualization
+│   │   ├── 📄 HolographicEarth.tsx # Holographic Earth effect
+│   │   └── 📄 VanillaEarthScene.tsx # Vanilla JS Earth scene
+│   └── 📁 hooks/                  # UI-specific hooks
+│       └── 📄 useClientOnly.ts    # Client-side only hook
+│
+├── 📁 components/                 # Third-party and library components
+│   ├── 📄 AppWrapper.tsx          # App wrapper component
+│   └── 📁 ui/                     # ShadCN/UI components
+│       ├── 📄 button.tsx          # Base ShadCN button
+│       ├── 📄 card.tsx            # Base ShadCN card
+│       ├── 📄 input.tsx           # Base ShadCN input
+│       ├── 📄 label.tsx           # Base ShadCN label
+│       ├── 📄 badge.tsx           # Base ShadCN badge
+│       ├── 📄 textarea.tsx        # Base ShadCN textarea
+│       ├── 📄 form.tsx            # Form components
+│       ├── 📄 dialog.tsx          # Dialog components
+│       ├── 📄 alert.tsx           # Alert components
+│       ├── 📄 toast.tsx           # Toast notification
+│       ├── 📄 toaster.tsx         # Toast container
+│       ├── 📄 tabs.tsx            # Tab components
+│       ├── 📄 calendar.tsx        # Calendar component
+│       ├── 📄 DatePickerInput.tsx # Date picker input
+│       ├── 📄 dropdown-menu.tsx   # Dropdown menu
+│       ├── 📄 select.tsx          # Select component
+│       ├── 📄 checkbox.tsx        # Checkbox component
+│       ├── 📄 radio-group.tsx     # Radio group
+│       ├── 📄 switch.tsx          # Switch toggle
+│       ├── 📄 slider.tsx          # Slider input
+│       ├── 📄 progress.tsx        # Progress bar
+│       ├── 📄 avatar.tsx          # Avatar component
+│       ├── 📄 skeleton.tsx        # Loading skeleton
+│       ├── 📄 separator.tsx       # Visual separator
+│       ├── 📄 scroll-area.tsx     # Scrollable area
+│       ├── 📄 sheet.tsx           # Sheet/drawer component
+│       ├── 📄 sidebar.tsx         # Sidebar component
+│       ├── 📄 tooltip.tsx         # Tooltip component
+│       ├── 📄 popover.tsx         # Popover component
+│       ├── 📄 hover-card.tsx      # Hover card
+│       ├── 📄 context-menu.tsx    # Context menu
+│       ├── 📄 menubar.tsx         # Menu bar
+│       ├── 📄 navigation-menu.tsx # Navigation menu
+│       ├── 📄 breadcrumb.tsx      # Breadcrumb navigation
+│       ├── 📄 pagination.tsx      # Pagination component
+│       ├── 📄 command.tsx         # Command palette
+│       ├── 📄 collapsible.tsx     # Collapsible content
+│       ├── 📄 accordion.tsx       # Accordion component
+│       ├── 📄 table.tsx           # Table components
+│       ├── 📄 chart.tsx           # Chart components
+│       ├── 📄 carousel.tsx        # Carousel component
+│       ├── 📄 toggle.tsx          # Toggle component
+│       ├── 📄 toggle-group.tsx    # Toggle group
+│       ├── 📄 alert-dialog.tsx    # Alert dialog
+│       ├── 📄 drawer.tsx          # Drawer component
+│       ├── 📄 resizable.tsx       # Resizable panels
+│       ├── 📄 aspect-ratio.tsx    # Aspect ratio container
+│       ├── 📄 input-otp.tsx       # OTP input
+│       ├── 📄 sonner.tsx          # Sonner toast
+│       ├── 📁 variants/           # Component variants
+│       │   ├── 📄 buttonVariants.ts          # Button variant definitions
+│       │   ├── 📄 badgeVariants.ts           # Badge variant definitions
+│       │   └── 📄 toggleVariants.ts          # Toggle variant definitions
+│       ├── 📁 styles/             # Component styles
+│       │   └── 📄 navigationMenuStyles.ts    # Navigation menu styles
+│       ├── 📁 utils/              # UI utilities
+│       │   └── 📄 toastUtils.ts              # Toast utility functions
+│       ├── 📄 form-hooks.ts       # Form hook utilities
+│       └── 📄 sidebar-hooks.ts    # Sidebar hook utilities
+│
+├── 📁 hooks/                      # Global and integration hooks
+│   ├── 📄 use-toast.ts            # Toast notification hook
+│   ├── 📄 use-mobile.tsx          # Mobile detection hook
+│   └── 📁 integration/            # Cross-feature integration hooks
+│       ├── 📄 useAuthIntegration.ts          # Auth integration patterns
+│       ├── 📄 useAuthUser.ts                 # Auth user integration
+│       ├── 📄 useTravelPlanningIntegration.ts # Travel planning integration
+│       ├── 📄 useTravelPreferencesIntegration.ts # Preferences integration
+│       ├── 📄 useUserDataIntegration.ts      # User data integration
+│       └── 📄 useUserProfileIntegration.ts   # Profile integration
+│
+├── 📁 store/                      # State management (Redux)
+│   ├── 📄 storeApi.ts             # Public store API boundary
+│   ├── 📁 slices/                 # Redux slices
+│   │   └── 📄 authSlice.ts        # Authentication state slice
+│   └── 📁 hooks/                  # Redux hooks
+│       ├── 📄 reduxHooksApi.ts    # Redux hooks API
+│       └── 📄 useReduxHooks.ts    # Custom Redux hooks
+│
+├── 📁 lib/                        # Shared libraries and utilities
+│   ├── 📄 utils.ts                # General utility functions
+│   ├── 📄 serviceUtils.ts         # Enterprise service utilities
+│   └── 📁 supabase/               # Supabase configuration
+│       └── 📄 client.ts           # Supabase client setup
+│
+├── 📁 utils/                      # General utility functions
+│   ├── 📄 dateUtils.ts            # Date manipulation utilities
+│   ├── 📄 formatUtils.ts          # Formatting utilities
+│   └── 📄 ScrollToTop.tsx         # Scroll to top component
+│
+├── 📁 constants/                  # Global constants
+│   └── 📄 appConstants.ts         # Application constants
+│
+└── 📁 types/                      # Global type definitions
+    └── 📄 typesApi.ts             # Public types API boundary
+```
+
+### 🗄️ **Database & Backend (`supabase/`)**
+
+```
+supabase/
+├── 📁 migrations/                 # Database schema migrations
+│   ├── 📄 20250611195301_main_schema.sql           # Core database schema
+│   ├── 📄 20250611195302_rbac_schema.sql           # Role-based access control
+│   ├── 📄 20250611195303_chat_tables.sql           # Chat functionality tables
+│   ├── 📄 20250611195304_account_deletion_schema.sql # Account deletion system
+│   ├── 📄 20250613120000_admin_editor_rls_policies.sql # RLS policies
+│   ├── 📄 20250613140000_subscription_schema.sql   # Subscription system
+│   ├── 📄 20250613150000_subscription_rls_policies.sql # Subscription RLS
+│   ├── 📄 20250613160000_beta_tester_program.sql   # Beta tester features
+│   ├── 📄 20250614000000_update_travel_preferences_schema.sql # Travel prefs
+│   └── 📄 20250615000000_simplify_auth_system.sql  # Simplified auth system
+│
+├── 📁 functions/                  # Edge Functions (Serverless)
+│   ├── 📄 deno.json               # Deno configuration
+│   ├── 📄 import_map.json         # Import map for dependencies
+│   ├── 📄 tsconfig.json           # TypeScript configuration
+├── 📄 .lintstagedrc.json          # Lint-staged configuration for pre-commit hooks
+├── 📄 SUPABASE_AUTH_SECURITY_GUIDE.md # Security guide for authentication setup
+├── 📄 NEXTJS_MIGRATION_GUIDE.md   # Migration guide from Next.js to Vite
+├── 📁 functions/                  # Edge function middleware
+│   └── 📄 _middleware.ts          # CORS and routing middleware for edge functions│   ├── 📁 _shared/                # Shared utilities
+│   │   └── 📄 cors.ts             # CORS headers configuration
+│   ├── 📁 account-management/     # Account management functions
+│   │   └── 📄 index.ts            # Account deletion and OAuth unlinking
+│   ├── 📁 scheduled-account-deleter/ # Automated account cleanup
+│   │   └── 📄 index.ts            # Scheduled deletion job
+│   ├── 📁 create-checkout-session/ # Stripe checkout integration
+│   │   └── 📄 index.ts            # Stripe session creation
+│   └── 📁 stripe-webhook-handler/ # Stripe webhook processing
+│       └── 📄 index.ts            # Subscription management via webhooks
+│
+└── 📄 import_map.json             # Global import map
+```
+
+### 🛠️ **Configuration & Tools (`config/`)**
+
+```
+config/
+├── 📁 linting/                    # Code quality configuration
+│   └── 📁 eslint/                 # ESLint configuration
+│       ├── 📄 eslint.config.js    # Main ESLint configuration
+│       ├── 📄 index.js            # ESLint exports
+│       └── 📁 rules/              # Custom ESLint rules
+│           └── 📄 enforce-architecture.js # Architecture enforcement rules
+├── 📁 plop/                       # Code generation templates
+│   ├── 📄 plopfile.js             # Plop configuration
+│   ├── 📄 ai-feature.hbs          # AI feature template
+│   ├── 📄 api-client.hbs          # API client template
+│   ├── 📄 component.hbs           # Component template
+│   ├── 📄 feature-api.hbs         # Feature API template
+│   ├── 📄 feature-types.hbs       # Feature types template
+│   ├── 📄 hook.hbs                # Hook template
+│   ├── 📄 integration-hook.hbs    # Integration hook template
+│   └── 📄 service.hbs             # Service template
+├── 📁 dependencies/               # Dependency management
+│   └── 📁 reports/                # Dependency reports
+└── 📁 deployment/                 # Deployment configuration
+    └── 📄 check-secrets.sh        # Security secrets checker
+```
+
+### 📜 **Build & Validation Scripts (`scripts/`)**
+
+```
+scripts/
+├── 📄 architecture-validator.js   # Architecture compliance validation
+├── 📄 architecture-change-control.js # Architecture change tracking
+├── 📄 generate-architecture-diagram.js # Architecture visualization
+└── 📄 generate-types.ts           # Type generation utilities
+```
+
+### 📚 **Documentation (`docs/`)**
+
+```
+docs/
+├── 📄 ARCHITECTURE.md             # This comprehensive architecture guide
+├── 📁 database/                   # Database documentation
+│   └── 📄 DATABASE.md             # Database schema and patterns
+├── 📁 developer/                  # Developer guides
+│   └── 📄 guide.md                # Development workflows and best practices
+└── 📁 setup/                      # Setup and configuration guides
+    ├── 📄 configuration-guide.md  # Environment configuration
+    ├── 📄 deployment-guide.md     # Deployment instructions
+    ├── 📄 email-verification.md   # Email verification setup
+    └── 📄 supabase-setup.md       # Supabase configuration guide
+```
+
+### 🌐 **Static Assets (`public/`)**
+
+```
+public/
+├── 📄 _headers                    # HTTP headers configuration
+├── 📄 robots.txt                 # Search engine directives
+├── 📄 favicon.ico                # Browser favicon
+├── 📄 favicon.svg                # SVG favicon
+├── 📄 placeholder.svg            # Placeholder image
+├── 📄 mesh-gradient.png          # Background gradient
+├── 📄 earth-blue-marble.jpg      # Earth texture (blue marble)
+├── 📄 earth-texture.jpg          # Earth surface texture
+├── 📄 earth-topology.jpg         # Earth topological map
+└── 📄 test.html                  # Test HTML file
+```
 
 ## Core Architectural Principles
 
 ### 1. Feature-First Organization
+Every feature is self-contained with its own components, services, hooks, and types. Features communicate only through their public API boundaries (`featureNameApi.ts`).
 
-Code is organized by feature domain, not by technical role. Each feature has its own directory with the following structure:
+### 2. Enhanced Component System
+- **Atomic Design**: atoms → molecules → organisms hierarchy
+- **Enhanced Components**: Custom wrappers around ShadCN components with Planora-specific styling
+- **Standardized Imports**: All components use enhanced versions for consistency
 
-```
-features/
-└── feature-name/
-    ├── featureNameApi.ts  # Public API boundary for the feature (standardized naming)
-    ├── components/        # Feature-specific UI components
-    ├── hooks/             # Feature-specific hooks
-    ├── services/          # Feature-specific business logic
-    ├── adapters/          # Integration with external services
-    ├── types/             # Feature-specific type definitions
-    └── utils/             # Feature-specific utility functions
-```
+### 3. Service Layer Architecture
+Enterprise-grade service layer with:
+- **Retry Logic**: Exponential backoff with jitter
+- **Monitoring**: Performance tracking and error reporting
+- **Error Handling**: Graceful degradation and proper error boundaries
 
-> **Important**: Feature API files must follow the standardized naming pattern: `featureNameApi.ts` (kebab-case feature directory + PascalCase "Api" suffix). This is enforced by our architecture validation tools.
+### 4. Type Safety & Quality
+- **Zero TypeScript errors**: Strict mode compliance
+- **No `any` types**: Proper type definitions throughout
+- **Architectural validation**: Custom ESLint rules enforce patterns
 
-### 2. Separation of Concerns
+## Feature Architecture
 
-- Each module, folder, and file must have a clear, single responsibility
-- Business logic must be separated from UI components
-- Data transformation must be separated from data presentation
-- Database types must be separated from application types
-- Utilities must be separated from components for Fast Refresh compatibility
+### Authentication System
+**Simplified & Secure**: Standard Supabase patterns with email confirmation
+- **OAuth Integration**: Google authentication with profile sync
+- **Session Management**: Secure session handling with proper cleanup
+- **Email Verification**: Streamlined email confirmation flow
+- **Profile Integration**: Seamless integration with user profiles
 
-### 3. Modular Design
+### Subscription System
+**Stripe Integration**: Three-tier subscription model
+- **Explorer**: Basic tier for casual travelers
+- **Wanderer Pro**: Advanced features for frequent travelers  
+- **Global Elite**: Premium tier with all features
+- **Automatic Tier Assignment**: Via Stripe webhooks
 
-- Components, services, hooks, and features must be isolated and reusable
-- Minimize dependencies between modules
-- Design for composition rather than inheritance
-- Features must not directly depend on other features
+### Travel Planning
+**AI-Powered**: Intelligent trip planning with preferences
+- **Smart Recommendations**: AI-driven destination suggestions
+- **Preference Learning**: Adaptive recommendation engine
+- **Trip Management**: Save, edit, and share travel plans
 
-### 4. No Redundancy
+## UI Component System
 
-- Eliminate duplicated logic, folders, and components
-- Shared functionality should be extracted to appropriate locations
-- Avoid multiple implementations of the same concept
+### Enhanced Components (`src/ui/atoms/`)
+Custom components that extend ShadCN with Planora-specific styling:
+- **Button**: Adds gradient, glass, and glow variants
+- **Card**: Enhanced with custom shadows and spacing
+- **Input**: Improved focus states and validation styling
+- **Badge**: Custom variants for different contexts
 
-### 5. Clean Code and Naming
-
-- Code must be easy to read, test, extend, and maintain
-- No generic index.ts files; every file must have a unique, descriptive name
-- Follow consistent naming conventions throughout the codebase
+### Atomic Design Hierarchy
+- **Atoms**: Fundamental building blocks (Button, Input, Label)
+- **Molecules**: Simple combinations (FeatureCard, TripCard)
+- **Organisms**: Complex sections (Navigation, Footer, Earth scenes)
 
 ## Service Layer Architecture
 
-### Enterprise-Grade Service Patterns
+### Enterprise Patterns
+All services implement production-ready patterns:
+- **Retry Logic**: Exponential backoff with jitter for resilience
+- **Monitoring**: Performance tracking and error reporting
+- **Error Boundaries**: Graceful degradation strategies
+- **Type Safety**: Comprehensive TypeScript coverage
 
-The Planora.ai service layer implements production-ready patterns for reliability and monitoring:
-
-#### Service Utilities (`src/lib/serviceUtils.ts`)
-
-All services use the `withRetryAndMonitoring` wrapper that provides:
-
+### Service Structure
 ```typescript
-// Comprehensive service operation wrapper
-export async function withRetryAndMonitoring<T>(
-  operation: () => Promise<T>,
-  config: ServiceConfig
-): Promise<T>
-```
-
-**Features:**
-- **Exponential Backoff with Jitter**: Prevents thundering herd problems
-- **Smart Retry Logic**: Retries network/timeout errors, not business logic errors
-- **Performance Monitoring**: Tracks operation timing and success/failure rates
-- **Configurable Retry Conditions**: Different strategies for different error types
-- **Error Boundaries**: Proper error boundaries with graceful degradation
-
-#### Example Service Implementation
-
-```typescript
-export async function getUserProfile(userId: string): Promise<UserProfile | null> {
-  return withRetryAndMonitoring(
-    async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-      return data ? createUserProfileFromDatabase(data) : null;
-    },
-    {
-      operationName: 'getUserProfile',
-      maxRetries: 3,
-      shouldRetry: (error) => isNetworkError(error) || isTimeoutError(error),
-      onStart: () => console.log('Starting getUserProfile operation'),
-      onSuccess: (result, metrics) => console.log('getUserProfile succeeded', metrics),
-      onError: (error, metrics) => console.error('getUserProfile failed', error, metrics),
-      onRetry: (attempt, error) => console.warn(`Retrying getUserProfile (attempt ${attempt})`, error)
-    }
-  );
-}
-```
-
-#### Service Layer Benefits
-
-- **Reliability**: Automatic retry for transient failures
-- **Observability**: Comprehensive monitoring and logging
-- **Performance**: Connection resilience and optimization
-- **Maintainability**: Consistent patterns across all services
-- **Scalability**: Built for production workloads
-
-## Code Organization
-
-### Directory Structure
-
-```
-planora.ai/
-├── src/
-│   ├── App.css             # Main application styles
-│   ├── App.tsx             # Main application component
-│   ├── components/         # Third-party/library components
-│   │   └── ui/             # Shadcn/UI components (with separated utilities)
-│   ├── constants/          # Global constants
-│   ├── features/           # Feature modules (auth, reviews, travel-planning, etc.)
-│   ├── hooks/              # Custom React hooks (global or integration)
-│   │   └── integration/    # Cross-feature integration hooks
-│   ├── lib/                # Shared utilities and configurations
-│   │   ├── serviceUtils.ts # Enterprise service layer utilities
-│   │   └── supabase/       # Supabase client setup and configuration
-│   ├── pages/              # Page components (e.g., LandingPage, ReviewsPage)
-│   ├── store/              # State management (Redux)
-│   ├── types/              # TypeScript type definitions
-│   ├── ui/                 # Custom UI components (atomic design)
-│   │   ├── atoms/          # Fundamental building blocks
-│   │   ├── hooks/          # UI-specific hooks
-│   │   ├── molecules/      # Combinations of atoms
-│   │   └── organisms/      # Complex UI sections
-│   ├── utils/              # General utility functions
-│   ├── index.css           # Global CSS entry point
-│   ├── main.tsx            # Main application entry point
-│   └── vite-env.d.ts       # Vite environment type definitions
-├── config/                 # Configuration files (symlinked to root where needed)
-├── docs/                   # Project documentation
-└── public/                 # Static assets
-```
-
-### Feature Module Structure
-
-Each feature module follows this standardized structure:
-
-```
-feature-name/
-├── featureNameApi.ts    # Public API boundary (standardized naming)
-├── components/          # Feature-specific components
-├── context/             # Feature-specific contexts (separated for Fast Refresh)
-├── hooks/               # Feature-specific hooks
-├── services/            # Business logic with enterprise patterns
-├── types/               # Type definitions
-└── utils/               # Utility functions
-```
-
-## Type Safety
-
-- **TypeScript Strict Mode**: Enabled throughout the codebase
-- **No `any` Types**: All types are properly defined
-- **Database Type Safety**: Clear mappings between database and application types
-- **Type Guards**: Used for runtime type validation
-- **Discriminated Unions**: For better type safety in complex scenarios
-
-## Export and Import Patterns
-
-### Export Rules (Strictly Enforced)
-
-- **NEVER** use default exports
-- **ALWAYS** use named exports
-- Export types alongside their related components or functions
-- Maintain proper casing in imports
-- Separate utilities from components for Fast Refresh compatibility
-
-### Examples
-
-```typescript
-// ✅ Correct - Component file
-export { Button };
-export type { ButtonProps };
-
-// ✅ Correct - Utility file
-export { buttonVariants };
-
-// ❌ Incorrect - Mixed exports (breaks Fast Refresh)
-export { Button, buttonVariants };
-
-// ❌ Incorrect - Default export
-export default Button;
-```
-
-### File Naming Conventions
-
-- **NEVER** use generic `index.ts` files
-- Component files: PascalCase (e.g., `Button.tsx`, `UserProfile.tsx`)
-- Service/util files: camelCase (e.g., `authService.ts`, `formatDate.ts`)
-- Type files: camelCase (e.g., `userTypes.ts`)
-- Utility files: camelCase (e.g., `buttonVariants.ts`, `useFormField.ts`)
-
-### Cross-Feature Communication
-
-- Features communicate only through their public API boundaries (`api.ts`)
-- Never import directly from another feature's internal files
-- Use integration hooks for complex cross-feature interactions
-- Use the Redux store for global state that needs to be shared
-
-```typescript
-// ✅ Correct
-import { useAuth } from '@/features/auth/authApi';
-
-// ❌ Incorrect
-import { useAuth } from '@/features/auth/hooks/useAuth';
-```
-
-## UI Component Architecture
-
-### Fast Refresh Optimized Structure
-
-We maintain **perfect Fast Refresh compatibility** by separating concerns:
-
-#### Component/Utility Separation
-
-```
-components/ui/
-├── button.tsx           # Component only
-├── buttonVariants.ts    # Utility functions only
-├── form.tsx            # Components only  
-├── useFormField.ts     # Hooks only
-└── ...
-```
-
-#### Component Structure Guidelines
-
-1. **shadcn/ui Components** (`src/components/ui/`):
-   - Standard UI components with utilities separated
-   - Components in kebab-case files (e.g., `button.tsx`)
-   - Utilities in camelCase files (e.g., `buttonVariants.ts`)
-   - Hooks in camelCase files (e.g., `useFormField.ts`)
-
-2. **Custom Atomic Components** (`src/ui/`):
-   - Custom components following atomic design
-   - Use PascalCase file names (e.g., `Button.tsx`)
-   - Build on top of shadcn/ui components
-   - Only export components from component files
-
-### Import Patterns
-
-```typescript
-// Import shadcn/ui components and utilities
-import { Button } from '@/components/ui/button';
-import { buttonVariants } from '@/components/ui/buttonVariants';
-import { useFormField } from '@/components/ui/useFormField';
-
-// Import custom components
-import { GradientButton } from '@/ui/atoms/GradientButton';
-import { Input } from '@/ui/atoms/Input';
-```
-
-## Error Handling Patterns
-
-### Service Layer Error Handling
-
-All services implement consistent error handling patterns:
-
-```typescript
-// Standardized error handling with retry logic
 export async function serviceOperation(): Promise<Result> {
   return withRetryAndMonitoring(
     async () => {
@@ -301,129 +554,75 @@ export async function serviceOperation(): Promise<Result> {
     {
       operationName: 'serviceOperation',
       maxRetries: 3,
-      shouldRetry: (error) => isRetriableError(error),
-      onError: (error, metrics) => handleServiceError(error, metrics)
+      shouldRetry: (error) => isRetriableError(error)
     }
   );
 }
 ```
 
-### Error Categories
+## Database & Backend
 
-- **Network Errors**: Automatically retried with exponential backoff
-- **Timeout Errors**: Retried with jitter to prevent thundering herd
-- **Business Logic Errors**: Not retried, handled gracefully
-- **Authentication Errors**: Handled with user feedback and redirect
+### Supabase Integration
+- **18 Database Migrations**: Complete schema evolution
+- **4 Active Edge Functions**: Account management, scheduled tasks, Stripe integration
+- **Comprehensive RLS**: Row-level security on all tables
+- **Security Hardening**: Function search path fixes, proper authentication
 
-### Graceful Degradation
+### Edge Functions
+1. **account-management**: Account deletion and OAuth unlinking
+2. **scheduled-account-deleter**: Automated cleanup processes
+3. **create-checkout-session**: Stripe checkout integration
+4. **stripe-webhook-handler**: Subscription management
 
-- Services provide fallback strategies for failures
-- UI components handle loading and error states
-- Critical operations have multiple retry attempts
-- Non-critical operations fail silently with logging
+## Development Tools & Configuration
 
-## Architecture Maintenance Tools
+### Code Quality
+- **ESLint**: Custom rules for architectural compliance
+- **TypeScript**: Strict mode with zero errors
+- **Prettier**: Consistent code formatting
+- **Architecture Validator**: Automated compliance checking
 
-### ESLint Custom Rules
+### Code Generation
+- **Plop.js**: Templates for features, components, services
+- **Type Generation**: Automatic TypeScript type generation
+- **Scaffolding**: Consistent code structure generation
 
-Custom ESLint rules enforce architectural principles:
+## Quality Assurance
 
-- **Feature API Boundaries**: Prevents direct cross-feature imports
-- **Named Exports Only**: Eliminates default exports
-- **Fast Refresh Compatibility**: Ensures component/utility separation
-- **Database Abstraction**: Prevents direct database access in UI
-
-### Dependency Cruiser
-
-Enforces architectural boundaries and prevents violations:
-
-- Integration hooks pattern for cross-feature communication
-- Prevention of circular dependencies
-- Consistent state management approaches
-- Feature isolation enforcement
-
-### Code Generation with Plop.js
-
-Generates code following architectural principles:
-
-- Features with proper structure (`npm run scaffold:feature`)
-- UI components following atomic design (`npm run scaffold:component`)
-- Services with enterprise patterns (`npm run scaffold:service`)
-- Integration hooks (`npm run scaffold:integration`)
-
-## Configuration Files
-
-### Configuration Directory Structure
-
-```
-config/
-├── dependencies/       # Dependency management configuration
-├── deployment/         # Deployment configuration
-├── linting/           # Code quality tools
-│   └── eslint/        # Custom ESLint rules for architecture
-└── plop/              # Code generation templates
+### Automated Validation
+```bash
+npm run validate-arch    # Architecture compliance
+npm run lint            # Code quality
+npm run type-check      # TypeScript validation
+npm run build           # Production build
 ```
 
-### Key Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `eslint.config.js` | Enforces architectural principles |
-| `enforce-architecture.js` | Custom ESLint rules |
-| `.dependency-cruiser.cjs` | Architecture boundary enforcement |
-| `serviceUtils.ts` | Enterprise service layer utilities |
-
-## Refactoring Guidelines
-
-### UI Integrity Rule
-
-- Never change UI design, layout, or behavior without explicit confirmation
-- Preserve visual components, routes, states, and rendering behavior during refactoring
-- Focus on internal architecture improvements without changing user-facing behavior
-
-### Service Layer Refactoring
-
-- All services must use the `withRetryAndMonitoring` wrapper
-- Implement proper error handling and retry logic
-- Add performance monitoring to critical operations
-- Ensure graceful degradation for failures
-
-### Component Refactoring
-
-- Maintain Fast Refresh compatibility by separating utilities
-- Keep components focused on rendering logic only
-- Extract hooks and utilities to separate files
-- Follow naming conventions strictly
-
-### Cross-Feature Communication
-
-- Use integration hooks when features need to communicate
-- Always communicate through API boundaries
-- Never directly import from feature internals
-- Follow the factory function pattern to resolve circular dependencies
+### Quality Metrics
+- **✅ Zero linting errors**
+- **✅ Zero TypeScript errors**
+- **✅ 100% architectural compliance**
+- **✅ Production-ready build**
 
 ---
 
-## 🎯 **Architecture Achievement Summary**
+## 🎯 **Quick Reference for Development**
 
-The Planora.ai architecture represents a **production-ready, enterprise-grade** codebase with:
+### Adding New Features
+1. Use `npm run scaffold:feature <name>` to generate structure
+2. Implement following feature-first principles
+3. Export through `featureNameApi.ts` boundary
+4. Add integration hooks for cross-feature communication
 
-### ✅ **Quality Metrics**
-- **Zero** linting errors and warnings
-- **100%** TypeScript strict mode compliance
-- **Perfect** Fast Refresh compatibility
-- **Comprehensive** error handling coverage
+### Component Development
+1. Check existing atoms/molecules before creating new ones
+2. Use enhanced components from `@/ui/atoms/` for consistency
+3. Follow atomic design principles for organization
+4. Maintain Fast Refresh compatibility
 
-### ✅ **Enterprise Patterns**
-- **Robust service layer** with retry logic and monitoring
-- **Graceful degradation** for all failure scenarios
-- **Performance optimization** for critical operations
-- **Scalable architecture** for future growth
+### Service Development
+1. Use `withRetryAndMonitoring` wrapper for all operations
+2. Implement proper error handling and retry logic
+3. Add performance monitoring for critical operations
+4. Follow enterprise service patterns
 
-### ✅ **Developer Experience**
-- **Optimal development workflow** with Fast Refresh
-- **Consistent code patterns** across all features
-- **Automated quality enforcement** via ESLint and tools
-- **Clear architectural boundaries** and communication patterns
-
-This architecture provides a solid foundation for continued feature development and scaling of the Planora.ai application.
+This architecture provides a solid foundation for scaling Planora.ai while maintaining code quality, performance, and developer experience.

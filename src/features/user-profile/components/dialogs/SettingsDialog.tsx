@@ -380,66 +380,91 @@ const SettingsDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
-          <DialogDescription>Customize your account settings</DialogDescription>
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] bg-black/40 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden">
+        <DialogHeader className="pb-4">
+          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-white via-purple-100 to-pink-100 bg-clip-text text-transparent">
+            Settings
+          </DialogTitle>
+          <DialogDescription className="text-white/70 text-base">
+            Customize your account settings and preferences
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-y-auto max-h-[calc(85vh-160px)] pr-2" style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#8b5cf6 transparent'
+        }}>
+          <style jsx>{`
+            div::-webkit-scrollbar {
+              width: 6px;
+            }
+            div::-webkit-scrollbar-track {
+              background: transparent;
+            }
+            div::-webkit-scrollbar-thumb {
+              background: linear-gradient(to bottom, #8b5cf6, #ec4899);
+              border-radius: 3px;
+            }
+            div::-webkit-scrollbar-thumb:hover {
+              background: linear-gradient(to bottom, #7c3aed, #db2777);
+            }
+          `}</style>
           {/* Theme Toggle */}
-          <div className="flex items-center justify-between">
-            <div>
-              <Label htmlFor="theme-mode" className="font-medium">
-                Dark Mode
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                Toggle between light and dark theme
-              </p>
+          <div className="p-4 bg-white/5 rounded-xl border border-white/10 transition-all duration-300 hover:bg-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="theme-mode" className="font-medium text-white/90">
+                  Dark Mode
+                </Label>
+                <p className="text-sm text-white/60 mt-1">
+                  Toggle between light and dark theme
+                </p>
+              </div>
+              <Switch
+                id="theme-mode"
+                checked={isDarkMode}
+                onCheckedChange={handleDarkModeToggle}
+                className="data-[state=checked]:bg-purple-500"
+              />
             </div>
-            <Switch
-              id="theme-mode"
-              checked={isDarkMode}
-              onCheckedChange={handleDarkModeToggle}
-            />
           </div>
 
           {/* Language */}
-          <div>
-            <Label htmlFor="language" className="font-medium">
+          <div className="p-4 bg-white/5 rounded-xl border border-white/10 transition-all duration-300 hover:bg-white/10">
+            <Label htmlFor="language" className="font-medium text-white/90">
               App Language
             </Label>
-            <p className="text-sm text-muted-foreground mb-2">
+            <p className="text-sm text-white/60 mb-3 mt-1">
               Select your preferred language
             </p>
             <Select
               options={languageOptions}
               value={language}
               onValueChange={handleLanguageChange}
-              className="w-full"
+              className="w-full bg-black/40 border-white/20 text-white"
             />
           </div>
 
           {/* Change Password */}
-          <div>
-            <h3 className="font-medium mb-1">Password</h3>
-            <p className="text-sm text-muted-foreground mb-2">
+          <div className="p-4 bg-white/5 rounded-xl border border-white/10 transition-all duration-300 hover:bg-white/10">
+            <h3 className="font-medium mb-1 text-white/90">Password</h3>
+            <p className="text-sm text-white/60 mb-3">
               Update your account password
             </p>
 
             {authProvider === AuthProviderType.GOOGLE ? (
               <>
-                <Alert className="mb-3">
-                  <InfoIcon className="h-4 w-4" />
-                  <AlertTitle>Google Account</AlertTitle>
-                  <AlertDescription>
+                <Alert className="mb-3 bg-blue-500/10 border-blue-400/30 text-white">
+                  <InfoIcon className="h-4 w-4 text-blue-400" />
+                  <AlertTitle className="text-blue-300">Google Account</AlertTitle>
+                  <AlertDescription className="text-white/80">
                     You're signed in with Google. Password management is handled
                     through your Google account.
                   </AlertDescription>
                 </Alert>
                 <Button
                   variant="outline"
-                  className="w-full"
+                  className="w-full border-white/30 bg-white/10 hover:bg-white/20 text-white"
                   onClick={() =>
                     window.open(
                       "https://myaccount.google.com/security",
@@ -458,14 +483,14 @@ const SettingsDialog = ({
                 <Button
                   variant="outline"
                   onClick={() => setChangePasswordOpen(true)}
-                  className="w-full"
+                  className="w-full border-white/30 bg-white/10 hover:bg-white/20 text-white"
                 >
                   Change Password
                 </Button>
-                <DialogContent>
+                <DialogContent className="bg-black/90 backdrop-blur-xl border border-white/20 rounded-2xl">
                   <DialogHeader>
-                    <DialogTitle>Change Password</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle className="text-xl font-bold text-white">Change Password</DialogTitle>
+                    <DialogDescription className="text-white/70">
                       Enter your current password and a new password
                     </DialogDescription>
                   </DialogHeader>
@@ -480,11 +505,15 @@ const SettingsDialog = ({
                         name="currentPassword"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Current Password</FormLabel>
+                            <FormLabel className="text-white/90">Current Password</FormLabel>
                             <FormControl>
-                              <Input type="password" {...field} />
+                              <Input 
+                                type="password" 
+                                {...field} 
+                                className="bg-black/40 border-white/20 focus:border-purple-400/50 focus:ring-purple-400/20 text-white placeholder:text-white/50"
+                              />
                             </FormControl>
-                            <FormMessage />
+                            <FormMessage className="text-red-400" />
                           </FormItem>
                         )}
                       />
@@ -494,11 +523,15 @@ const SettingsDialog = ({
                         name="newPassword"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>New Password</FormLabel>
+                            <FormLabel className="text-white/90">New Password</FormLabel>
                             <FormControl>
-                              <Input type="password" {...field} />
+                              <Input 
+                                type="password" 
+                                {...field} 
+                                className="bg-black/40 border-white/20 focus:border-purple-400/50 focus:ring-purple-400/20 text-white placeholder:text-white/50"
+                              />
                             </FormControl>
-                            <FormMessage />
+                            <FormMessage className="text-red-400" />
                           </FormItem>
                         )}
                       />
@@ -508,11 +541,15 @@ const SettingsDialog = ({
                         name="confirmPassword"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Confirm New Password</FormLabel>
+                            <FormLabel className="text-white/90">Confirm New Password</FormLabel>
                             <FormControl>
-                              <Input type="password" {...field} />
+                              <Input 
+                                type="password" 
+                                {...field} 
+                                className="bg-black/40 border-white/20 focus:border-purple-400/50 focus:ring-purple-400/20 text-white placeholder:text-white/50"
+                              />
                             </FormControl>
-                            <FormMessage />
+                            <FormMessage className="text-red-400" />
                           </FormItem>
                         )}
                       />
@@ -523,10 +560,15 @@ const SettingsDialog = ({
                           type="button"
                           onClick={() => setChangePasswordOpen(false)}
                           disabled={isLoading}
+                          className="border-white/30 bg-white/10 hover:bg-white/20 text-white"
                         >
                           Cancel
                         </Button>
-                        <Button type="submit" disabled={isLoading}>
+                        <Button 
+                          type="submit" 
+                          disabled={isLoading}
+                          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0"
+                        >
                           {isLoading ? "Updating..." : "Update Password"}
                         </Button>
                       </DialogFooter>
@@ -538,23 +580,23 @@ const SettingsDialog = ({
           </div>
 
           {/* Change Email */}
-          <div>
-            <h3 className="font-medium mb-1">Email Address</h3>
-            <p className="text-sm text-muted-foreground mb-2">
+          <div className="p-4 bg-white/5 rounded-xl border border-white/10 transition-all duration-300 hover:bg-white/10">
+            <h3 className="font-medium mb-1 text-white/90">Email Address</h3>
+            <p className="text-sm text-white/60 mb-3">
               Update your email address
             </p>
             <Dialog open={emailChangeOpen} onOpenChange={setEmailChangeOpen}>
               <Button
                 variant="outline"
                 onClick={() => setEmailChangeOpen(true)}
-                className="w-full"
+                className="w-full border-white/30 bg-white/10 hover:bg-white/20 text-white"
               >
                 Change Email
               </Button>
-              <DialogContent>
+              <DialogContent className="bg-black/90 backdrop-blur-xl border border-white/20 rounded-2xl">
                 <DialogHeader>
-                  <DialogTitle>Change Email Address</DialogTitle>
-                  <DialogDescription>
+                  <DialogTitle className="text-xl font-bold text-white">Change Email Address</DialogTitle>
+                  <DialogDescription className="text-white/70">
                     Enter your new email address. You'll need to verify this
                     email before the change takes effect.
                   </DialogDescription>
@@ -600,11 +642,15 @@ const SettingsDialog = ({
                       name="newEmail"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>New Email Address</FormLabel>
+                          <FormLabel className="text-white/90">New Email Address</FormLabel>
                           <FormControl>
-                            <Input type="email" {...field} />
+                            <Input 
+                              type="email" 
+                              {...field} 
+                              className="bg-black/40 border-white/20 focus:border-purple-400/50 focus:ring-purple-400/20 text-white placeholder:text-white/50"
+                            />
                           </FormControl>
-                          <FormMessage />
+                          <FormMessage className="text-red-400" />
                         </FormItem>
                       )}
                     />
@@ -615,15 +661,16 @@ const SettingsDialog = ({
                         name="password"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>New Password</FormLabel>
+                            <FormLabel className="text-white/90">New Password</FormLabel>
                             <FormControl>
                               <Input
                                 type="password"
                                 placeholder="Set a new password for future logins"
                                 {...field}
+                                className="bg-black/40 border-white/20 focus:border-purple-400/50 focus:ring-purple-400/20 text-white placeholder:text-white/50"
                               />
                             </FormControl>
-                            <FormMessage />
+                            <FormMessage className="text-red-400" />
                           </FormItem>
                         )}
                       />
@@ -635,10 +682,15 @@ const SettingsDialog = ({
                         type="button"
                         onClick={() => setEmailChangeOpen(false)}
                         disabled={isEmailLoading}
+                        className="border-white/30 bg-white/10 hover:bg-white/20 text-white"
                       >
                         Cancel
                       </Button>
-                      <Button type="submit" disabled={isEmailLoading}>
+                      <Button 
+                        type="submit" 
+                        disabled={isEmailLoading}
+                        className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0"
+                      >
                         {isEmailLoading ? "Updating..." : "Update Email"}
                       </Button>
                     </DialogFooter>
@@ -649,8 +701,13 @@ const SettingsDialog = ({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
+        <DialogFooter className="pt-6 border-t border-white/10">
+          <Button 
+            onClick={() => onOpenChange(false)}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 px-6 py-2 rounded-xl font-semibold transition-all duration-300"
+          >
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

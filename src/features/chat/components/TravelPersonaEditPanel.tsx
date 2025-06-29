@@ -1,18 +1,17 @@
 /**
- * Travel Persona Edit Panel Component
- *
- * This component provides a slide-out panel for editing travel preferences
- * directly within the chat interface. It's a simplified version of the
- * full TravelPreferencesPanel, optimized for the chat context.
+ * Travel Persona Edit Panel (Complete Chat-Friendly Version)
+ * 
+ * This component provides a complete slide-out panel for editing SmartTravel-Profile
+ * from within the chat interface. It includes all fields from the dashboard version
+ * in a minimal, chat-friendly design.
  */
 
 import React, { useEffect } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/ui/atoms/Button";
+import { Input } from "@/ui/atoms/Input";
 import {
   Form,
   FormControl,
@@ -23,7 +22,6 @@ import {
 } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "@/hooks/use-toast";
 import {
   Plane,
@@ -31,12 +29,18 @@ import {
   Building,
   Tent,
   Palmtree,
-  Map,
   Euro,
-  Clock,
-  Calendar,
-  Settings,
+  _Settings,
   X,
+  Sparkles,
+  MapPin,
+  Clock,
+  _Calendar,
+  Compass,
+  Star,
+  Navigation,
+  Home,
+  _DollarSign,
 } from "lucide-react";
 import {
   useTravelPreferencesIntegration,
@@ -45,37 +49,51 @@ import {
 import {
   TravelDurationType,
   DateFlexibilityType,
+  PlanningIntent,
   AccommodationType,
+  ComfortPreference,
+  LocationPreference,
   FlightType,
 } from "@/hooks/integration/useTravelPreferencesIntegration";
+import { CheckboxCard } from "@/ui/molecules/CheckboxCard";
 
-// Reuse the same schema from the travel preferences feature
+// Complete schema for chat-friendly version with all fields
 const travelPersonaSchema = z.object({
-  // 1. Budget Range
+  // Budget
   budgetRange: z.object({
     min: z.number().min(1),
     max: z.number().min(1),
   }),
-
-  // 2. Budget Flexibility
   budgetFlexibility: z.number().min(0).max(25),
-
-  // 3. Travel Duration
+  
+  // Trip Duration & Dates
   travelDuration: z.nativeEnum(TravelDurationType),
-
-  // 4. Date Flexibility
   dateFlexibility: z.nativeEnum(DateFlexibilityType),
-
-  // 5. Accommodation Types
+  customDateFlexibility: z.string().optional(),
+  
+  // Planning Intent
+  planningIntent: z.nativeEnum(PlanningIntent),
+  
+  // Accommodation
   accommodationTypes: z
     .array(z.nativeEnum(AccommodationType))
     .min(1, "Please select at least one accommodation type"),
-
-  // 6. Flight Preferences
+  accommodationComfort: z
+    .array(z.nativeEnum(ComfortPreference))
+    .min(1, "Please select at least one comfort preference"),
+  comfortLevel: z.enum(["budget", "standard", "premium", "luxury"]),
+  
+  // Location
+  locationPreference: z.nativeEnum(LocationPreference),
+  cityDistancePreference: z.enum(["very-close", "up-to-5km", "up-to-10km", "more-than-10km"]).optional(),
+  
+  // Flight
   flightType: z.nativeEnum(FlightType),
   preferCheaperWithStopover: z.boolean(),
-
-  // 7. Departure Location
+  priceVsConvenience: z.enum(["price", "balanced", "convenience"]),
+  
+  // Departure
+  departureCountry: z.string().min(1, "Please enter a departure country"),
   departureCity: z.string().min(1, "Please enter a departure city"),
 });
 
@@ -87,42 +105,36 @@ interface TravelPersonaEditPanelProps {
 }
 
 /**
- * A simple checkbox card component for multi-select options
+ * Simple option button component
  */
-const SimpleCheckboxCard = ({
-  checked,
-  onChange,
-  icon: Icon,
-  label,
+const OptionButton = ({
+  selected,
+  onClick,
+  children,
+  className = "",
 }: {
-  value: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  icon: React.ElementType;
-  label: string;
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  className?: string;
 }) => {
   return (
-    <div
-      className={`
-        flex items-center p-3 rounded-md border cursor-pointer transition-colors
-        ${
-          checked
-            ? "bg-planora-accent-purple/10 border-planora-accent-purple/50"
-            : "bg-white/5 border-white/10 hover:bg-white/10"
-        }
-      `}
-      onClick={() => onChange(!checked)}
+    <button
+      type="button"
+      onClick={onClick}
+      className={`p-3 rounded-xl border transition-all duration-300 text-center ${
+        selected
+          ? "bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-400/40 text-white"
+          : "bg-white/5 border-white/20 text-white/80 hover:bg-white/10"
+      } ${className}`}
     >
-      <Icon
-        className={`h-5 w-5 mr-3 ${checked ? "text-planora-accent-purple" : "text-white/60"}`}
-      />
-      <span className={checked ? "text-white" : "text-white/80"}>{label}</span>
-    </div>
+      {children}
+    </button>
   );
 };
 
 /**
- * Travel Persona Edit Panel Component
+ * Travel Persona Edit Panel Component (Complete Chat-Friendly Version)
  */
 export const TravelPersonaEditPanel = ({
   isOpen,
@@ -139,12 +151,24 @@ export const TravelPersonaEditPanel = ({
       budgetFlexibility: 10,
       travelDuration: TravelDurationType.WEEK,
       dateFlexibility: DateFlexibilityType.FLEXIBLE_FEW,
+      customDateFlexibility: "",
+      planningIntent: PlanningIntent.EXPLORING,
       accommodationTypes: [AccommodationType.HOTEL],
+      accommodationComfort: [ComfortPreference.PRIVATE_ROOM],
+      comfortLevel: "standard",
+      locationPreference: LocationPreference.ANYWHERE,
+      cityDistancePreference: undefined,
       flightType: FlightType.DIRECT,
       preferCheaperWithStopover: false,
-      departureCity: "Berlin",
+      priceVsConvenience: "balanced",
+      departureCountry: "",
+      departureCity: "",
     },
   });
+
+  // Watch location preference to show/hide city distance
+  const locationPreference = form.watch("locationPreference");
+  const travelDuration = form.watch("travelDuration");
 
   // Load preferences when available
   useEffect(() => {
@@ -154,13 +178,21 @@ export const TravelPersonaEditPanel = ({
           min: preferences.budgetRange.min,
           max: preferences.budgetRange.max,
         },
-        budgetFlexibility: preferences.budgetFlexibility,
-        travelDuration: preferences.travelDuration,
-        dateFlexibility: preferences.dateFlexibility,
-        accommodationTypes: preferences.accommodationTypes,
-        flightType: preferences.flightType,
-        preferCheaperWithStopover: preferences.preferCheaperWithStopover,
-        departureCity: preferences.departureCity,
+        budgetFlexibility: preferences.budgetFlexibility || 10,
+        travelDuration: preferences.travelDuration || TravelDurationType.WEEK,
+        dateFlexibility: preferences.dateFlexibility || DateFlexibilityType.FLEXIBLE_FEW,
+        customDateFlexibility: preferences.customDateFlexibility || "",
+        planningIntent: preferences.planningIntent || PlanningIntent.EXPLORING,
+        accommodationTypes: preferences.accommodationTypes || [AccommodationType.HOTEL],
+        accommodationComfort: preferences.accommodationComfort || [ComfortPreference.PRIVATE_ROOM],
+        comfortLevel: preferences.comfortLevel || "standard",
+        locationPreference: preferences.locationPreference || LocationPreference.ANYWHERE,
+        cityDistancePreference: preferences.cityDistancePreference,
+        flightType: preferences.flightType || FlightType.DIRECT,
+        preferCheaperWithStopover: preferences.preferCheaperWithStopover || false,
+        priceVsConvenience: "balanced", // Default since this might not exist in old preferences
+        departureCountry: preferences.departureCountry || "",
+        departureCity: preferences.departureCity || "",
       });
     }
   }, [preferences, form]);
@@ -169,34 +201,41 @@ export const TravelPersonaEditPanel = ({
   const onSubmit = async (data: TravelPersonaFormValues) => {
     try {
       if (preferences?.userId) {
-        // Convert form values to TravelPreferences format
         const updatedPreferences: TravelPreferences = {
           ...preferences,
           budgetRange: {
-            min: data.budgetRange.min || 500, // Ensure min is never undefined
-            max: data.budgetRange.max || 1000, // Ensure max is never undefined
+            min: data.budgetRange.min || 500,
+            max: data.budgetRange.max || 1000,
           },
           budgetFlexibility: data.budgetFlexibility,
           travelDuration: data.travelDuration,
           dateFlexibility: data.dateFlexibility,
+          customDateFlexibility: data.customDateFlexibility,
+          planningIntent: data.planningIntent,
           accommodationTypes: data.accommodationTypes,
+          accommodationComfort: data.accommodationComfort,
+          comfortLevel: data.comfortLevel,
+          locationPreference: data.locationPreference,
+          cityDistancePreference: data.cityDistancePreference,
           flightType: data.flightType,
           preferCheaperWithStopover: data.preferCheaperWithStopover,
+          departureCountry: data.departureCountry,
           departureCity: data.departureCity,
         };
 
         await savePreferences(updatedPreferences);
         toast({
-          title: "Travel preferences updated",
-          description: "Your travel persona has been updated successfully.",
+          title: "SmartTravel-Profile updated",
+          description: "Your preferences have been saved successfully.",
+          variant: "default",
         });
         onClose();
       }
     } catch (error) {
-      console.error("Error saving travel preferences:", error);
+      console.error("Error saving SmartTravel-Profile:", error);
       toast({
         title: "Error",
-        description: "Failed to update travel preferences. Please try again.",
+        description: "Failed to update SmartTravel-Profile. Please try again.",
         variant: "destructive",
       });
     }
@@ -205,44 +244,56 @@ export const TravelPersonaEditPanel = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-planora-purple-dark border-l border-white/10 shadow-xl overflow-y-auto">
-      <div className="p-4 border-b border-white/10 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Settings className="h-5 w-5 text-planora-accent-purple" />
-          <h2 className="text-lg font-medium">SmartTravel-Profile</h2>
+    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-black/40 backdrop-blur-2xl border-l border-white/20 shadow-2xl overflow-y-auto">
+      {/* Background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-pink-500/10 pointer-events-none"></div>
+      
+      {/* Header */}
+      <div className="sticky top-0 z-20 p-6 border-b border-white/20 bg-black/40 backdrop-blur-xl">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl">
+              <Sparkles className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold bg-gradient-to-r from-white via-purple-100 to-pink-100 bg-clip-text text-transparent">
+                SmartTravel-Profile
+              </h2>
+              <p className="text-white/60 text-sm">Complete travel preferences</p>
+            </div>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onClose}
+            className="text-white/70 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-300"
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="h-5 w-5" />
-        </Button>
       </div>
 
-      <div className="p-4">
-        <p className="text-white/60 text-sm mb-4">
-          Customize your travel preferences to get personalized recommendations
-          in your conversation.
-        </p>
-
+      {/* Content */}
+      <div className="relative z-10 p-6 space-y-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            
             {/* Budget Section */}
-            <Card className="bg-card/20 backdrop-blur-sm border-white/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-md flex items-center gap-2">
-                  <Euro className="h-4 w-4 text-planora-accent-purple" />
-                  Budget Preferences
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Budget Range */}
-                <FormField
-                  control={form.control}
-                  name="budgetRange"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white/80">
-                        Budget Range (€)
-                      </FormLabel>
-                      <div className="flex items-center gap-2">
+            <div className="bg-white/5 backdrop-blur-sm border border-white/20 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Euro className="h-5 w-5 text-purple-400" />
+                <h3 className="text-lg font-semibold text-white">Budget</h3>
+              </div>
+              
+              <FormField
+                control={form.control}
+                name="budgetRange"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white/70 text-sm">Budget Range (€)</FormLabel>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <FormLabel className="text-white/50 text-xs">Min</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -250,13 +301,15 @@ export const TravelPersonaEditPanel = ({
                             onChange={(e) =>
                               field.onChange({
                                 ...field.value,
-                                min: parseInt(e.target.value),
+                                min: parseInt(e.target.value) || 0,
                               })
                             }
-                            className="bg-white/5 border-white/10"
+                            className="bg-white/10 border-white/20 text-white rounded-xl"
                           />
                         </FormControl>
-                        <span className="text-white/60">to</span>
+                      </div>
+                      <div>
+                        <FormLabel className="text-white/50 text-xs">Max</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -264,488 +317,493 @@ export const TravelPersonaEditPanel = ({
                             onChange={(e) =>
                               field.onChange({
                                 ...field.value,
-                                max: parseInt(e.target.value),
+                                max: parseInt(e.target.value) || 0,
                               })
                             }
-                            className="bg-white/5 border-white/10"
+                            className="bg-white/10 border-white/20 text-white rounded-xl"
                           />
                         </FormControl>
                       </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                {/* Budget Flexibility */}
+              <FormField
+                control={form.control}
+                name="budgetFlexibility"
+                render={({ field }) => (
+                  <FormItem className="mt-4">
+                    <FormLabel className="text-white/70 text-sm">
+                      Budget Flexibility: {field.value}%
+                    </FormLabel>
+                    <FormControl>
+                      <Slider
+                        value={[field.value]}
+                        min={0}
+                        max={25}
+                        step={5}
+                        onValueChange={(value) => field.onChange(value[0])}
+                        className="py-3"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Trip Duration & Date Flexibility */}
+            <div className="bg-white/5 backdrop-blur-sm border border-white/20 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-purple-400" />
+                <h3 className="text-lg font-semibold text-white">Trip Duration & Dates</h3>
+              </div>
+              
+              <FormField
+                control={form.control}
+                name="travelDuration"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white/70 text-sm">Preferred Trip Duration</FormLabel>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { value: TravelDurationType.WEEKEND, label: "Weekend" },
+                        { value: TravelDurationType.WEEK, label: "Week" },
+                        { value: TravelDurationType.TWO_WEEKS, label: "Two Weeks" },
+                        { value: TravelDurationType.LONGER, label: "Longer" },
+                      ].map((option) => (
+                        <OptionButton
+                          key={option.value}
+                          selected={field.value === option.value}
+                          onClick={() => field.onChange(option.value)}
+                        >
+                          <span className="text-sm font-medium">{option.label}</span>
+                        </OptionButton>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="dateFlexibility"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white/70 text-sm">Date Flexibility</FormLabel>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { value: DateFlexibilityType.FIXED, label: "Fixed Dates" },
+                        { value: DateFlexibilityType.FLEXIBLE_FEW, label: "± 3 Days" },
+                        { value: DateFlexibilityType.FLEXIBLE_WEEK, label: "± 1 Week" },
+                        { value: DateFlexibilityType.VERY_FLEXIBLE, label: "Very Flexible" },
+                      ].map((option) => (
+                        <OptionButton
+                          key={option.value}
+                          selected={field.value === option.value}
+                          onClick={() => field.onChange(option.value)}
+                        >
+                          <span className="text-sm font-medium">{option.label}</span>
+                        </OptionButton>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {travelDuration === TravelDurationType.LONGER && (
                 <FormField
                   control={form.control}
-                  name="budgetFlexibility"
+                  name="customDateFlexibility"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white/80">
-                        Budget Flexibility: {field.value}%
-                      </FormLabel>
+                      <FormLabel className="text-white/70 text-sm">Custom Date Flexibility</FormLabel>
                       <FormControl>
-                        <Slider
-                          value={[field.value]}
-                          min={0}
-                          max={25}
-                          step={5}
-                          onValueChange={(value) => field.onChange(value[0])}
-                          className="py-4"
+                        <Input
+                          {...field}
+                          placeholder="e.g., 3-6 months"
+                          className="bg-white/10 border-white/20 text-white rounded-xl"
                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </CardContent>
-            </Card>
+              )}
+            </div>
 
-            {/* Trip Duration Section */}
-            <Card className="bg-card/20 backdrop-blur-sm border-white/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-md flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-planora-accent-purple" />
-                  Trip Duration
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <FormField
-                  control={form.control}
-                  name="travelDuration"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <RadioGroup
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          className="grid grid-cols-2 gap-2"
+            {/* Planning Intent */}
+            <div className="bg-white/5 backdrop-blur-sm border border-white/20 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Compass className="h-5 w-5 text-purple-400" />
+                <h3 className="text-lg font-semibold text-white">Planning Intent</h3>
+              </div>
+              
+              <FormField
+                control={form.control}
+                name="planningIntent"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="grid grid-cols-1 gap-3">
+                      {[
+                        { value: PlanningIntent.EXPLORING, label: "Just Exploring Ideas", description: "Gathering inspiration for future travel" },
+                        { value: PlanningIntent.PLANNING, label: "Ready to Plan a Trip", description: "Have specific dates and want to start booking" },
+                      ].map((option) => (
+                        <OptionButton
+                          key={option.value}
+                          selected={field.value === option.value}
+                          onClick={() => field.onChange(option.value)}
+                          className="text-left"
                         >
-                          <div
-                            className={`border rounded-md p-3 cursor-pointer ${field.value === "weekend" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
-                          >
-                            <RadioGroupItem
-                              value="weekend"
-                              id="weekend"
-                              className="sr-only"
-                            />
-                            <label
-                              htmlFor="weekend"
-                              className="flex items-center cursor-pointer"
-                            >
-                              <span
-                                className={`${field.value === "weekend" ? "text-white" : "text-white/80"}`}
-                              >
-                                Weekend
-                              </span>
-                            </label>
+                          <div>
+                            <div className="font-medium">{option.label}</div>
+                            <div className="text-xs text-white/60 mt-1">{option.description}</div>
                           </div>
+                        </OptionButton>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-                          <div
-                            className={`border rounded-md p-3 cursor-pointer ${field.value === "week" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
-                          >
-                            <RadioGroupItem
-                              value="week"
-                              id="week"
-                              className="sr-only"
-                            />
-                            <label
-                              htmlFor="week"
-                              className="flex items-center cursor-pointer"
-                            >
-                              <span
-                                className={`${field.value === "week" ? "text-white" : "text-white/80"}`}
-                              >
-                                Week
-                              </span>
-                            </label>
-                          </div>
+            {/* Accommodation Preferences */}
+            <div className="bg-white/5 backdrop-blur-sm border border-white/20 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Hotel className="h-5 w-5 text-purple-400" />
+                <h3 className="text-lg font-semibold text-white">Accommodation</h3>
+              </div>
+              
+              {/* Accommodation Types */}
+              <FormField
+                control={form.control}
+                name="accommodationTypes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white/70 text-sm">Accommodation Types</FormLabel>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { value: AccommodationType.HOTEL, icon: Hotel, label: "Hotel" },
+                        { value: AccommodationType.APARTMENT, icon: Building, label: "Apartment" },
+                        { value: AccommodationType.HOSTEL, icon: Tent, label: "Hostel" },
+                        { value: AccommodationType.RESORT, icon: Palmtree, label: "Resort" },
+                      ].map((accommodation) => (
+                        <CheckboxCard
+                          key={accommodation.value}
+                          variant="boolean"
+                          checked={field.value.includes(accommodation.value)}
+                          onChange={(checked) => {
+                            const newValue = checked
+                              ? [...field.value, accommodation.value]
+                              : field.value.filter((v) => v !== accommodation.value);
+                            field.onChange(newValue);
+                          }}
+                          icon={accommodation.icon}
+                          label={accommodation.label}
+                        />
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                          <div
-                            className={`border rounded-md p-3 cursor-pointer ${field.value === "two-weeks" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
-                          >
-                            <RadioGroupItem
-                              value="two-weeks"
-                              id="two-weeks"
-                              className="sr-only"
-                            />
-                            <label
-                              htmlFor="two-weeks"
-                              className="flex items-center cursor-pointer"
-                            >
-                              <span
-                                className={`${field.value === "two-weeks" ? "text-white" : "text-white/80"}`}
-                              >
-                                Two Weeks
-                              </span>
-                            </label>
-                          </div>
+              {/* Comfort Preferences */}
+              <FormField
+                control={form.control}
+                name="accommodationComfort"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white/70 text-sm">Comfort Preferences</FormLabel>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { value: ComfortPreference.PRIVATE_ROOM, icon: Home, label: "Private Room" },
+                        { value: ComfortPreference.PRIVATE_BATHROOM, icon: Home, label: "Private Bathroom" },
+                        { value: ComfortPreference.SHARED_ROOM, icon: Building, label: "Shared Room" },
+                        { value: ComfortPreference.SHARED_BATHROOM, icon: Building, label: "Shared Bathroom" },
+                        { value: ComfortPreference.LUXURY, icon: Star, label: "Luxury" },
+                      ].map((comfort) => (
+                        <CheckboxCard
+                          key={comfort.value}
+                          variant="boolean"
+                          checked={field.value.includes(comfort.value)}
+                          onChange={(checked) => {
+                            const newValue = checked
+                              ? [...field.value, comfort.value]
+                              : field.value.filter((v) => v !== comfort.value);
+                            field.onChange(newValue);
+                          }}
+                          icon={comfort.icon}
+                          label={comfort.label}
+                        />
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                          <div
-                            className={`border rounded-md p-3 cursor-pointer ${field.value === "longer" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
-                          >
-                            <RadioGroupItem
-                              value="longer"
-                              id="longer"
-                              className="sr-only"
-                            />
-                            <label
-                              htmlFor="longer"
-                              className="flex items-center cursor-pointer"
-                            >
-                              <span
-                                className={`${field.value === "longer" ? "text-white" : "text-white/80"}`}
-                              >
-                                Longer
-                              </span>
-                            </label>
-                          </div>
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Date Flexibility */}
-            <Card className="bg-card/20 backdrop-blur-sm border-white/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-md flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-planora-accent-purple" />
-                  Date Flexibility
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <FormField
-                  control={form.control}
-                  name="dateFlexibility"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <RadioGroup
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          className="space-y-2"
+              {/* Comfort Level */}
+              <FormField
+                control={form.control}
+                name="comfortLevel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white/70 text-sm">Overall Comfort Level</FormLabel>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { value: "budget", label: "Budget", icon: "💰" },
+                        { value: "standard", label: "Standard", icon: "⭐" },
+                        { value: "premium", label: "Premium", icon: "✨" },
+                        { value: "luxury", label: "Luxury", icon: "💎" },
+                      ].map((option) => (
+                        <OptionButton
+                          key={option.value}
+                          selected={field.value === option.value}
+                          onClick={() => field.onChange(option.value)}
                         >
-                          <div
-                            className={`border rounded-md p-3 cursor-pointer ${field.value === "fixed" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
-                          >
-                            <RadioGroupItem
-                              value="fixed"
-                              id="fixed"
-                              className="sr-only"
-                            />
-                            <label
-                              htmlFor="fixed"
-                              className="flex items-center cursor-pointer"
-                            >
-                              <span
-                                className={`${field.value === "fixed" ? "text-white" : "text-white/80"}`}
-                              >
-                                Fixed Dates
-                              </span>
-                            </label>
-                          </div>
+                          <span className="text-lg mr-2">{option.icon}</span>
+                          <span className="text-sm font-medium">{option.label}</span>
+                        </OptionButton>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-                          <div
-                            className={`border rounded-md p-3 cursor-pointer ${field.value === "flexible-few" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
-                          >
-                            <RadioGroupItem
-                              value="flexible-few"
-                              id="flexible-few"
-                              className="sr-only"
-                            />
-                            <label
-                              htmlFor="flexible-few"
-                              className="flex items-center cursor-pointer"
-                            >
-                              <span
-                                className={`${field.value === "flexible-few" ? "text-white" : "text-white/80"}`}
-                              >
-                                ± 3 Days
-                              </span>
-                            </label>
+            {/* Location Preferences */}
+            <div className="bg-white/5 backdrop-blur-sm border border-white/20 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Navigation className="h-5 w-5 text-purple-400" />
+                <h3 className="text-lg font-semibold text-white">Location Preferences</h3>
+              </div>
+              
+              <FormField
+                control={form.control}
+                name="locationPreference"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white/70 text-sm">Preferred Location Type</FormLabel>
+                    <div className="grid grid-cols-1 gap-3">
+                      {[
+                        { value: LocationPreference.CENTER, label: "City Center", description: "Close to main attractions and city life" },
+                        { value: LocationPreference.BEACH, label: "Beach/Waterfront", description: "Near beaches or waterfront areas" },
+                        { value: LocationPreference.ANYWHERE, label: "Anywhere", description: "No specific location preference" },
+                      ].map((option) => (
+                        <OptionButton
+                          key={option.value}
+                          selected={field.value === option.value}
+                          onClick={() => field.onChange(option.value)}
+                          className="text-left"
+                        >
+                          <div>
+                            <div className="font-medium">{option.label}</div>
+                            <div className="text-xs text-white/60 mt-1">{option.description}</div>
                           </div>
+                        </OptionButton>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                          <div
-                            className={`border rounded-md p-3 cursor-pointer ${field.value === "flexible-week" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
-                          >
-                            <RadioGroupItem
-                              value="flexible-week"
-                              id="flexible-week"
-                              className="sr-only"
-                            />
-                            <label
-                              htmlFor="flexible-week"
-                              className="flex items-center cursor-pointer"
-                            >
-                              <span
-                                className={`${field.value === "flexible-week" ? "text-white" : "text-white/80"}`}
-                              >
-                                ± 1 Week
-                              </span>
-                            </label>
-                          </div>
-
-                          <div
-                            className={`border rounded-md p-3 cursor-pointer ${field.value === "very-flexible" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
-                          >
-                            <RadioGroupItem
-                              value="very-flexible"
-                              id="very-flexible"
-                              className="sr-only"
-                            />
-                            <label
-                              htmlFor="very-flexible"
-                              className="flex items-center cursor-pointer"
-                            >
-                              <span
-                                className={`${field.value === "very-flexible" ? "text-white" : "text-white/80"}`}
-                              >
-                                Very Flexible
-                              </span>
-                            </label>
-                          </div>
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Accommodation Types */}
-            <Card className="bg-card/20 backdrop-blur-sm border-white/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-md flex items-center gap-2">
-                  <Hotel className="h-4 w-4 text-planora-accent-purple" />
-                  Accommodation Types
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+              {locationPreference === LocationPreference.CENTER && (
                 <FormField
                   control={form.control}
-                  name="accommodationTypes"
+                  name="cityDistancePreference"
                   render={({ field }) => (
                     <FormItem>
+                      <FormLabel className="text-white/70 text-sm">Distance from City Center</FormLabel>
                       <div className="grid grid-cols-2 gap-2">
-                        <SimpleCheckboxCard
-                          value={AccommodationType.HOTEL}
-                          checked={field.value.includes(
-                            AccommodationType.HOTEL,
-                          )}
-                          onChange={(checked) => {
-                            const newValue = checked
-                              ? [...field.value, AccommodationType.HOTEL]
-                              : field.value.filter(
-                                  (v) => v !== AccommodationType.HOTEL,
-                                );
-                            field.onChange(newValue);
-                          }}
-                          icon={Hotel}
-                          label="Hotel"
-                        />
-
-                        <SimpleCheckboxCard
-                          value={AccommodationType.APARTMENT}
-                          checked={field.value.includes(
-                            AccommodationType.APARTMENT,
-                          )}
-                          onChange={(checked) => {
-                            const newValue = checked
-                              ? [...field.value, AccommodationType.APARTMENT]
-                              : field.value.filter(
-                                  (v) => v !== AccommodationType.APARTMENT,
-                                );
-                            field.onChange(newValue);
-                          }}
-                          icon={Building}
-                          label="Apartment"
-                        />
-
-                        <SimpleCheckboxCard
-                          value={AccommodationType.HOSTEL}
-                          checked={field.value.includes(
-                            AccommodationType.HOSTEL,
-                          )}
-                          onChange={(checked) => {
-                            const newValue = checked
-                              ? [...field.value, AccommodationType.HOSTEL]
-                              : field.value.filter(
-                                  (v) => v !== AccommodationType.HOSTEL,
-                                );
-                            field.onChange(newValue);
-                          }}
-                          icon={Tent}
-                          label="Hostel"
-                        />
-
-                        <SimpleCheckboxCard
-                          value={AccommodationType.RESORT}
-                          checked={field.value.includes(
-                            AccommodationType.RESORT,
-                          )}
-                          onChange={(checked) => {
-                            const newValue = checked
-                              ? [...field.value, AccommodationType.RESORT]
-                              : field.value.filter(
-                                  (v) => v !== AccommodationType.RESORT,
-                                );
-                            field.onChange(newValue);
-                          }}
-                          icon={Palmtree}
-                          label="Resort"
-                        />
+                        {[
+                          { value: "very-close", label: "Very Close" },
+                          { value: "up-to-5km", label: "Up to 5km" },
+                          { value: "up-to-10km", label: "Up to 10km" },
+                          { value: "more-than-10km", label: "More than 10km" },
+                        ].map((option) => (
+                          <OptionButton
+                            key={option.value}
+                            selected={field.value === option.value}
+                            onClick={() => field.onChange(option.value)}
+                          >
+                            <span className="text-sm font-medium">{option.label}</span>
+                          </OptionButton>
+                        ))}
                       </div>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </CardContent>
-            </Card>
+              )}
+            </div>
 
             {/* Flight Preferences */}
-            <Card className="bg-card/20 backdrop-blur-sm border-white/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-md flex items-center gap-2">
-                  <Plane className="h-4 w-4 text-planora-accent-purple" />
-                  Flight Preferences
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="flightType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white/80">
-                        Flight Type
-                      </FormLabel>
-                      <FormControl>
-                        <RadioGroup
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          className="flex gap-4"
+            <div className="bg-white/5 backdrop-blur-sm border border-white/20 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Plane className="h-5 w-5 text-purple-400" />
+                <h3 className="text-lg font-semibold text-white">Flight Preferences</h3>
+              </div>
+              
+              <FormField
+                control={form.control}
+                name="flightType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white/70 text-sm">Flight Type</FormLabel>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { value: FlightType.DIRECT, label: "Direct Flights" },
+                        { value: FlightType.ANY, label: "Any Flights" },
+                      ].map((option) => (
+                        <OptionButton
+                          key={option.value}
+                          selected={field.value === option.value}
+                          onClick={() => field.onChange(option.value)}
                         >
-                          <div
-                            className={`border rounded-md px-4 py-2 cursor-pointer ${field.value === "direct" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
-                          >
-                            <RadioGroupItem
-                              value="direct"
-                              id="direct"
-                              className="sr-only"
-                            />
-                            <label
-                              htmlFor="direct"
-                              className="flex items-center cursor-pointer"
-                            >
-                              <span
-                                className={`${field.value === "direct" ? "text-white" : "text-white/80"}`}
-                              >
-                                Direct
-                              </span>
-                            </label>
-                          </div>
+                          <span className="text-sm font-medium">{option.label}</span>
+                        </OptionButton>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                          <div
-                            className={`border rounded-md px-4 py-2 cursor-pointer ${field.value === "any" ? "bg-planora-accent-purple/10 border-planora-accent-purple/50" : "bg-white/5 border-white/10"}`}
-                          >
-                            <RadioGroupItem
-                              value="any"
-                              id="any"
-                              className="sr-only"
-                            />
-                            <label
-                              htmlFor="any"
-                              className="flex items-center cursor-pointer"
-                            >
-                              <span
-                                className={`${field.value === "any" ? "text-white" : "text-white/80"}`}
-                              >
-                                Any
-                              </span>
-                            </label>
+              <FormField
+                control={form.control}
+                name="priceVsConvenience"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white/70 text-sm">Price vs Convenience</FormLabel>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { value: "price", label: "Price", icon: "💰" },
+                        { value: "balanced", label: "Balanced", icon: "⚖️" },
+                        { value: "convenience", label: "Convenience", icon: "⚡" },
+                      ].map((option) => (
+                        <OptionButton
+                          key={option.value}
+                          selected={field.value === option.value}
+                          onClick={() => field.onChange(option.value)}
+                        >
+                          <div className="text-center">
+                            <div className="text-lg mb-1">{option.icon}</div>
+                            <div className="text-xs font-medium">{option.label}</div>
                           </div>
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        </OptionButton>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <FormField
-                  control={form.control}
-                  name="preferCheaperWithStopover"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center space-x-2 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          className="data-[state=checked]:bg-planora-accent-purple"
-                        />
-                      </FormControl>
-                      <FormLabel className="text-white/80 cursor-pointer">
-                        Prefer cheaper flights with stopovers
-                      </FormLabel>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
+              <FormField
+                control={form.control}
+                name="preferCheaperWithStopover"
+                render={({ field }) => (
+                  <FormItem className="flex items-center space-x-3 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="data-[state=checked]:bg-purple-500"
+                      />
+                    </FormControl>
+                    <FormLabel className="text-white/80 cursor-pointer">
+                      Prefer cheaper flights with stopovers
+                    </FormLabel>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             {/* Departure Location */}
-            <Card className="bg-card/20 backdrop-blur-sm border-white/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-md flex items-center gap-2">
-                  <Map className="h-4 w-4 text-planora-accent-purple" />
-                  Departure Location
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+            <div className="bg-white/5 backdrop-blur-sm border border-white/20 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-purple-400" />
+                <h3 className="text-lg font-semibold text-white">Departure Location</h3>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="departureCountry"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white/70 text-sm">Country</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="e.g., Germany"
+                          className="bg-white/10 border-white/20 text-white rounded-xl"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="departureCity"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white/80">
-                        Departure City
-                      </FormLabel>
+                      <FormLabel className="text-white/70 text-sm">City</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           placeholder="e.g., Berlin"
-                          className="bg-white/5 border-white/10"
+                          className="bg-white/10 border-white/20 text-white rounded-xl"
                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                className="border-white/10 bg-white/5"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="bg-gradient-to-r from-planora-accent-purple to-planora-accent-pink hover:opacity-90"
-              >
-                {isLoading ? "Saving..." : "Save Changes"}
-              </Button>
+            {/* Action Buttons */}
+            <div className="sticky bottom-0 bg-black/40 backdrop-blur-xl border-t border-white/20 p-6 -mx-6 -mb-6">
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onClose}
+                  className="flex-1 bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl transition-all duration-300"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 rounded-xl font-semibold transition-all duration-300 disabled:opacity-50"
+                >
+                  {isLoading ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+              
+              {/* Back to Dashboard Button */}
+              <div className="mt-4 flex justify-center">
+                <Button
+                  type="button"
+                  onClick={() => window.location.href = "/dashboard"}
+                  className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0 px-6 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2"
+                >
+                  <Home className="h-4 w-4" />
+                  <span>Back to Dashboard</span>
+                </Button>
+              </div>
             </div>
           </form>
         </Form>
